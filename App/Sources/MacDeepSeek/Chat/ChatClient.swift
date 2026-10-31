@@ -5,6 +5,10 @@ import Foundation
 @MainActor
 final class ChatClient: ObservableObject {
     @Published private(set) var busy = false
+    /// Gets a token count per streamed delta, for the live speed chart.
+    weak var metrics: LiveMetrics?
+    /// The model the engine runs, for the system prompt.
+    var modelName = "DeepSeek-V4.1-Flash"
     private var task: Task<Void, Never>?
     private let maxToolRounds = 8
 
@@ -88,7 +92,7 @@ final class ChatClient: ObservableObject {
         let df = DateFormatter()
         df.locale = Locale(identifier: "nl_NL")
         df.dateStyle = .full
-        var system = "Je bent DeepSeek-V4.1-Flash, lokaal draaiend op de Mac van de gebruiker via MacDeepSeek. Vandaag is het \(df.string(from: Date()))."
+        var system = "Je bent \(modelName), lokaal draaiend op de Mac van de gebruiker via MacDeepSeek. Vandaag is het \(df.string(from: Date()))."
         if s.webSearch {
             system += " Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL."
         }
@@ -130,12 +134,13 @@ final class ChatClient: ObservableObject {
     private func stream(history: [ChatMessage], baseURL: URL, onDelta: (Delta) -> Void) async throws -> StreamResult {
         let s = Settings.shared
         var body: [String: Any] = [
-            "model": "deepseek-v4.1-flash",
+            "model": modelName,
             "messages": requestMessages(history),
             "stream": true,
             "temperature": s.temperature,
             "top_p": 1.0,
-            "chat_template_kwargs": ["thinking_mode": s.thinking ? "thinking" : "chat", "reasoning_effort": s.reasoningEffort],
+            // enable_thinking is understood by both templates (DeepSeek maps it to thinking_mode)
+            "chat_template_kwargs": ["enable_thinking": s.thinking, "reasoning_effort": s.reasoningEffort],
         ]
         if s.webSearch { body["tools"] = WebTools.definitions }
 
@@ -171,7 +176,10 @@ final class ChatClient: ObservableObject {
             var d = Delta()
             d.content = delta["content"] as? String ?? ""
             d.reasoning = delta["reasoning_content"] as? String ?? ""
-            if !d.content.isEmpty || !d.reasoning.isEmpty { onDelta(d) }
+            if !d.content.isEmpty || !d.reasoning.isEmpty {
+                onDelta(d)
+                metrics?.addTokens(1)   // the server streams one token per chunk
+            }
             for tc in delta["tool_calls"] as? [[String: Any]] ?? [] {
                 let idx = tc["index"] as? Int ?? 0
                 var call = calls[idx] ?? ToolCall(id: "", name: "", arguments: "")

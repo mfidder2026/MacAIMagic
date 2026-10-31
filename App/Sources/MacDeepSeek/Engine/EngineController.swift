@@ -18,34 +18,35 @@ final class EngineController: ObservableObject {
 
     var baseURL: URL { URL(string: "http://\(Settings.shared.host):\(Settings.shared.port)")! }
 
-    func arguments(plan: MemoryPlan, vision: Bool) -> [String] {
+    /// The model the engine runs (or last ran).
+    @Published private(set) var model: ModelInfo?
+
+    func arguments(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?) -> [String] {
         let s = Settings.shared
         var args = [
-            "--model", Paths.modelDir.appendingPathComponent(Paths.modelShards[0]).path,
+            "--model", shards[0].path,
             "--host", s.host, "--port", String(s.port),
             "--ctx-size", String(plan.contextSize),
             "--n-gpu-layers", "999",
             "--n-cpu-moe", String(plan.cpuMoELayers),
             "--flash-attn", "on",
-            // measured on an M3 Max with Maya-XS: ubatch 1024 reads prompts ~20% faster than 512;
+            // measured on an M3 Max: ubatch 1024 reads prompts ~20% faster than 512;
             // 2048 grows the compute buffers past the wired limit and writing drops from 20 to 3 tok/s
             "--ubatch-size", "1024", "--batch-size", "2048",
             "--fit", "off",               // the plan above already decided where every tensor goes
             "--threads", String(plan.threads),
             "--parallel", "1",            // one conversation at a time keeps the whole KV and compute budget for it
             "--jinja",
-            "--reasoning-format", "deepseek",
+            "--reasoning-format", "deepseek",   // thinking goes to reasoning_content, for both DeepSeek and GLM
             "--metrics",
-            "--alias", "deepseek-v4.1-flash",
+            "--alias", model.id,
         ]
-        if vision {
-            args += ["--mmproj", Paths.modelDir.appendingPathComponent(Paths.visionProjector).path]
-        }
+        if let vision { args += ["--mmproj", vision.path] }
         if !s.apiKey.isEmpty { args += ["--api-key", s.apiKey] }
         return args
     }
 
-    func start(plan: MemoryPlan, vision: Bool) {
+    func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?) {
         guard process == nil else { return }
         guard let bin = Paths.engineBinary("llama-server") else {
             state = .failed("Engine niet gevonden. Bouw hem met scripts/build_engine.sh.")
@@ -53,9 +54,10 @@ final class EngineController: ObservableObject {
         }
         let p = Process()
         p.executableURL = bin
-        p.arguments = arguments(plan: plan, vision: vision)
+        p.arguments = arguments(model: model, shards: shards, plan: plan, vision: vision)
+        self.model = model
         var env = ProcessInfo.processInfo.environment
-        env["LLAMA_ARG_LAZY_MODE"] = "auto"   // Engram tables are read row by row from the SSD
+        env["LLAMA_ARG_LAZY_MODE"] = "auto"   // tables over 4 GB (DeepSeek's Engram) are read row by row from the SSD
         p.environment = env
 
         FileManager.default.createFile(atPath: Paths.engineLog.path, contents: nil)
@@ -86,7 +88,14 @@ final class EngineController: ObservableObject {
     }
 
     /// Shows a state without a process behind it (README screenshots).
-    func previewState(_ s: State) { state = s }
+    func previewState(_ s: State, model: ModelInfo? = nil) { state = s; self.model = model }
+
+    /// Stop and wait until the process is gone (switching models needs the memory back first).
+    func stopAndWait() async {
+        guard process != nil else { state = .stopped; return }
+        stop()
+        for _ in 0..<60 where process != nil { try? await Task.sleep(for: .milliseconds(500)) }
+    }
 
     func stop() {
         healthTask?.cancel()
@@ -98,6 +107,8 @@ final class EngineController: ObservableObject {
     private func consume(_ text: String, raw: Data) {
         logHandle?.write(raw)
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            // the GGUF metadata dump is noise here (hundreds of lines), and carries the file's original names
+            if line.contains("llama_model_loader:") || line.contains("print_info: general.") || line.contains("quantize.") { continue }
             logTail.append(String(line))
             // llama.cpp prints a dot per loaded chunk; the tensor loader also reports "loading tensors"
             if line.contains("load_tensors") { state = .starting("Gewichten laden…") }
@@ -113,9 +124,8 @@ final class EngineController: ObservableObject {
         process = nil
         try? logHandle?.close()
         logHandle = nil
-        if case .running = state, code == 0 || code == 2 || code == 15 {
-            state = .stopped
-        } else if code == 0 || code == 2 || code == 15 {
+        // 0: clean exit, 2 / 15: our interrupt or terminate
+        if [0, 2, 15].contains(code) {
             state = .stopped
         } else {
             let last = logTail.last(where: { $0.contains("error") || $0.contains("failed") }) ?? logTail.last ?? ""

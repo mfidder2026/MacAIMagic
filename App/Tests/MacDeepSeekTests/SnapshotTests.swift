@@ -18,29 +18,43 @@ final class SnapshotTests: XCTestCase {
 
     func testRenderScreens() async throws {
         let app = AppState()
-        app.engine.previewState(live ? .running : .stopped)
+        // show the model that really runs: the engine's alias is the model id
+        var running = ModelCatalog.shared.models.first
+        if live, let data = try? Data(contentsOf: URL(string: "http://127.0.0.1:8080/v1/models")!),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let id = (json["data"] as? [[String: Any]])?.first?["id"] as? String {
+            running = ModelCatalog.shared.model(id) ?? running
+        }
+        app.selectedModelID = running?.id ?? app.selectedModelID
+        app.engine.previewState(live ? .running : .stopped, model: live ? running : nil)
         app.loadIndex()
 
-        // the dashboard first: the image chat below shows it to the model
-        try shot(EngineView(), app: app, name: "engine", dark: true)
-        try shot(EngineView(), app: app, name: "engine-light", dark: false)
+        // the models screen first: the image chat below shows it to the model
+        try shot(withBackground(ModelsView(), app: app), app: app, name: "models", dark: true)
 
         let search = try await conversation(app, "Zoek het laatste nieuws over llama.cpp en vat het samen in een paar punten.",
                                             thinking: false, web: true, fallback: sampleSearch())
         let image = try await conversation(app, "Wat zie je op deze schermafbeelding? Welke getallen vallen op?", thinking: false,
-                                           web: false, image: dir.appendingPathComponent("engine.png"), fallback: sampleSearch())
+                                           web: false, image: dir.appendingPathComponent("models.png"), fallback: sampleSearch())
         let thinking = try await conversation(app, "Hoeveel weegt een liter lucht op zeeniveau, ongeveer? Reken het kort voor.",
                                               thinking: true, web: false, fallback: sampleSearch())
         app.store.conversations = [search, image, thinking]
 
         for (c, name) in [(search, "chat-search"), (image, "chat-image"), (thinking, "chat-thinking")] {
             app.store.selection = c.id
-            let view = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: { ChatView(conversationID: c.id, scrollToEnd: false) }
+            let view = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: {
+                withBackground(ChatView(conversationID: c.id, scrollToEnd: false), app: app)
+            }
             try shot(view, app: app, name: name, dark: true)
         }
-        app.store.selection = search.id
-        let view = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: { ChatView(conversationID: search.id, scrollToEnd: false) }
-        try shot(view, app: app, name: "chat-search-light", dark: false)
+        // the live dashboard right after the last answer, so the charts show real activity
+        let live = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: { withBackground(LiveView(), app: app) }
+        try shot(live, app: app, name: "live", dark: true)
+        try shot(withBackground(CompareView(), app: app), app: app, name: "compare", dark: true)
+    }
+
+    private func withBackground(_ v: some View, app: AppState) -> some View {
+        ZStack { AuroraBackground(energy: 0.4); v }
     }
 
     /// One real exchange through the app's own ChatClient, or sample data without an engine.
@@ -65,6 +79,7 @@ final class SnapshotTests: XCTestCase {
         let root = view
             .environmentObject(app).environmentObject(app.engine).environmentObject(app.models)
             .environmentObject(app.store).environmentObject(app.chat).environmentObject(Settings.shared)
+            .environmentObject(app.metrics).environmentObject(app.bench)
             .tint(Theme.accent)
             .frame(width: size.width, height: size.height)
             .background(Color(nsColor: .windowBackgroundColor))

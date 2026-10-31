@@ -29,8 +29,8 @@ done
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=ON \
   -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF
-cmake --build build -j "$(sysctl -n hw.ncpu)" --target llama-server llama-bench llama-cli
+cmake --build build -j "$(sysctl -n hw.ncpu)" --target llama-server llama-bench llama-cli llama-perplexity
 
 mkdir -p "$ROOT/engine/bin"
-cp build/bin/llama-server build/bin/llama-bench build/bin/llama-cli "$ROOT/engine/bin/"
+cp build/bin/llama-server build/bin/llama-bench build/bin/llama-cli build/bin/llama-perplexity "$ROOT/engine/bin/"
 echo "engine klaar: $ROOT/engine/bin"

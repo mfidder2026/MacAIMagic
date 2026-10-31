@@ -23,7 +23,15 @@ struct GGUFIndex {
         tensors.filter { !$0.name.contains("_exps.") && !$0.name.contains("engram_embd") && !$0.name.hasPrefix("per_layer_token_embd") }
             .reduce(0) { $0 + $1.bytes }
     }
-    var layerCount: Int { (metadata["deepseek41.block_count"] as? UInt64).map(Int.init) ?? 40 }
+    /// <arch>.block_count, whatever the architecture is called
+    var layerCount: Int {
+        for (k, v) in metadata where k.hasSuffix(".block_count") {
+            if let n = v as? UInt32 { return Int(n) }
+            if let n = v as? UInt64 { return Int(n) }
+        }
+        return (expertBytesPerLayer.keys.max() ?? -1) + 1
+    }
+    var architecture: String { metadata["general.architecture"] as? String ?? "" }
 
     static func layer(of name: String) -> Int? {
         let parts = name.split(separator: ".")

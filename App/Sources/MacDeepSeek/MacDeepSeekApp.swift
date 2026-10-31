@@ -13,9 +13,12 @@ struct MacDeepSeekApp: App {
                 .environmentObject(app.models)
                 .environmentObject(app.store)
                 .environmentObject(app.chat)
+                .environmentObject(app.metrics)
+                .environmentObject(app.bench)
                 .environmentObject(Settings.shared)
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 1000, minHeight: 680)
                 .tint(Theme.accent)
+                .preferredColorScheme(.dark)
                 .onAppear {
                     delegate.app = app
                     if Settings.shared.autoStart && app.canStart { app.startEngine() }
@@ -48,10 +51,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
-}
-
-enum Theme {
-    static let accent = Color(red: 0.30, green: 0.42, blue: 1.0)      // DeepSeek blue
-    static let userBubble = Color(red: 0.30, green: 0.42, blue: 1.0).opacity(0.14)
-    static let card = Color(nsColor: .controlBackgroundColor)
 }

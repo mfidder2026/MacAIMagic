@@ -1,6 +1,6 @@
 # Third-party notices
 
-The release build of MacDeepSeek bundles binaries built from llama.cpp (commit `ddf48f85c933c1f438212a02eb21e7b001d2d37d`, with `patches/0001-deepseek41-maya-engram.patch` applied), under the following license:
+The release build of MacDeepSeek bundles binaries built from llama.cpp (commit `ddf48f85c933c1f438212a02eb21e7b001d2d37d`, with `patches/0001-deepseek41-split-engram.patch` applied), under the following license:
 
 ```
 MIT License
@@ -26,4 +26,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-The models are not included. DeepSeek-V4.1-Flash-1017 and the Project Maya quantizations are released under the MIT license by their authors.
+The models are not included. They are downloaded from Hugging Face from their publishers (see `tools/models.json`), under their own licenses: DeepSeek-V4.1-Flash-1017 and GLM-5.3-Flash are MIT-licensed, as are the quantized files.

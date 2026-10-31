@@ -9,10 +9,11 @@ struct Composer: View {
     @EnvironmentObject var engine: EngineController
     @EnvironmentObject var chat: ChatClient
     @EnvironmentObject var settings: Settings
-    @State private var text = ""
+    @Binding var text: String
     @State private var attachments: [Attachment] = []
     @State private var importing = false
     @State private var dropTarget = false
+    @State private var spin = false
     @FocusState private var focused: Bool
 
     private var canSend: Bool {
@@ -40,7 +41,7 @@ struct Composer: View {
                     }
                 }
             }
-            TextField("Vraag DeepSeek iets…", text: $text, axis: .vertical)
+            TextField("Vraag \(engine.model?.shortName ?? app.selectedModel?.shortName ?? "DeepSeek") iets…", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.body)
                 .lineLimit(1...10)
@@ -66,10 +67,19 @@ struct Composer: View {
             }
             .controlSize(.small)
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Theme.card))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(dropTarget ? Theme.accent : Color.secondary.opacity(0.25), lineWidth: dropTarget ? 2 : 1))
-        .frame(maxWidth: 820)
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .overlay {
+            // a turning gradient edge while the model writes; a steady one when dropping a file
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(AngularGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan],
+                                        center: .center, angle: .degrees(spin ? 360 : 0)),
+                        lineWidth: chat.busy || dropTarget ? 2 : 1)
+                .opacity(chat.busy || dropTarget ? 1 : 0.35)
+                .shadow(color: Theme.violet.opacity(chat.busy ? 0.7 : 0), radius: 10)
+        }
+        .onAppear { withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) { spin = true } }
+        .frame(maxWidth: 860)
         .padding(.horizontal, 24).padding(.bottom, 16).padding(.top, 8)
         .frame(maxWidth: .infinity)
         .onDrop(of: [.image, .fileURL], isTargeted: $dropTarget) { providers in load(providers); return true }
@@ -85,6 +95,7 @@ struct Composer: View {
 
     private func send() {
         guard canSend else { return }
+        chat.modelName = engine.model?.name ?? app.selectedModel?.name ?? "DeepSeek-V4.1-Flash"
         chat.send(text: text.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments,
                   in: conversationID, store: store, baseURL: engine.baseURL)
         text = ""

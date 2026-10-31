@@ -30,3 +30,22 @@ final class EngineIntegrationTests: XCTestCase {
         print("tok/s:", final.tokensPerSecond ?? 0, "sources:", final.sources.map(\.url))
     }
 }
+
+/// The Compare screen's measurement, end to end: the app starts each model itself and measures it.
+/// MACDEEPSEEK_BENCH="id1,id2" with the engine stopped.
+@MainActor
+final class BenchmarkIntegrationTests: XCTestCase {
+    func testBenchmarkModels() async throws {
+        guard let ids = ProcessInfo.processInfo.environment["MACDEEPSEEK_BENCH"]?.split(separator: ",").map(String.init) else {
+            throw XCTSkip("no models to benchmark")
+        }
+        let app = AppState()
+        await app.bench.run(ids, app: app)
+        await app.engine.stopAndWait()
+        for r in app.bench.latest where ids.contains(r.modelID) {
+            print(String(format: "BENCH %@: decode %.1f tok/s, prompt %.0f tok/s, load %.0f s, SSD %.0f MB/s, wired %.0f GB, cpu layers %d",
+                         r.modelName, r.decodeTPS, r.promptTPS, r.loadSeconds, r.ssdMBs, r.wiredGB, r.cpuMoELayers))
+        }
+        XCTAssertEqual(Set(app.bench.latest.map(\.modelID)).intersection(ids).count, ids.count)
+    }
+}
