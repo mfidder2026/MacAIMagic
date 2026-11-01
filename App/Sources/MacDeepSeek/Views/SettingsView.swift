@@ -18,9 +18,11 @@ struct SettingsView: View {
                 }
                 Section("Werkmap") {
                     Toggle("Bestanden en commando's in de werkmap", isOn: $settings.workspaceTools)
-                    Toggle("Niet om toestemming vragen voor schrijven en commando's", isOn: $settings.autoApprove)
-                    if settings.autoApprove {
-                        Text("Let op: het model kan dan zonder te vragen bestanden in de werkmap wijzigen en commando's uitvoeren.")
+                    Picker("Lezen (mappen en bestanden)", selection: $settings.rightRead) { rightOptions }
+                    Picker("Schrijven (bestanden maken en aanpassen)", selection: $settings.rightWrite) { rightOptions }
+                    Picker("Uitvoeren (commando's, scripts, apps)", selection: $settings.rightRun) { rightOptions }
+                    if settings.rightWrite == "allow" || settings.rightRun == "allow" {
+                        Text("Let op: het model kan dan zonder te vragen bestanden in de werkmap wijzigen of commando's uitvoeren.")
                             .font(.caption).foregroundStyle(.orange)
                     }
                     Text(settings.workspace.isEmpty ? "Nog geen werkmap gekozen (knop in de chat)." : settings.workspace)
@@ -56,5 +58,11 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 560, height: 520)
+    }
+
+    @ViewBuilder private var rightOptions: some View {
+        Text("Toestaan").tag("allow")
+        Text("Eerst vragen").tag("ask")
+        Text("Weigeren").tag("deny")
     }
 }

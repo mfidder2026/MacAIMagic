@@ -34,7 +34,7 @@ final class ChatClient: ObservableObject {
     }
 
     private func askApproval(_ call: ToolCall, in conversation: Conversation.ID) async -> Bool {
-        if Settings.shared.autoApprove || trusted.contains(conversation) { return true }
+        if trusted.contains(conversation) { return true }
         let text = WorkspaceTools.approvalText(for: call)
         return await withCheckedContinuation { cont in
             approvalContinuation = cont
@@ -109,7 +109,11 @@ final class ChatClient: ObservableObject {
                 }
                 var text: String
                 if isWorkspace {
-                    if WorkspaceTools.needsApproval.contains(call.name), !(await askApproval(call, in: id)) {
+                    let right = Settings.shared.right(WorkspaceTools.right(for: call.name))
+                    if right == "deny" {
+                        text = "The user's settings do not allow this kind of action (\(WorkspaceTools.right(for: call.name).title)). Do not try it again; tell the user what you wanted to do, or continue without it."
+                        activities[activities.count - 1].denied = true
+                    } else if right == "ask", !(await askApproval(call, in: id)) {
                         text = "The user did not allow this. Ask what they want instead, or continue without it."
                         activities[activities.count - 1].denied = true
                     } else {

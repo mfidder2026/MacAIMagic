@@ -21,8 +21,17 @@ final class Settings: ObservableObject {
     /// The folder the model may work in (files and commands), and whether that is on.
     @AppStorage("workspace") var workspace = ""
     @AppStorage("workspaceTools") var workspaceTools = true
-    /// Skip the yes/no question for writing and commands (tests, or users who want it).
+    /// What the model may do in the work folder, per kind of action: "allow", "ask" or "deny".
+    @AppStorage("rightRead") var rightRead = "allow"
+    @AppStorage("rightWrite") var rightWrite = "ask"
+    @AppStorage("rightRun") var rightRun = "ask"
+    /// Tests: allow what would be asked.
     @AppStorage("autoApprove") var autoApprove = false
+
+    func right(_ kind: WorkspaceTools.Right) -> String {
+        let value = kind == .read ? rightRead : kind == .write ? rightWrite : rightRun
+        return value == "ask" && autoApprove ? "allow" : value
+    }
     /// Speculative decoding with the model's multi-token prediction head (GLM, Qwen).
     @AppStorage("mtp") var mtp = true
     /// Drifting, brightening background colours (off: a still background, calmer)

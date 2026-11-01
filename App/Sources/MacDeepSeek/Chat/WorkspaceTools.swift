@@ -5,7 +5,27 @@ import Foundation
 enum WorkspaceTools {
     static let names: Set<String> = ["list_dir", "read_file", "write_file", "edit_file", "run_command"]
     /// Tools that change something: these ask the user first.
-    static let needsApproval: Set<String> = ["write_file", "edit_file", "run_command"]
+    /// The kinds of action the user gives rights for (allow, ask, deny).
+    enum Right: String, CaseIterable {
+        case read, write, run
+        var letter: String { self == .read ? "L" : self == .write ? "S" : "U" }
+        var title: String { self == .read ? "Lezen" : self == .write ? "Schrijven" : "Uitvoeren" }
+        var detail: String {
+            switch self {
+            case .read: return "Mappen bekijken en bestanden lezen"
+            case .write: return "Bestanden maken en aanpassen"
+            case .run: return "Commando's, scripts en apps starten"
+            }
+        }
+    }
+
+    static func right(for name: String) -> Right {
+        switch name {
+        case "write_file", "edit_file": return .write
+        case "run_command": return .run
+        default: return .read
+        }
+    }
 
     static let definitions: [[String: Any]] = [
         function("list_dir", "List the files and folders in a folder of the workspace, with sizes. Use \".\" for the workspace itself.",

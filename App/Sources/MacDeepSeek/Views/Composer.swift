@@ -55,6 +55,7 @@ struct Composer: View {
                 Toggle(isOn: $settings.webSearch) { Label("Web", systemImage: "globe") }
                     .toggleStyle(.button).help("Het model mag het web doorzoeken en pagina's lezen")
                 WorkspaceButton(conversationID: conversationID)
+                RightsButton()
                 Spacer()
                 if chat.busy {
                     Button { chat.stop() } label: { Image(systemName: "stop.circle.fill").font(.title2) }
@@ -196,5 +197,47 @@ struct WorkspaceButton: View {
         } else if folder == nil {
             settings.workspaceTools = false
         }
+    }
+}
+
+/// The rights of the model in the work folder at a glance: L S U (lezen, schrijven, uitvoeren) in green (allowed),
+/// orange (asks first) or red (denied), with a menu to change them.
+struct RightsButton: View {
+    @EnvironmentObject var settings: Settings
+
+    private func binding(_ r: WorkspaceTools.Right) -> Binding<String> {
+        switch r {
+        case .read: return $settings.rightRead
+        case .write: return $settings.rightWrite
+        case .run: return $settings.rightRun
+        }
+    }
+
+    static func color(_ value: String) -> Color { value == "allow" ? Theme.mint : value == "deny" ? .red : Theme.amber }
+
+    var body: some View {
+        Menu {
+            ForEach(WorkspaceTools.Right.allCases, id: \.self) { r in
+                Picker("\(r.title): \(r.detail.lowercased())", selection: binding(r)) {
+                    Label("Toestaan", systemImage: "checkmark.circle").tag("allow")
+                    Label("Eerst vragen", systemImage: "questionmark.circle").tag("ask")
+                    Label("Weigeren", systemImage: "nosign").tag("deny")
+                }
+                .pickerStyle(.inline)
+            }
+            Divider()
+            Button("Alles toestaan") { settings.rightRead = "allow"; settings.rightWrite = "allow"; settings.rightRun = "allow" }
+            Button("Standaard (lezen mag, de rest eerst vragen)") { settings.rightRead = "allow"; settings.rightWrite = "ask"; settings.rightRun = "ask" }
+        } label: {
+            HStack(spacing: 3) {
+                ForEach(WorkspaceTools.Right.allCases, id: \.self) { r in
+                    Text(r.letter).font(.system(size: 11, weight: .heavy, design: .rounded).monospaced())
+                        .foregroundStyle(Self.color(binding(r).wrappedValue))
+                }
+            }
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Rechten van het model in de werkmap: Lezen, Schrijven, Uitvoeren. Groen = mag, oranje = eerst vragen, rood = nee.")
     }
 }

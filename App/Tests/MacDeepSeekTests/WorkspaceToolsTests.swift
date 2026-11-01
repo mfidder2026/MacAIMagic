@@ -89,3 +89,15 @@ final class WorkspaceToolsTests: XCTestCase {
         XCTAssertTrue(none.contains("No workspace"), none)
     }
 }
+
+final class RightsTests: XCTestCase {
+    /// Each workspace tool falls under one right: read, write or run.
+    func testToolsMapToRights() {
+        XCTAssertEqual(WorkspaceTools.right(for: "list_dir"), .read)
+        XCTAssertEqual(WorkspaceTools.right(for: "read_file"), .read)
+        XCTAssertEqual(WorkspaceTools.right(for: "write_file"), .write)
+        XCTAssertEqual(WorkspaceTools.right(for: "edit_file"), .write)
+        XCTAssertEqual(WorkspaceTools.right(for: "run_command"), .run)
+        XCTAssertEqual(WorkspaceTools.Right.allCases.map(\.letter), ["L", "S", "U"])
+    }
+}
