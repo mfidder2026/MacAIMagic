@@ -26,11 +26,13 @@ for p in "$ROOT"/patches/*.patch; do
   fi
 done
 
+# GGML_NATIVE=OFF: portable, Apple clang targets the M1 baseline, so the engine runs on every Apple Silicon Mac
+# GGML_RPC=ON: several Macs as one (the helper Mac runs ggml-rpc-server, the main Mac uses --rpc)
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-  -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=ON \
+  -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=OFF -DGGML_RPC=ON \
   -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF
-cmake --build build -j "$(sysctl -n hw.ncpu)" --target llama-server llama-bench llama-cli llama-perplexity
+cmake --build build -j "$(sysctl -n hw.ncpu)" --target llama-server llama-bench llama-cli llama-perplexity ggml-rpc-server
 
 mkdir -p "$ROOT/engine/bin"
-cp build/bin/llama-server build/bin/llama-bench build/bin/llama-cli build/bin/llama-perplexity "$ROOT/engine/bin/"
+cp build/bin/llama-server build/bin/llama-bench build/bin/llama-cli build/bin/llama-perplexity build/bin/ggml-rpc-server "$ROOT/engine/bin/"
 echo "engine klaar: $ROOT/engine/bin"

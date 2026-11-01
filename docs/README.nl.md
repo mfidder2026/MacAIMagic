@@ -27,6 +27,13 @@ Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard G
 - **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
   lezen. Schrijven en commando's vragen eerst jouw toestemming.
 
+## Cluster
+
+Verbind meerdere Macs met Thunderbolt en gebruik hun geheugen samen. Op de extra Macs kies je in MacDeepSeek onder
+**Cluster** de rol **Helper** en druk je op **Start helper**; op de hoofd-Mac verschijnen ze vanzelf. Met een MacBook Pro
+M3 Max (128 GB), een Mac Studio M5 (96 GB) en een Mac Studio M1 (32 GB) heb je samen ~256 GB: GLM-5.3-Flash Q4 past dan
+helemaal in het geheugen. Getest op één Mac met een lokale helper: het verdelen kost ~7% schrijfsnelheid.
+
 ## Installeren
 
 ```sh

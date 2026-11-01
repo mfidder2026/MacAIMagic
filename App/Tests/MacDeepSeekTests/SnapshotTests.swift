@@ -51,6 +51,7 @@ final class SnapshotTests: XCTestCase {
         let live = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: { withBackground(LiveView(), app: app) }
         try shot(live, app: app, name: "live", dark: true)
         try shot(withBackground(CompareView(), app: app), app: app, name: "compare", dark: true)
+        try shot(withBackground(ClusterView(), app: app), app: app, name: "cluster", dark: true)
     }
 
     private func withBackground(_ v: some View, app: AppState) -> some View {
@@ -79,7 +80,7 @@ final class SnapshotTests: XCTestCase {
         let root = view
             .environmentObject(app).environmentObject(app.engine).environmentObject(app.models)
             .environmentObject(app.store).environmentObject(app.chat).environmentObject(Settings.shared)
-            .environmentObject(app.metrics).environmentObject(app.bench)
+            .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster)
             .tint(Theme.accent)
             .frame(width: size.width, height: size.height)
             .background(Color(nsColor: .windowBackgroundColor))

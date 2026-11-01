@@ -85,3 +85,60 @@ final class WorkspaceIntegrationTests: XCTestCase {
         XCTAssertTrue(store.conversations[0].messages.contains { $0.toolCalls.contains { $0.name == "run_command" } }, "it checked its work")
     }
 }
+
+/// The cluster end to end on one Mac: the app starts a helper on 127.0.0.1, finds it with Bonjour, starts GLM Compact
+/// spread over its own GPU and the helper, and checks the answer. MACDEEPSEEK_CLUSTER_TEST=1, no engine running.
+@MainActor
+final class ClusterIntegrationTests: XCTestCase {
+    func testHelperFoundAndUsed() async throws {
+        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_CLUSTER_TEST"] == "1" else { throw XCTSkip("set MACDEEPSEEK_CLUSTER_TEST=1") }
+        let app = AppState()
+        let s = Settings.shared
+        let savedRole = s.clusterRole
+        defer { s.clusterRole = savedRole }
+        s.clusterRole = "helper"
+        app.cluster.startHelper(bind: "127.0.0.1")
+        XCTAssertTrue(app.cluster.helperRunning, app.cluster.helperLog.joined(separator: "\n"))
+
+        // Bonjour announces it; the main side must find it
+        s.clusterRole = "main"
+        let t0 = Date()
+        while !app.cluster.helpers.contains(where: { $0.host == "127.0.0.1" }) && Date().timeIntervalSince(t0) < 20 {
+            try await Task.sleep(for: .milliseconds(300))
+        }
+        let helper = try XCTUnwrap(app.cluster.helpers.first { $0.host == "127.0.0.1" }, "helper not found via Bonjour")
+        print("FOUND:", helper.name, helper.chip, helper.memoryGB, "GB, GPU", helper.gpuGB, "GB")
+        app.cluster.selected = [helper.id]
+        XCTAssertEqual(app.cluster.rpcArgument, "127.0.0.1:\(ClusterController.defaultPort)")
+
+        Settings.shared.mtp = false
+        app.selectedModelID = "glm-5.3-flash-compact"
+        app.startEngine()
+        XCTAssertTrue(app.engine.arguments(model: app.selectedModel!, shards: app.models.shardURLs(app.selectedModel!),
+                                           plan: app.plan!, vision: nil, rpc: app.cluster.rpcArgument).contains("--rpc"))
+        let t1 = Date()
+        while !app.engine.state.isRunning && Date().timeIntervalSince(t1) < 1200 {
+            if case .failed(let e) = app.engine.state { XCTFail(e); break }
+            try await Task.sleep(for: .seconds(1))
+        }
+        print("ENGINE READY after", Int(Date().timeIntervalSince(t1)), "s")
+
+        var req = URLRequest(url: app.engine.baseURL.appendingPathComponent("v1/chat/completions"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "messages": [["role": "user", "content": "Wat is de hoofdstad van Frankrijk? Eén zin."]],
+            "max_tokens": 120, "temperature": 0, "chat_template_kwargs": ["enable_thinking": false]])
+        let (data, _) = try await URLSession.shared.data(for: req)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let message = ((json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]) ?? [:]
+        let text = (message["content"] as? String ?? "") + " " + (message["reasoning_content"] as? String ?? "")
+        let tps = (json?["timings"] as? [String: Any])?["predicted_per_second"] as? Double ?? 0
+        print("ANSWER:", text, String(format: "(%.1f tok/s)", tps))
+        XCTAssertTrue(text.contains("Parijs") || text.contains("Paris"), text)
+
+        await app.engine.stopAndWait()
+        app.cluster.stopHelper()
+        try await Task.sleep(for: .seconds(6))
+    }
+}

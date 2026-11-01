@@ -15,6 +15,7 @@ struct MacDeepSeekApp: App {
                 .environmentObject(app.chat)
                 .environmentObject(app.metrics)
                 .environmentObject(app.bench)
+                .environmentObject(app.cluster)
                 .environmentObject(Settings.shared)
                 .frame(minWidth: 1000, minHeight: 680)
                 .tint(Theme.accent)

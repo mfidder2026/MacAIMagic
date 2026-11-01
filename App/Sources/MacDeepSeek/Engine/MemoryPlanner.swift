@@ -40,16 +40,18 @@ enum MemoryPlanner {
         return v > 0 ? v : 0.5
     }
 
-    static func plan(index: GGUFIndex, system: SystemInfo, contextSize: Int, vision: Bool, gpuLimitOverride: UInt64? = nil) -> MemoryPlan {
+    /// `extraGPU` / `extraPhysical`: memory that helper Macs in a cluster add (their GPUs hold some of the layers).
+    static func plan(index: GGUFIndex, system: SystemInfo, contextSize: Int, vision: Bool, gpuLimitOverride: UInt64? = nil,
+                     extraGPU: UInt64 = 0, extraPhysical: UInt64 = 0) -> MemoryPlan {
         let perLayer = index.expertBytesPerLayer
         let layers = max(index.layerCount, (perLayer.keys.max() ?? -1) + 1)
         let experts = perLayer.values.reduce(0, +)
         // KV: compressed attention caches are small (DeepSeek ~0.7 GB per 128K); compute buffers ~2.5 GB at ubatch 1024
         let kv = UInt64(Double(contextSize) / 131_072 * 0.8e9) + 400_000_000
         let overhead = kv + 2_500_000_000 + (vision ? 1_500_000_000 : 0)
-        let physical = system.physicalMemory
-        let gpuLimit = gpuLimitOverride ?? system.effectiveGPULimit
-        let suggestedMB = Int((physical - osHeadroom) >> 20)
+        let physical = system.physicalMemory + extraPhysical
+        let gpuLimit = (gpuLimitOverride ?? system.effectiveGPULimit) + extraGPU
+        let suggestedMB = Int((system.physicalMemory - osHeadroom) >> 20)
 
         var budget = Int64(gpuLimit) - Int64(index.denseBytes) - Int64(overhead)
         let fits = index.denseBytes + experts + overhead + osHeadroom <= physical
@@ -67,7 +69,7 @@ enum MemoryPlanner {
         }
 
         var warnings: [String] = []
-        if fits && gpuLimit + 4_000_000_000 < physical - osHeadroom && cpuLayers > 0 {
+        if fits && extraGPU == 0 && gpuLimit + 4_000_000_000 < physical - osHeadroom && cpuLayers > 0 {
             warnings.append("De GPU mag nu \(gpuLimit.gb) vastzetten. Verhoog de limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder, dan staan alle experts op de GPU.")
         }
         if !fits {

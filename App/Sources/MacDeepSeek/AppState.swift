@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
     let chat = ChatClient()
     let metrics = LiveMetrics()
     let bench = BenchmarkRunner()
+    let cluster = ClusterController()
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
         didSet { loadIndex(); objectWillChange.send() }
@@ -35,7 +36,8 @@ final class AppState: ObservableObject {
     var plan: MemoryPlan? {
         guard let index else { return nil }
         return MemoryPlanner.plan(index: index, system: system, contextSize: Settings.shared.contextSize,
-                                  vision: Settings.shared.vision && selectedModel.flatMap(models.visionURL) != nil)
+                                  vision: Settings.shared.vision && selectedModel.flatMap(models.visionURL) != nil,
+                                  extraGPU: cluster.extraGPU, extraPhysical: cluster.extraPhysical)
     }
 
     var canStart: Bool {
@@ -61,7 +63,8 @@ final class AppState: ObservableObject {
         if index == nil { loadIndex() }
         guard let m = selectedModel, let plan else { return }
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
-                     vision: Settings.shared.vision ? models.visionURL(m) : nil, draft: models.draftURL(m))
+                     vision: Settings.shared.vision ? models.visionURL(m) : nil, draft: models.draftURL(m),
+                     rpc: cluster.rpcArgument)
     }
 
     /// Switch to another model: stops the engine first when it runs a different one.

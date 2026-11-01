@@ -107,6 +107,10 @@ the first Mac sends it its share of the layers (`--rpc host:port`, with `--tenso
   MacBooks, the cluster works over plain TCP on the Thunderbolt Bridge.
 - With 2 × 128 GB, GLM-5.3-Flash Q4 (200 GB) fits entirely in memory, and DeepSeek-V4.1-Flash Q4 (~298 GB without
   Engram) almost does. That is the realistic way to run the Q4 versions at a useful speed.
+- **Built and tested** (MacDeepSeek 1.3): a helper on the same Mac (127.0.0.1), found with Bonjour, holding half of
+  GLM-5.3-Flash Compact: writing 20.4 → 19.0 tok/s (−7%), prompt reading unchanged (~180 tok/s), loading 3 minutes
+  (55 GB sent to the helper once; with `-c` the helper keeps its part on disk for the next start). Over a real cable add
+  the round trip per token (well under a millisecond on Thunderbolt).
 - llama.cpp calls its RPC backend a proof of concept ("fragile and insecure"): only use it on a direct cable or a
   trusted network.
 

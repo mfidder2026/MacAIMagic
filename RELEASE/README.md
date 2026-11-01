@@ -1,6 +1,6 @@
-# MacDeepSeek 1.2.3 (macOS, Apple Silicon)
+# MacDeepSeek 1.3 (macOS, Apple Silicon)
 
-`MacDeepSeek-1.2.3-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacDeepSeek-1.3-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacDeepSeek patch). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip and move `MacDeepSeek.app` to `/Applications`.
@@ -8,9 +8,11 @@ MacDeepSeek patch). The models are **not** included: see [Installation](../READM
    `xattr -dr com.apple.quarantine /Applications/MacDeepSeek.app`.
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacDeepSeek-1.2.3-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacDeepSeek-1.3-macOS-arm64.zip.sha256`
 
-Requires an Apple Silicon Mac with 128 GB of unified memory and macOS 14 or later.
+Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. As the main Mac it needs 128 GB for the models in this app; as a cluster helper any amount of memory helps.
+
+New in 1.3: Cluster — link several Macs with Thunderbolt and use their memory together (helper Macs lend their GPU, found automatically with Bonjour). Install this same app on every Mac.
 
 New in 1.2.3: DeepSeek-V4.1-Flash Q4 writes correctly (its Engram table is now downloaded in Q6_K; the published MXFP8 table is misread by standard llama.cpp) and runs at ~2.8 tok/s.
 

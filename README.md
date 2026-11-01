@@ -59,6 +59,9 @@ comes from the internal SSD.
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
 - **Four models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start
 - **Compare**: measure every downloaded model the same way and see the results side by side
+- **Cluster**: link several Macs with Thunderbolt and use their memory together. A helper Mac lends its GPU (llama.cpp
+  RPC) and announces itself with Bonjour; the main Mac finds it, and the model's layers are spread over all GPUs in
+  proportion to their memory. See [Cluster](#cluster).
 - Streaming chat with markdown and code blocks (with a copy button)
 - **Thinking** on/off, with a collapsible chain of thought and a reasoning-effort setting
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
@@ -140,6 +143,27 @@ To measure quality, compare a compact model with its Q4 version (next-token agre
 Tests: `cd App && swift test`. The engine tests run only when you ask for them:
 `MACDEEPSEEK_ENGINE_TEST=1 swift test` with the engine running, or `MACDEEPSEEK_BENCH=<ids> swift test` with it stopped.
 
+## Cluster
+
+With several Macs, one is the **main Mac** (you chat there) and the others are **helpers** that hold part of the model
+on their GPU. Per token only a layer's output travels between the Macs (a few tens of KB), so a Thunderbolt cable is
+plenty: tested on one Mac with a local helper, splitting GLM-5.3-Flash Compact in half cost 7% writing speed (20.4 →
+19.0 tok/s) and nothing in prompt reading.
+
+1. Connect each helper to the main Mac with a Thunderbolt cable (System Settings → Network → Thunderbolt Bridge shows
+   Connected).
+2. On each helper: open MacDeepSeek → **Cluster** → role **Helper** → **Start helper**. The helper only listens on the
+   Thunderbolt bridge unless you allow the local network; llama.cpp's RPC has no password, so use a direct cable or a
+   trusted network.
+3. On the main Mac: **Cluster** shows the helpers with their chip and memory. Tick the ones to use, then start a model.
+   The memory plan counts their memory, and fewer (or no) experts have to come from the SSD.
+
+Example: a MacBook Pro M3 Max (128 GB) with a Mac Studio M5 (96 GB) and a Mac Studio M1 (32 GB) gives ~256 GB. GLM-5.3-Flash
+Q4 (200 GB) then fits in memory, and DeepSeek-V4.1-Flash Q4 needs to stream only ~90 GB instead of 173 GB. Between two
+Thunderbolt 5 Macs the connection uses RDMA; otherwise it is TCP over the cable.
+
+![Cluster](docs/screenshots/cluster.png)
+
 ## Using the API
 
 While the engine runs, other programs can use the model:
@@ -203,7 +227,6 @@ linked into one large memory.
 
 ## Roadmap
 
-- Two Macs as one: split a model across two 128 GB Macs over Thunderbolt (llama.cpp RPC), to run the Q4 versions in memory
 - An expert cache for models larger than memory: read the experts the router picks with large parallel reads
 - Faster prompt reading (Metal kernels for low-bit experts at large batch sizes)
 - English interface

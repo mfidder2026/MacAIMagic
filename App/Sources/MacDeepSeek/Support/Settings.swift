@@ -27,4 +27,8 @@ final class Settings: ObservableObject {
     @AppStorage("mtp") var mtp = true
     /// Drifting, brightening background colours (off: a still background, calmer)
     @AppStorage("animatedBackground") var animatedBackground = false
+    /// Cluster: "main" (this Mac runs the engine, helpers add memory) or "helper" (this Mac lends its GPU)
+    @AppStorage("clusterRole") var clusterRole = "main"
+    /// Let a helper listen on the local network too, not only on the Thunderbolt bridge (llama.cpp's RPC has no security)
+    @AppStorage("clusterAllowLAN") var clusterAllowLAN = false
 }

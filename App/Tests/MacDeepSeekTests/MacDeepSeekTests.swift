@@ -139,3 +139,26 @@ final class PlanReportTests: XCTestCase {
         }
     }
 }
+
+final class ClusterPlanTests: XCTestCase {
+    /// GLM-5.3-Flash Q4 (~190 GB of experts) on the MacBook alone streams from the SSD; with a 96 GB M5 and a 32 GB M1
+    /// as helpers it fits in memory.
+    func testHelpersMakeQ4Fit() {
+        var idx = GGUFIndex()
+        idx.metadata["glm5-next.block_count"] = UInt32(46)
+        idx.tensors.append(.init(name: "token_embd.weight", bytes: 9_800_000_000))
+        for il in 3..<46 { idx.tensors.append(.init(name: "blk.\(il).ffn_up_exps.weight", bytes: 4_416_000_000)) }
+        let mac = SystemInfo(chip: "Apple M3 Max", physicalMemory: 137_438_953_472, performanceCores: 12,
+                             gpuWorkingSet: 115_400_000_000, wiredLimitMB: 0, freeDisk: 1_000_000_000_000)
+        let alone = MemoryPlanner.plan(index: idx, system: mac, contextSize: 65_536, vision: false)
+        XCTAssertFalse(alone.fitsInMemory)
+        // M5 96 GB (GPU ~72 GB) + M1 32 GB (GPU ~21 GB), minus their own headroom as ClusterController counts it
+        let extraGPU: UInt64 = (69 + 18) * 1_000_000_000, extraPhysical: UInt64 = (88 + 24) * 1_000_000_000
+        let cluster = MemoryPlanner.plan(index: idx, system: mac, contextSize: 65_536, vision: false,
+                                         extraGPU: extraGPU, extraPhysical: extraPhysical)
+        XCTAssertTrue(cluster.fitsInMemory)
+        XCTAssertEqual(cluster.streamedExperts, 0, "nothing comes from the SSD")
+        // the GPU limits together are just short, so a few layers run on the main Mac's CPU, from memory
+        XCTAssertLessThanOrEqual(cluster.cpuMoELayers, 6)
+    }
+}

@@ -15,7 +15,7 @@ cp "$BIN" "$APP/Contents/MacOS/MacDeepSeek"
 cp "$ROOT/tools/download_model.sh" "$ROOT/tools/models.json" "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
 
 if [ -x "$ROOT/engine/bin/llama-server" ]; then
-  cp "$ROOT"/engine/bin/llama-* "$APP/Contents/Resources/engine/"
+  cp "$ROOT"/engine/bin/llama-* "$ROOT"/engine/bin/ggml-rpc-server "$APP/Contents/Resources/engine/"
 else
   echo "let op: engine/bin/llama-server ontbreekt; draai eerst scripts/build_engine.sh"
 fi
@@ -36,8 +36,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>MacDeepSeek</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.2.3</string>
-  <key>CFBundleVersion</key><string>6</string>
+  <key>CFBundleShortVersionString</key><string>1.3</string>
+  <key>CFBundleVersion</key><string>7</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>

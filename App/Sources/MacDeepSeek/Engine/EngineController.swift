@@ -27,7 +27,7 @@ final class EngineController: ObservableObject {
     /// The model the engine runs (or last ran).
     @Published private(set) var model: ModelInfo?
 
-    func arguments(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil) -> [String] {
+    func arguments(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil, rpc: String? = nil) -> [String] {
         let s = Settings.shared
         var args = [
             "--model", shards[0].path,
@@ -50,6 +50,8 @@ final class EngineController: ObservableObject {
         // larger than memory: CPU experts stay mapped from the file (page cache), never repacked into RAM
         if !plan.fitsInMemory { args += ["--no-repack"] }
         if let vision { args += ["--mmproj", vision.path] }
+        // cluster: the helpers' GPUs join as RPC devices; llama.cpp spreads the layers by the free memory each reports
+        if let rpc { args += ["--rpc", rpc] }
         // multi-token prediction: a small head guesses the next tokens, the model checks them in one pass
         // (measured on GLM-5.3 Compact: 2 tokens ahead gives +44% on code, +20% on explanations and the same
         // speed on creative text; 3+ ahead loses on creative text because too many guesses are rejected)
@@ -61,7 +63,7 @@ final class EngineController: ObservableObject {
         return args
     }
 
-    func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil) {
+    func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil, rpc: String? = nil) {
         guard process == nil else { return }
         guard let bin = Paths.engineBinary("llama-server") else {
             state = .failed("Engine niet gevonden. Bouw hem met scripts/build_engine.sh.")
@@ -69,7 +71,7 @@ final class EngineController: ObservableObject {
         }
         let p = Process()
         p.executableURL = bin
-        p.arguments = arguments(model: model, shards: shards, plan: plan, vision: vision, draft: draft)
+        p.arguments = arguments(model: model, shards: shards, plan: plan, vision: vision, draft: draft, rpc: rpc)
         self.model = model
         var env = ProcessInfo.processInfo.environment
         env["LLAMA_ARG_LAZY_MODE"] = "auto"   // tables over 4 GB (DeepSeek's Engram) are read row by row from the SSD
