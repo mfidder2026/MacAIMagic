@@ -64,8 +64,8 @@ enum MemoryPlanner {
                      helpers: [UInt64] = [], inUse: UInt64? = nil) -> MemoryPlan {
         let perLayer = index.expertBytesPerLayer
         let layers = max(index.layerCount, (perLayer.keys.max() ?? -1) + 1)
-        // KV: compressed attention caches are small (DeepSeek ~0.7 GB per 128K); compute buffers ~2.5 GB at ubatch 1024
-        let kv = UInt64(Double(contextSize) / 131_072 * 0.8e9) + 400_000_000
+        // KV per model (DeepSeek's compressed attention ~0.7 GB per 128K, GLM ~2.6 GB); compute buffers ~2.5 GB at ubatch 1024
+        let kv = index.kvBytesPerToken * UInt64(contextSize) + 400_000_000
         let overhead = kv + 2_500_000_000 + (vision ? 1_500_000_000 : 0)
         let physical = system.physicalMemory
         let gpuLimit = gpuLimitOverride ?? system.effectiveGPULimit

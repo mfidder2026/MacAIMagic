@@ -35,9 +35,14 @@ final class AppState: ObservableObject {
 
     var plan: MemoryPlan? {
         guard let index else { return nil }
-        return MemoryPlanner.plan(index: index, system: system, contextSize: Settings.shared.contextSize,
+        return MemoryPlanner.plan(index: index, system: system, contextSize: contextSize(index),
                                   vision: Settings.shared.vision && selectedModel.flatMap(models.visionURL) != nil,
                                   helpers: cluster.helperBudgets)
+    }
+
+    /// The chosen context, at most what the model was made for.
+    func contextSize(_ index: GGUFIndex) -> Int {
+        index.contextLength > 0 ? min(Settings.shared.contextSize, index.contextLength) : Settings.shared.contextSize
     }
 
     var canStart: Bool {
@@ -64,11 +69,12 @@ final class AppState: ObservableObject {
         guard let m = selectedModel, let index, var plan else { return }
         if !plan.fitsInMemory {
             // the expert cache leaves room for what other apps hold right now
-            plan = MemoryPlanner.plan(index: index, system: system, contextSize: Settings.shared.contextSize,
+            plan = MemoryPlanner.plan(index: index, system: system, contextSize: contextSize(index),
                                       vision: Settings.shared.vision && models.visionURL(m) != nil,
                                       helpers: cluster.helperBudgets,
                                       inUse: system.physicalMemory - min(system.physicalMemory, SystemInfo.availableMemory()))
         }
+        chat.contextLimit = plan.contextSize
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
                      vision: Settings.shared.vision ? models.visionURL(m) : nil, draft: models.draftURL(m),
                      rpc: cluster.rpcArgument)

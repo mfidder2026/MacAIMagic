@@ -52,7 +52,10 @@ struct SettingsView: View {
                     Picker("Context", selection: $settings.contextSize) {
                         Text("32K").tag(32_768); Text("64K").tag(65_536)
                         Text("128K").tag(131_072); Text("256K").tag(262_144)
+                        Text("512K").tag(524_288); Text("1M").tag(1_048_576)
                     }
+                    Text("Meer context kost geheugen (KV-cache): bij 1M ~6 GB voor DeepSeek, ~20 GB voor GLM. Qwen gaat tot 256K. Een vol gesprek wordt automatisch samengevat.")
+                        .font(.caption).foregroundStyle(.secondary)
                     Toggle("Afbeeldingen (vision, 1 GB extra)", isOn: $settings.vision)
                     Toggle("Sneller schrijven met MTP (GLM en Qwen)", isOn: $settings.mtp)
                     Toggle("Engine starten bij openen app", isOn: $settings.autoStart)

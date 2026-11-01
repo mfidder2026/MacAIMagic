@@ -57,6 +57,17 @@ struct Conversation: Codable, Identifiable, Hashable {
     /// The folder the model works in for this conversation (files and commands); nil = none.
     var workspace: String? = nil
     var updated = Date()
+    /// Tokens the conversation took in the model's context at the last answer (prompt and answer).
+    var contextTokens: Int? = nil
+    /// Compacted: a summary of the messages up to and including `summaryUpTo`, sent instead of them.
+    var summary: String? = nil
+    var summaryUpTo: UUID? = nil
+
+    /// The messages that still go to the model (after the summary).
+    var unsummarized: ArraySlice<ChatMessage> {
+        guard let last = summaryUpTo, let i = messages.firstIndex(where: { $0.id == last }) else { return messages[...] }
+        return messages[(i + 1)...]
+    }
 }
 
 /// Conversations saved as one JSON file in Application Support.

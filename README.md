@@ -70,6 +70,7 @@ comes from the internal SSD.
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
   what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACDEEPSEEK.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacDeepSeek/MACDEEPSEEK.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.
+- **Context**: a meter at the top of the chat shows how much of the model's context a conversation takes (64K by default, up to 1M for DeepSeek and GLM, 256K for Qwen). At 80% the start of the conversation is summarized by the model and sent as a summary instead (the messages stay visible, with a marker); there is also a button to do it now.
 - **Images**: button, drag and drop, or paste (⌘V)
 - **Web search**: the model calls `web_search` and `fetch_url` by itself. The app runs them (DuckDuckGo, or Brave Search
   with your own API key) and shows each step and the sources.

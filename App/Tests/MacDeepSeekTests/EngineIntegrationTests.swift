@@ -207,3 +207,36 @@ final class ClusterIntegrationTests: XCTestCase {
         try await Task.sleep(for: .seconds(6))
     }
 }
+
+/// A full conversation is summarized, and the model still knows what was said before (MACDEEPSEEK_ENGINE_TEST=1, engine running).
+@MainActor
+final class CompactIntegrationTests: XCTestCase {
+    func testCompactKeepsWhatMatters() async throws {
+        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
+        let store = ConversationStore()
+        var c = Conversation(title: "Compact-test")
+        let turns = [("Mijn kat heet Pluis en is drie jaar.", "Leuk, Pluis!"), ("Ik werk aan avontuur.bas in de map Werkmap.", "Goed, ik help mee."),
+                     ("Het spel heeft vijf kamers.", "Duidelijk."), ("Wat is 2+2?", "4.")]
+        for (q, a) in turns { c.messages += [ChatMessage(role: .user, text: q), ChatMessage(role: .assistant, text: a)] }
+        store.conversations = [c]   // in memory only
+        let chat = ChatClient()
+        let base = URL(string: "http://127.0.0.1:8080")!
+        await chat.compact(c.id, store: store, baseURL: base)
+        let after = try XCTUnwrap(store.conversations.first)
+        let summary = try XCTUnwrap(after.summary, "no summary")
+        print("SUMMARY:", summary)
+        XCTAssertEqual(after.unsummarized.filter { $0.role == .user }.count, 2, "the last two questions stay")
+
+        let saved = (Settings.shared.webSearch, Settings.shared.workspaceTools)
+        defer { (Settings.shared.webSearch, Settings.shared.workspaceTools) = saved }
+        Settings.shared.webSearch = false
+        Settings.shared.workspaceTools = false
+        chat.send(text: "Hoe heet mijn kat? Alleen de naam.", attachments: [], in: c.id, store: store, baseURL: base)
+        let t0 = Date()
+        while chat.busy && Date().timeIntervalSince(t0) < 300 { try await Task.sleep(for: .milliseconds(300)) }
+        let answer = store.conversations.first?.messages.last?.text ?? ""
+        print("ANSWER:", answer, "context tokens:", store.conversations.first?.contextTokens ?? -1)
+        XCTAssertTrue(answer.contains("Pluis"), answer)
+        XCTAssertNotNil(store.conversations.first?.contextTokens)
+    }
+}

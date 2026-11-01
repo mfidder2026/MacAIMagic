@@ -5,6 +5,12 @@ import Foundation
 @MainActor
 final class ChatClient: ObservableObject {
     @Published private(set) var busy = false
+    /// Summarizing the start of a conversation to free context.
+    @Published private(set) var compacting = false
+    /// The engine's context in tokens (set when it starts).
+    var contextLimit = 65_536
+    /// At this share of the context the conversation is summarized before the next request.
+    static let compactAt = 0.8
     /// Gets a token count per streamed delta, for the live speed chart.
     weak var metrics: LiveMetrics?
     /// The model the engine runs, for the system prompt.
@@ -70,27 +76,40 @@ final class ChatClient: ObservableObject {
         var activities: [ToolActivity] = []
         var sources: [Source] = []
         for _ in 0..<maxToolRounds {
+            if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
+               Double(used) > Double(contextLimit) * Self.compactAt {
+                await compact(id, store: store, baseURL: baseURL)
+            }
             let reply = ChatMessage(role: .assistant, text: "", activities: activities, sources: sources)
             store.update(id) { $0.messages.append(reply) }
-            guard let history = store.conversations.first(where: { $0.id == id })?.messages.dropLast() else { return }
 
-            let result: StreamResult
-            do {
-                result = try await stream(history: Array(history), baseURL: baseURL) { delta in
-                    store.update(id) { c in
-                        guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
-                        c.messages[i].text += delta.content
-                        c.messages[i].reasoning += delta.reasoning
+            var result = StreamResult()
+            var retried = false
+            while true {
+                guard let c = store.conversations.first(where: { $0.id == id }) else { return }
+                do {
+                    result = try await stream(history: Array(c.unsummarized.dropLast()), summary: c.summary, baseURL: baseURL) { delta in
+                        store.update(id) { c in
+                            guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
+                            c.messages[i].text += delta.content
+                            c.messages[i].reasoning += delta.reasoning
+                        }
                     }
+                    break
+                } catch is CancellationError {
+                    return
+                } catch let error as NSError where !retried && error.code == 400 && error.localizedDescription.contains("context") {
+                    // the conversation no longer fits: summarize its start and try again once
+                    retried = true
+                    await compact(id, store: store, baseURL: baseURL, excluding: reply.id)
+                } catch {
+                    store.update(id) { c in
+                        if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].error = error.localizedDescription }
+                    }
+                    return
                 }
-            } catch is CancellationError {
-                return
-            } catch {
-                store.update(id) { c in
-                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].error = error.localizedDescription }
-                }
-                return
             }
+            if let used = result.contextTokens { store.update(id) { $0.contextTokens = used } }
 
             store.update(id) { c in
                 guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
@@ -138,9 +157,70 @@ final class ChatClient: ObservableObject {
         }
     }
 
+    // MARK: - compacting
+
+    /// Summarize the start of a conversation, so it fits in the context again: everything before the last two questions
+    /// becomes a summary that goes with the system prompt; the messages stay visible in the chat.
+    func compact(_ id: Conversation.ID, store: ConversationStore, baseURL: URL, excluding skip: UUID? = nil) async {
+        guard let c = store.conversations.first(where: { $0.id == id }) else { return }
+        let open = c.unsummarized.filter { $0.id != skip }
+        let users = open.indices.filter { open[$0].role == .user }
+        guard users.count > 2 else { return }
+        let cut = users[users.count - 2]   // keep the last two questions and what came after them
+        let old = open[open.startIndex..<cut]
+        guard let last = old.last else { return }
+
+        compacting = true
+        defer { compacting = false }
+        // a transcript without images and with long tool results shortened, so the request itself fits
+        let budget = Int(Double(contextLimit) * 2.5)   // characters, about 0.7 of the context in tokens
+        var lines: [String] = []
+        if let previous = c.summary { lines.append("Eerdere samenvatting:\n" + previous) }
+        for m in old {
+            switch m.role {
+            case .user: lines.append("Gebruiker: " + m.text + (m.attachments.isEmpty ? "" : " [afbeelding]"))
+            case .assistant:
+                if !m.text.isEmpty { lines.append("Assistent: " + m.text) }
+                for call in m.toolCalls { lines.append("Assistent gebruikt \(call.name): " + String(call.arguments.prefix(600))) }
+            case .tool: lines.append("Resultaat: " + String(m.text.prefix(1500)))
+            case .system: continue
+            }
+        }
+        var transcript = lines.joined(separator: "\n\n")
+        if transcript.count > budget { transcript = "[begin weggelaten]\n" + String(transcript.suffix(budget)) }
+
+        let body: [String: Any] = [
+            "model": modelName,
+            "messages": [
+                ["role": "system", "content": "Je vat een gesprek samen zodat het verder kan zonder de oorspronkelijke berichten. Houd vast: het doel van de gebruiker, beslissingen, namen en paden van bestanden, commando's die werkten of faalden, de stand van het werk en open vragen of taken. Schrijf beknopt, in het Nederlands, als lijst met kopjes."],
+                ["role": "user", "content": "Vat dit gesprek samen:\n\n" + transcript],
+            ],
+            "stream": false,
+            "temperature": 0.3,
+            "max_tokens": 2000,
+            "chat_template_kwargs": ["enable_thinking": false],
+        ]
+        var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.timeoutInterval = 1800
+        guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let message = (json["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any],
+              let summary = message["content"] as? String, !summary.isEmpty else { return }
+        store.update(id) { c in
+            c.summary = summary
+            c.summaryUpTo = last.id
+            c.contextTokens = nil
+        }
+        store.save()
+    }
+
     // MARK: - request
 
-    private func requestMessages(_ history: [ChatMessage]) -> [[String: Any]] {
+    private func requestMessages(_ history: [ChatMessage], summary: String? = nil) -> [[String: Any]] {
         let s = Settings.shared
         let df = DateFormatter()
         df.locale = Locale(identifier: "nl_NL")
@@ -171,6 +251,9 @@ final class ChatClient: ObservableObject {
             }
         }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
+        if let summary {
+            system += "\n\nSamenvatting van het begin van dit gesprek (die berichten zijn weggelaten om ruimte te maken in je context):\n" + summary
+        }
 
         var out: [[String: Any]] = [["role": "system", "content": system]]
         for m in history {
@@ -203,14 +286,21 @@ final class ChatClient: ObservableObject {
     }
 
     struct Delta { var content = ""; var reasoning = "" }
-    struct StreamResult { var toolCalls: [ToolCall] = []; var tokensPerSecond: Double?; var promptTokensPerSecond: Double? }
+    struct StreamResult {
+        var toolCalls: [ToolCall] = []
+        var tokensPerSecond: Double?
+        var promptTokensPerSecond: Double?
+        /// Prompt and answer together: what the conversation takes in the context now.
+        var contextTokens: Int?
+    }
 
-    private func stream(history: [ChatMessage], baseURL: URL, onDelta: (Delta) -> Void) async throws -> StreamResult {
+    private func stream(history: [ChatMessage], summary: String? = nil, baseURL: URL, onDelta: (Delta) -> Void) async throws -> StreamResult {
         let s = Settings.shared
         var body: [String: Any] = [
             "model": modelName,
-            "messages": requestMessages(history),
+            "messages": requestMessages(history, summary: summary),
             "stream": true,
+            "stream_options": ["include_usage": true],
             "temperature": s.temperature,
             "top_p": 1.0,
             // enable_thinking is understood by both templates (DeepSeek maps it to thinking_mode)
@@ -243,6 +333,9 @@ final class ChatClient: ObservableObject {
             let payload = line.dropFirst(6)
             if payload == "[DONE]" { break }
             guard let json = try? JSONSerialization.jsonObject(with: Data(payload.utf8)) as? [String: Any] else { continue }
+            if let u = json["usage"] as? [String: Any], let total = u["total_tokens"] as? Int, total > 0 {
+                result.contextTokens = total
+            }
             if let t = json["timings"] as? [String: Any] {
                 result.tokensPerSecond = t["predicted_per_second"] as? Double
                 result.promptTokensPerSecond = t["prompt_per_second"] as? Double

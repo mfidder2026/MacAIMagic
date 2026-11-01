@@ -24,6 +24,7 @@ struct ChatView: View {
                                 MessageRow(message: m, streaming: chat.busy && m.id == c.messages.last?.id)
                                     .id(m.id)
                                     .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+                                if m.id == lastShownSummarized(c), let summary = c.summary { SummaryDivider(summary: summary) }
                             }
                             Color.clear.frame(height: 1).id("bottom")
                         }
@@ -45,6 +46,82 @@ struct ChatView: View {
             Composer(conversationID: conversationID, text: $draft)
         }
         .navigationTitle(conversation?.title ?? "MacDeepSeek")
+    }
+
+    /// The last visible message that the summary replaces (the divider goes under it).
+    private func lastShownSummarized(_ c: Conversation) -> UUID? {
+        guard let upTo = c.summaryUpTo, let i = c.messages.firstIndex(where: { $0.id == upTo }) else { return nil }
+        return c.messages[...i].last { !$0.isHidden }?.id
+    }
+}
+
+/// Where a conversation was compacted: the messages above go to the model as a summary.
+private struct SummaryDivider: View {
+    let summary: String
+    @State private var open = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Rectangle().fill(Theme.amber.opacity(0.4)).frame(height: 1)
+                Button { open.toggle() } label: {
+                    Label("Hierboven samengevat om context vrij te maken", systemImage: "rectangle.compress.vertical")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain).foregroundStyle(Theme.amber)
+                Rectangle().fill(Theme.amber.opacity(0.4)).frame(height: 1)
+            }
+            if open {
+                MarkdownText(text: summary).font(.callout)
+                    .padding(12).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+}
+
+/// How full the model's context is for this conversation, with a button to compact it.
+private struct ContextMeter: View {
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var store: ConversationStore
+    @EnvironmentObject var chat: ChatClient
+    @EnvironmentObject var engine: EngineController
+    @State private var open = false
+
+    private static func short(_ n: Int) -> String { n >= 1_048_576 ? "\(n / 1_048_576)M" : n >= 1000 ? "\(n / 1024)K" : "\(n)" }
+
+    var body: some View {
+        let used = store.current?.contextTokens ?? 0
+        let limit = max(chat.contextLimit, 1)
+        let share = min(Double(used) / Double(limit), 1)
+        let color = share > 0.9 ? Color.red : share > ChatClient.compactAt * 0.85 ? Theme.amber : Theme.mint
+        Button { open.toggle() } label: {
+            HStack(spacing: 6) {
+                if chat.compacting { ProgressView().controlSize(.mini) }
+                Text(chat.compacting ? "Samenvatten…" : "\(Self.short(used)) / \(Self.short(limit))")
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                Capsule().fill(.white.opacity(0.12)).frame(width: 46, height: 5)
+                    .overlay(alignment: .leading) { Capsule().fill(color).frame(width: 46 * share, height: 5) }
+            }
+            .padding(.horizontal, 10).padding(.vertical, 5)
+            .background(.ultraThinMaterial, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $open, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Context").font(.headline)
+                Text("\(used) van \(limit) tokens gebruikt in dit gesprek").font(.callout)
+                Text("Bij \(Int(ChatClient.compactAt * 100))% wordt het begin automatisch samengevat; de berichten blijven zichtbaar.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Button("Nu samenvatten") {
+                    open = false
+                    guard let id = store.selection else { return }
+                    Task { await chat.compact(id, store: store, baseURL: engine.baseURL) }
+                }
+                .disabled(chat.busy || chat.compacting || !engine.state.isRunning)
+            }
+            .padding(14).frame(width: 300)
+        }
+        .help("Context van het model in dit gesprek")
     }
 }
 
@@ -105,6 +182,7 @@ private struct LiveStrip: View {
             .background(.ultraThinMaterial, in: Capsule())
             WorkspaceChip()
             Spacer()
+            ContextMeter()
             if chat.busy || (metrics.current?.tokensPerSec ?? 0) > 0 {
                 Sparkline(values: metrics.samples.suffix(60).map(\.tokensPerSec))
                     .frame(width: 160, height: 22)

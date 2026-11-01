@@ -32,6 +32,23 @@ struct GGUFIndex {
         return (expertBytesPerLayer.keys.max() ?? -1) + 1
     }
     var architecture: String { metadata["general.architecture"] as? String ?? "" }
+    /// <arch>.context_length: the longest context the model was made for (0 = unknown)
+    var contextLength: Int {
+        for (k, v) in metadata where k.hasSuffix(".context_length") && !k.contains("original") {
+            if let n = v as? UInt32 { return Int(n) }
+            if let n = v as? UInt64 { return Int(n) }
+        }
+        return 0
+    }
+    /// KV cache per token of context: measured for DeepSeek (compressed attention) and GLM, from the heads for Qwen
+    var kvBytesPerToken: UInt64 {
+        switch architecture {
+        case "deepseek41", "deepseek4": return 5_600
+        case "glm5-next": return 20_000
+        case "qwen4exp": return 36_000
+        default: return 32_000
+        }
+    }
 
     static func layer(of name: String) -> Int? {
         let parts = name.split(separator: ".")

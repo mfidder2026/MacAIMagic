@@ -28,6 +28,7 @@ vorige keer).
   (~95 GB) in een cache; de rest komt met veel parallelle leesacties van de SSD (6 GB/s). Na een herstart laadt de
   cache zichzelf terug, zodat ook het eerste antwoord meteen op snelheid is. Verhoog daarvoor de GPU-limiet met de knop
   onder Modellen (zie [RESEARCH.md](RESEARCH.md)).
+- **Context**: bovenin de chat zie je hoeveel van de context van het model een gesprek inneemt (standaard 64K, tot 1M voor DeepSeek en GLM, 256K voor Qwen). Bij 80% vat het model het begin van het gesprek samen; de berichten blijven zichtbaar, met een markering. Er is ook een knop om het meteen te doen.
 - **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
   lezen. Wat het mag, stel je in met het knopje **L S U** (lezen, schrijven, uitvoeren) naast de werkmap: per soort Toestaan, Eerst vragen of Weigeren (standaard mag lezen en vraagt de rest eerst). Een bestand `MACDEEPSEEK.md` in de werkmap geeft het model vaste instructies voor die map, bijvoorbeeld hoe het een emulator start. Algemene instructies voor elk gesprek zet je in `~/Library/Application Support/MacDeepSeek/MACDEEPSEEK.md` (Instellingen → Chat → Open bestand). Beide worden bij elk bericht opnieuw gelezen.
 
