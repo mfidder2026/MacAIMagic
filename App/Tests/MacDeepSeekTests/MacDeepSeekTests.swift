@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import MacDeepSeek
 
 final class MemoryPlannerTests: XCTestCase {
@@ -196,5 +197,119 @@ final class ClusterPlanTests: XCTestCase {
         XCTAssertLessThan(cluster.streamedExperts, alone.streamedExperts - 70_000_000_000)
         XCTAssertEqual(cluster.hostExpertLayers.count, cluster.tensorSplit.last! - 1, "all of this Mac's layers")
         XCTAssertEqual(cluster.hostExpertLayers.first, 40 - cluster.hostExpertLayers.count)
+    }
+}
+
+/// Opening an earlier conversation shows its last message, also when the messages differ a lot in height and the chat
+/// opens with the pane transition (switching from another screen); a short conversation starts at the top.
+@MainActor
+final class ChatScrollTests: XCTestCase {
+    /// As in RootView: another pane first, then the chat, with the same transition and animation.
+    private struct PaneSwitch: View {
+        let target: Conversation.ID
+        @State private var pane: Pane? = .live
+        var body: some View {
+            ZStack {
+                Group {
+                    switch pane {
+                    case .chat(let id)?: ChatView(conversationID: id).id(id)
+                    default: LiveView()
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.985)))
+            }
+            .animation(.easeInOut(duration: 0.25), value: pane)
+            .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { pane = .chat(target) } }
+        }
+    }
+
+    /// Shaped like a real working session: tool calls and results, steps, an image, long thinking, code.
+    private func longConversation() -> Conversation {
+        let image = NSImage(size: NSSize(width: 640, height: 400), flipped: false) { rect in
+            NSColor.systemTeal.setFill()
+            rect.fill()
+            return true
+        }
+        let jpeg = NSBitmapImageRep(data: image.tiffRepresentation!)!.representation(using: .jpeg, properties: [:])!
+        let prose = { (n: Int) in String(repeating: "Een zin met uitleg over het programma en wat het doet. ", count: n) }
+        let code = "```basic\n" + (1...30).map { "\($0 * 10) PRINT \"REGEL \($0)\"" }.joined(separator: "\n") + "\n```"
+        var c = Conversation(title: "Lang gesprek")
+        for round in 0..<2 {
+            c.messages += [
+                ChatMessage(role: .user, text: prose(7)),
+                ChatMessage(role: .assistant, text: prose(2), toolCalls: [ToolCall(id: "a\(round)", name: "list_dir", arguments: "{}")]),
+                ChatMessage(role: .tool, text: "ok", toolCallId: "a\(round)"),
+                ChatMessage(role: .assistant, text: prose(18), activities: (0..<3).map { ToolActivity(label: "Bestand schrijven: prog\($0).bas", done: true, output: prose(3)) }),
+                ChatMessage(role: .user, text: "Start het programma"),
+                ChatMessage(role: .assistant, text: prose(4) + "\n" + code),
+                ChatMessage(role: .assistant, text: prose(10) + "\n" + code + "\n" + code, reasoning: prose(14),
+                            activities: (0..<2).map { ToolActivity(label: "Commando: run \($0)", done: true) }),
+                ChatMessage(role: .user, text: "Wat zie je op deze afbeelding?", attachments: [Attachment(filename: "scherm.jpg", jpeg: jpeg)]),
+                ChatMessage(role: .assistant, text: "", reasoning: prose(360)),
+                ChatMessage(role: .user, text: "Leg het nog eens uit"),
+                ChatMessage(role: .assistant, text: prose(25) + "\n" + code + "\n" + code, reasoning: prose(200)),
+            ]
+        }
+        return c
+    }
+
+    /// Shows the view in a window and returns the chat's scroll view, after the layout has settled.
+    private func show(_ view: some View, app: AppState, wait: TimeInterval) throws -> NSScrollView {
+        let root = view
+            .environmentObject(app).environmentObject(app.engine).environmentObject(app.models)
+            .environmentObject(app.store).environmentObject(app.chat).environmentObject(Settings.shared)
+            .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster)
+            .frame(width: 1000, height: 700)
+        let host = NSHostingView(rootView: root)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(wait))
+        func scrollViews(in view: NSView) -> [NSScrollView] {
+            var found = view.subviews.flatMap { scrollViews(in: $0) }
+            if let s = view as? NSScrollView { found.append(s) }
+            return found
+        }
+        return try XCTUnwrap(scrollViews(in: host).max { ($0.documentView?.frame.height ?? 0) < ($1.documentView?.frame.height ?? 0) })
+    }
+
+    /// Points between the bottom of the visible part and the end of the conversation.
+    private func distanceFromEnd(_ scroll: NSScrollView) throws -> CGFloat {
+        let doc = try XCTUnwrap(scroll.documentView)
+        let visible = scroll.contentView.documentVisibleRect
+        XCTAssertGreaterThan(doc.frame.height, visible.height * 3, "the conversation is longer than the window")
+        return doc.isFlipped ? doc.frame.height - visible.maxY : visible.minY
+    }
+
+    func testOpensAtLastMessage() throws {
+        let app = AppState()
+        let c = longConversation()
+        // in memory only: the saved conversations stay as they are
+        app.store.conversations = [c]
+        app.store.selection = c.id
+        let fromEnd = try distanceFromEnd(show(ChatView(conversationID: c.id), app: app, wait: 1.5))
+        XCTAssertLessThan(fromEnd, 40, "opened \(Int(fromEnd)) points above the last message")
+    }
+
+    func testOpensAtLastMessageAfterPaneSwitch() throws {
+        let app = AppState()
+        let c = longConversation()
+        app.store.conversations = [c]
+        app.store.selection = c.id
+        let fromEnd = try distanceFromEnd(show(PaneSwitch(target: c.id), app: app, wait: 2.5))
+        XCTAssertLessThan(fromEnd, 40, "opened \(Int(fromEnd)) points above the last message")
+    }
+
+    func testShortConversationStartsAtTop() throws {
+        guard #available(macOS 15.0, *) else { throw XCTSkip("macOS 14 aligns a short chat at the bottom") }
+        let app = AppState()
+        var c = Conversation(title: "Kort")
+        c.messages = [ChatMessage(role: .user, text: "Hallo"), ChatMessage(role: .assistant, text: "Hoi! Waarmee kan ik helpen?")]
+        app.store.conversations = [c]
+        let scroll = try show(ChatView(conversationID: c.id), app: app, wait: 1.5)
+        let doc = try XCTUnwrap(scroll.documentView)
+        let inClip = doc.convert(doc.bounds, to: scroll.contentView)
+        let top = scroll.contentView.isFlipped ? inClip.minY : scroll.contentView.bounds.height - inClip.maxY
+        XCTAssertLessThan(top, 10, "a short chat starts \(Int(top)) points below the top")
     }
 }

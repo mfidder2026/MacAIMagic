@@ -33,9 +33,9 @@ struct ChatView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .scrollContentBackground(.hidden)
+                    .modifier(OpenAtEnd(enabled: scrollToEnd))
                     .onChange(of: c.messages.last?.text) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     .onChange(of: c.messages.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
-                    .onAppear { if scrollToEnd { proxy.scrollTo("bottom", anchor: .bottom) } }
                 }
             } else {
                 EmptyChat(draft: $draft)
@@ -45,6 +45,23 @@ struct ChatView: View {
             Composer(conversationID: conversationID, text: $draft)
         }
         .navigationTitle(conversation?.title ?? "MacDeepSeek")
+    }
+}
+
+/// Opens a conversation at its last message and keeps the end in view as it grows. A scrollTo when the view appears
+/// runs during the pane transition, while the lazy stack only has estimated heights, and lands in the middle of a long
+/// conversation; the scroll anchor does not. A short conversation still starts at the top (macOS 15 and later).
+private struct OpenAtEnd: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if !enabled {
+            content
+        } else if #available(macOS 15.0, *) {
+            content.defaultScrollAnchor(.bottom, for: .initialOffset).defaultScrollAnchor(.bottom, for: .sizeChanges)
+        } else {
+            content.defaultScrollAnchor(.bottom)
+        }
     }
 }
 

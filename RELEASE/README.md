@@ -1,6 +1,6 @@
-# MacDeepSeek 1.4 (macOS, Apple Silicon)
+# MacDeepSeek 1.4.1 (macOS, Apple Silicon)
 
-`MacDeepSeek-1.4-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacDeepSeek-1.4.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacDeepSeek patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip and move `MacDeepSeek.app` to `/Applications`.
@@ -8,9 +8,11 @@ MacDeepSeek patches). The models are **not** included: see [Installation](../REA
    `xattr -dr com.apple.quarantine /Applications/MacDeepSeek.app`.
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacDeepSeek-1.4-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacDeepSeek-1.4.1-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. As the main Mac it needs 128 GB for the models in this app; as a cluster helper any amount of memory helps.
+
+New in 1.4.1: an earlier conversation opens at its last message (it opened in the middle when you came back to it from another screen).
 
 New in 1.4: the Q4 models, larger than memory, are 2.5–3× faster at writing and 7–13× at reading prompts.
 DeepSeek-V4.1-Flash Q4 writes at 7–8.5 tok/s instead of 2.8 and reads prompts at 65–95 tok/s instead of 9;
