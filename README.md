@@ -69,7 +69,7 @@ comes from the internal SSD.
 - **Thinking** on/off, with a collapsible chain of thought and a reasoning-effort setting
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
-  what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation).
+  what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACDEEPSEEK.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator. Programs with a window are started detached, so the command's time-out does not close them.
 - **Images**: button, drag and drop, or paste (⌘V)
 - **Web search**: the model calls `web_search` and `fetch_url` by itself. The app runs them (DuckDuckGo, or Brave Search
   with your own API key) and shows each step and the sources.

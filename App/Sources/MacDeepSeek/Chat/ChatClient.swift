@@ -156,8 +156,15 @@ final class ChatClient: ObservableObject {
             edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). \
             Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, \
             maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. \
-            De gebruiker keurt schrijven en commando's goed; leg kort uit wat je doet.
+            Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het \
+            eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. \
+            Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.
             """
+            // the user's own notes for this folder, like CLAUDE.md for Claude Code
+            let notes = ws.appendingPathComponent("MACDEEPSEEK.md")
+            if let text = try? String(contentsOf: notes, encoding: .utf8), !text.isEmpty {
+                system += "\n\nNotities van de gebruiker voor deze werkmap (MACDEEPSEEK.md), volg ze op:\n" + String(text.prefix(8000))
+            }
         }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
 

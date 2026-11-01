@@ -29,7 +29,7 @@ vorige keer).
   cache zichzelf terug, zodat ook het eerste antwoord meteen op snelheid is. Verhoog daarvoor de GPU-limiet met de knop
   onder Modellen (zie [RESEARCH.md](RESEARCH.md)).
 - **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
-  lezen. Wat het mag, stel je in met het knopje **L S U** (lezen, schrijven, uitvoeren) naast de werkmap: per soort Toestaan, Eerst vragen of Weigeren (standaard mag lezen en vraagt de rest eerst).
+  lezen. Wat het mag, stel je in met het knopje **L S U** (lezen, schrijven, uitvoeren) naast de werkmap: per soort Toestaan, Eerst vragen of Weigeren (standaard mag lezen en vraagt de rest eerst). Een bestand `MACDEEPSEEK.md` in de werkmap geeft het model vaste instructies voor die map, bijvoorbeeld hoe het een emulator start.
 
 ## Cluster
 
