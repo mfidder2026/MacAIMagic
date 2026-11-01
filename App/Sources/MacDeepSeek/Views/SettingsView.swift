@@ -42,6 +42,7 @@ struct SettingsView: View {
                     Toggle("Afbeeldingen (vision, 1 GB extra)", isOn: $settings.vision)
                     Toggle("Sneller schrijven met MTP (GLM en Qwen)", isOn: $settings.mtp)
                     Toggle("Engine starten bij openen app", isOn: $settings.autoStart)
+                    Toggle("Bewegende achtergrond", isOn: $settings.animatedBackground)
                 }
                 Section("Server") {
                     TextField("Adres", text: $settings.host)

@@ -25,4 +25,6 @@ final class Settings: ObservableObject {
     @AppStorage("autoApprove") var autoApprove = false
     /// Speculative decoding with the model's multi-token prediction head (GLM, Qwen).
     @AppStorage("mtp") var mtp = true
+    /// Drifting, brightening background colours (off: a still background, calmer)
+    @AppStorage("animatedBackground") var animatedBackground = false
 }

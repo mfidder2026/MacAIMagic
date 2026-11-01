@@ -55,7 +55,7 @@ comes from the internal SSD.
 
 ## Features
 
-- **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads
+- **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
 - **Four models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start
 - **Compare**: measure every downloaded model the same way and see the results side by side
 - Streaming chat with markdown and code blocks (with a copy button)

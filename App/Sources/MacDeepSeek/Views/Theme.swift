@@ -23,30 +23,41 @@ enum Theme {
     }
 }
 
-/// Slowly drifting colour blobs behind everything; brighter and faster while the model writes.
+/// Soft colour blobs behind everything. Still by default (a moving, brightening background is busy);
+/// "Bewegende achtergrond" in the settings lets them drift and light up while the model writes.
 struct AuroraBackground: View {
-    var energy: Double = 0      // 0…1, from the live token rate
+    var energy: Double = 0      // 0…1, from the live token rate (only used when animated)
+    @AppStorage("animatedBackground") private var animated = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
-            let t = tl.date.timeIntervalSinceReferenceDate * (0.05 + 0.10 * energy)
-            Canvas { ctx, size in
-                ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.night))
-                let blobs: [(Color, Double, Double, Double)] = [
-                    (Theme.accent, 0.0, 0.55, 0.9), (Theme.violet, 2.1, 0.45, 0.8),
-                    (Theme.cyan, 4.2, 0.35, 0.6), (Theme.pink, 5.3, 0.30, 0.5),
-                ]
-                ctx.addFilter(.blur(radius: min(size.width, size.height) * 0.12))
-                for (color, phase, radius, strength) in blobs {
-                    let x = size.width * (0.5 + 0.38 * sin(t * 0.9 + phase))
-                    let y = size.height * (0.5 + 0.34 * cos(t * 0.7 + phase * 1.3))
-                    let r = min(size.width, size.height) * radius
-                    let rect = CGRect(x: x - r, y: y - r, width: 2 * r, height: 2 * r)
-                    ctx.fill(Path(ellipseIn: rect), with: .color(color.opacity((0.16 + 0.14 * energy) * strength)))
+        Group {
+            if animated {
+                TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
+                    canvas(t: tl.date.timeIntervalSinceReferenceDate * (0.05 + 0.10 * energy), energy: energy)
                 }
+            } else {
+                canvas(t: 0, energy: 0)
             }
         }
         .ignoresSafeArea()
+    }
+
+    private func canvas(t: Double, energy: Double) -> some View {
+        Canvas { ctx, size in
+            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.night))
+            let blobs: [(Color, Double, Double, Double)] = [
+                (Theme.accent, 0.0, 0.55, 0.9), (Theme.violet, 2.1, 0.45, 0.8),
+                (Theme.cyan, 4.2, 0.35, 0.6), (Theme.pink, 5.3, 0.30, 0.5),
+            ]
+            ctx.addFilter(.blur(radius: min(size.width, size.height) * 0.12))
+            for (color, phase, radius, strength) in blobs {
+                let x = size.width * (0.5 + 0.38 * sin(t * 0.9 + phase))
+                let y = size.height * (0.5 + 0.34 * cos(t * 0.7 + phase * 1.3))
+                let r = min(size.width, size.height) * radius
+                let rect = CGRect(x: x - r, y: y - r, width: 2 * r, height: 2 * r)
+                ctx.fill(Path(ellipseIn: rect), with: .color(color.opacity((0.16 + 0.14 * energy) * strength)))
+            }
+        }
     }
 }
 
