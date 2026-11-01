@@ -15,9 +15,14 @@ struct ModelInfo: Codable, Identifiable, Hashable {
     let summary: String
     let vision: String?
     let files: [ModelFile]
+    /// Multi-token prediction head for speculative decoding: in a separate file (Qwen) or inside the model (GLM).
+    let draft: ModelFile?
+    let mtp: String?
+    let fitsInMemory: Bool?
 
     var totalSize: UInt64 { files.reduce(0) { $0 + $1.size } }
     var isDeepSeek: Bool { family == "deepseek" }
+    var hasMTP: Bool { mtp == "builtin" || mtp == "file" }
     var shortName: String { name.components(separatedBy: " ").first ?? name }
 }
 

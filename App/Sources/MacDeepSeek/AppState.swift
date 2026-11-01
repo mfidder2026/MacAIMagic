@@ -55,7 +55,7 @@ final class AppState: ObservableObject {
         if index == nil { loadIndex() }
         guard let m = selectedModel, let plan else { return }
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
-                     vision: Settings.shared.vision ? models.visionURL(m) : nil)
+                     vision: Settings.shared.vision ? models.visionURL(m) : nil, draft: models.draftURL(m))
     }
 
     /// Switch to another model: stops the engine first when it runs a different one.

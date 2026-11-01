@@ -30,6 +30,23 @@ index 072d3bc..a9d4c1b 100644
      LLM_TENSOR_DFLASH_ATTN_CONV_BASE,
      LLM_TENSOR_DFLASH_ATTN_CONV_PROJ,
      LLM_TENSOR_DFLASH_FFN_CONV_BASE,
+diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
+index 485483b..1be1769 100644
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1439,7 +1439,11 @@ void llama_model_loader::init_mappings(bool prefetch, llama_mlocks * mlock_mmaps
+                 }
+             }
+ 
+-            const size_t prefetch_size = prefetch && use_mmap ? -1 : 0;
++            // LLAMA_MMAP_PREFETCH=0: no read-ahead of the whole file, for models larger than memory
++            // (it would read hundreds of GB at load and evict itself); pages then come in as they are used
++            const char * prefetch_env = getenv("LLAMA_MMAP_PREFETCH");
++            const bool   prefetch_off = prefetch_env && atoi(prefetch_env) == 0;
++            const size_t prefetch_size = prefetch && use_mmap && !prefetch_off ? -1 : 0;
+ 
+             std::unique_ptr<llama_mmap> mapping = std::make_unique<llama_mmap>(file.get(), prefetch_size, is_numa,
+                     lazy.for_file(idx));
 diff --git a/src/llama-model.h b/src/llama-model.h
 index da4964c..e12c5a8 100644
 --- a/src/llama-model.h

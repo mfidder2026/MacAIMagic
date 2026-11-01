@@ -1,4 +1,5 @@
 import Foundation
+import IOKit.pwr_mgt
 
 /// Runs llama-server (the patched llama.cpp engine) with the memory plan, and follows its log and health.
 @MainActor
@@ -13,6 +14,8 @@ final class EngineController: ObservableObject {
     @Published private(set) var loadProgress: Double = 0
 
     private var process: Process?
+    /// Keeps the Mac awake while the engine runs: during idle sleep a running answer or benchmark freezes for minutes.
+    private var sleepAssertion: IOPMAssertionID = 0
     private var logHandle: FileHandle?
     private var healthTask: Task<Void, Never>?
 
@@ -21,7 +24,7 @@ final class EngineController: ObservableObject {
     /// The model the engine runs (or last ran).
     @Published private(set) var model: ModelInfo?
 
-    func arguments(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?) -> [String] {
+    func arguments(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil) -> [String] {
         let s = Settings.shared
         var args = [
             "--model", shards[0].path,
@@ -41,12 +44,21 @@ final class EngineController: ObservableObject {
             "--metrics",
             "--alias", model.id,
         ]
+        // larger than memory: CPU experts stay mapped from the file (page cache), never repacked into RAM
+        if !plan.fitsInMemory { args += ["--no-repack"] }
         if let vision { args += ["--mmproj", vision.path] }
+        // multi-token prediction: a small head guesses the next tokens, the model checks them in one pass
+        // (measured on GLM-5.3 Compact: 2 tokens ahead gives +44% on code, +20% on explanations and the same
+        // speed on creative text; 3+ ahead loses on creative text because too many guesses are rejected)
+        if s.mtp && model.hasMTP {
+            if model.mtp == "file", let draft { args += ["--spec-type", "draft-mtp", "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
+            else if model.mtp == "builtin" { args += ["--spec-type", "draft-mtp", "--spec-draft-n-max", "2"] }
+        }
         if !s.apiKey.isEmpty { args += ["--api-key", s.apiKey] }
         return args
     }
 
-    func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?) {
+    func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil) {
         guard process == nil else { return }
         guard let bin = Paths.engineBinary("llama-server") else {
             state = .failed("Engine niet gevonden. Bouw hem met scripts/build_engine.sh.")
@@ -54,10 +66,12 @@ final class EngineController: ObservableObject {
         }
         let p = Process()
         p.executableURL = bin
-        p.arguments = arguments(model: model, shards: shards, plan: plan, vision: vision)
+        p.arguments = arguments(model: model, shards: shards, plan: plan, vision: vision, draft: draft)
         self.model = model
         var env = ProcessInfo.processInfo.environment
         env["LLAMA_ARG_LAZY_MODE"] = "auto"   // tables over 4 GB (DeepSeek's Engram) are read row by row from the SSD
+        // larger than memory: reading the whole file ahead at load would take minutes and evict itself
+        if !plan.fitsInMemory { env["LLAMA_MMAP_PREFETCH"] = "0" }
         p.environment = env
 
         FileManager.default.createFile(atPath: Paths.engineLog.path, contents: nil)
@@ -81,6 +95,7 @@ final class EngineController: ObservableObject {
             return
         }
         process = p
+        preventSleep(true)
         loadProgress = 0
         logTail = ["$ \(bin.lastPathComponent) " + p.arguments!.joined(separator: " ")]
         state = .starting("Model laden…")
@@ -122,6 +137,7 @@ final class EngineController: ObservableObject {
     private func terminated(code: Int32) {
         healthTask?.cancel()
         process = nil
+        preventSleep(false)
         try? logHandle?.close()
         logHandle = nil
         // 0: clean exit, 2 / 15: our interrupt or terminate
@@ -130,6 +146,18 @@ final class EngineController: ObservableObject {
         } else {
             let last = logTail.last(where: { $0.contains("error") || $0.contains("failed") }) ?? logTail.last ?? ""
             state = .failed("Engine gestopt (code \(code)): \(last)")
+        }
+    }
+
+    /// The display may still sleep; the system does not, until the engine stops.
+    private func preventSleep(_ on: Bool) {
+        if on, sleepAssertion == 0 {
+            IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
+                                        IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                                        "MacDeepSeek: het model draait" as CFString, &sleepAssertion)
+        } else if !on, sleepAssertion != 0 {
+            IOPMAssertionRelease(sleepAssertion)
+            sleepAssertion = 0
         }
     }
 

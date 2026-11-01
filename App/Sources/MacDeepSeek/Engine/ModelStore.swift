@@ -17,6 +17,7 @@ final class ModelStore: ObservableObject {
     struct ModelStatus {
         var files: [FileStatus] = []
         var vision: FileStatus?
+        var draft: FileStatus?
         var have: UInt64 { files.reduce(0) { $0 + $1.have } }
         var expected: UInt64 { files.reduce(0) { $0 + $1.expected } }
         var fraction: Double { expected == 0 ? 0 : Double(have) / Double(expected) }
@@ -63,6 +64,7 @@ final class ModelStore: ObservableObject {
             var s = ModelStatus()
             s.files = m.files.map { file(Paths.modelDir(m.id), $0.local, $0.size) }
             if let v = catalog.vision(for: m) { s.vision = file(Paths.visionDir, v.local, v.size) }
+            if let d = m.draft { s.draft = file(Paths.modelDir(m.id), d.local, d.size) }
             next[m.id] = s
         }
         status = next
@@ -83,6 +85,11 @@ final class ModelStore: ObservableObject {
     }
 
     func shardURLs(_ model: ModelInfo) -> [URL] { model.files.map { Paths.modelDir(model.id).appendingPathComponent($0.local) } }
+
+    func draftURL(_ model: ModelInfo) -> URL? {
+        guard let d = model.draft, status(model.id).draft?.complete == true else { return nil }
+        return Paths.modelDir(model.id).appendingPathComponent(d.local)
+    }
 
     func visionURL(_ model: ModelInfo) -> URL? {
         guard let v = catalog.vision(for: model), status(model.id).vision?.complete == true else { return nil }

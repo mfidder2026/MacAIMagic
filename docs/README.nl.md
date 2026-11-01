@@ -1,6 +1,6 @@
 # MacDeepSeek (Nederlands)
 
-Draai **DeepSeek-V4.1-Flash-1017** (748 miljard parameters) en **GLM-5.3-Flash** (321 miljard parameters) volledig lokaal
+Draai **DeepSeek-V4.1-Flash-1017** (748 miljard parameters), **GLM-5.3-Flash** (321 miljard) en **Qwen3.8-Flash-Next** (180 miljard) volledig lokaal
 op een Mac met Apple Silicon en 128 GB unified memory. MacDeepSeek is een eigen macOS-app met live grafieken. Je kunt
 chatten, afbeeldingen uploaden, het web laten doorzoeken, modellen naast elkaar vergelijken, en het model gebruiken als
 OpenAI- of Anthropic-compatibele API (bijvoorbeeld vanuit Claude Code).
@@ -11,16 +11,21 @@ De Engelse [README](../README.md) is de volledige versie; dit is een samenvattin
 
 | Model | Download | In geheugen | Schrijven | Prompt lezen |
 |---|---|---|---|---|
+| **Qwen3.8-Flash-Next Q4**: 180B, 6B actief, 4 bit, MTP | 116 GB | past (83 GB) | **33 tok/s, 40–55 met MTP** | ~440 tok/s |
+| **GLM-5.3-Flash Compact**: experts 2–3 bit, MTP | 110 GB | past (109 GB) | **20 tok/s, 25–29 met MTP** | ~175–185 tok/s |
 | **DeepSeek-V4.1-Flash Compact**: experts 1,6 bit, attention 8 bit | 278 GB | past (115 GB) | **19,6–20,1 tok/s** | ~160–175 tok/s |
-| **GLM-5.3-Flash Compact**: experts 2–3 bit | 110 GB | past (109 GB) | **19,9–20,4 tok/s** | ~175–180 tok/s |
-| **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan de originele FP4-experts | 502 GB | streamt van de SSD | wordt gemeten | wordt gemeten |
-| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | streamt van de SSD | wordt gemeten | wordt gemeten |
+| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | 75 GB van de SSD | ~2 tok/s | traag |
+| **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 502 GB | 173 GB van de SSD | ~0,6 tok/s | zeer traag |
 
 Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard GPU-limiet van macOS.
 
 - **Compact**: alles wat per woord nodig is, staat in het geheugen. Snel.
-- **Q4**: dichter bij het origineel, maar groter dan het geheugen. Experts die niet passen, komen tijdens het schrijven
-  van de SSD. Trager, maar nauwkeuriger.
+- **MTP**: GLM en Qwen raden de volgende woorden vooruit en het model controleert ze in één keer. Zelfde antwoorden,
+  tot 65% sneller schrijven.
+- **Q4**: dichter bij het origineel, maar groter dan 128 GB. Op één Mac veel te traag; bedoeld voor 256 GB of twee
+  gekoppelde Macs (zie [RESEARCH.md](RESEARCH.md)).
+- **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
+  lezen. Schrijven en commando's vragen eerst jouw toestemming.
 
 ## Installeren
 
@@ -45,4 +50,4 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8080 claude
 
 ## Licenties
 
-MacDeepSeek: MIT. llama.cpp: MIT. DeepSeek-V4.1-Flash-1017 en GLM-5.3-Flash, en de gequantiseerde bestanden: MIT.
+MacDeepSeek: MIT. llama.cpp: MIT. DeepSeek-V4.1-Flash-1017 en GLM-5.3-Flash (en hun gequantiseerde bestanden): MIT. Qwen3.8-Flash-Next: Qwen-licentie.

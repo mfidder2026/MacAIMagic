@@ -19,7 +19,11 @@ VISION_ARGS=()
 [ -n "$VISION" ] && [ -f "$MODELS/vision/$VISION" ] && VISION_ARGS=(--mmproj "$MODELS/vision/$VISION")
 
 cd "$ROOT"
-LLAMA_ARG_LAZY_MODE=auto exec ./engine/bin/llama-server \
+# never start next to another engine (the app's, for example): two models do not fit in memory
+if lsof -nP -iTCP:8080 -sTCP:LISTEN >/dev/null 2>&1 || pgrep -x llama-server >/dev/null; then
+  echo "er draait al een engine (poort 8080); stop die eerst" | tee engine-test.log; exit 1
+fi
+LLAMA_ARG_LAZY_MODE=auto exec "$ROOT/engine/bin/llama-server" \
   --model "$MODELS/$ID/$FIRST" "${VISION_ARGS[@]}" \
   --host 127.0.0.1 --port 8080 --ctx-size "${3:-65536}" \
   --n-gpu-layers 999 --n-cpu-moe "${2:-2}" --flash-attn on --fit off \

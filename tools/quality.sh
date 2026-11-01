@@ -13,8 +13,8 @@ OUT="$ROOT/build/quality"
 mkdir -p "$OUT"
 
 case "$FAMILY" in
-  deepseek) REF=deepseek-v4.1-flash-q4; TEST=deepseek-v4.1-flash-compact; REF_CPU=24; TEST_CPU=2 ;;
-  glm)      REF=glm-5.3-flash-q4;       TEST=glm-5.3-flash-compact;       REF_CPU=24; TEST_CPU=0 ;;
+  deepseek) REF=deepseek-v4.1-flash-q4; TEST=deepseek-v4.1-flash-compact; REF_CPU=33; TEST_CPU=2 ;;
+  glm)      REF=glm-5.3-flash-q4;       TEST=glm-5.3-flash-compact;       REF_CPU=33; TEST_CPU=0 ;;
   *) echo "unknown family $FAMILY"; exit 1 ;;
 esac
 first() { /usr/bin/python3 -I -c 'import json,sys; m=json.load(open(sys.argv[1])); print(next(x for x in m["models"] if x["id"]==sys.argv[2])["files"][0]["local"])' "$ROOT/tools/models.json" "$1"; }
@@ -32,7 +32,7 @@ run() {  # model-id n-cpu-moe extra-args…
 BASE="$OUT/$REF.kld"
 if [ ! -s "$BASE" ]; then
   echo "== reference: $REF"
-  run "$REF" "$REF_CPU" --kl-divergence-base "$BASE" 2>&1 | tee "$OUT/$REF.log" | grep -E "Final estimate|error" || true
+  LLAMA_MMAP_PREFETCH=0 run "$REF" "$REF_CPU" --no-repack --kl-divergence-base "$BASE" 2>&1 | tee "$OUT/$REF.log" | grep -E "Final estimate|error" || true
 fi
 echo "== $TEST against $REF"
 run "$TEST" "$TEST_CPU" --kl-divergence-base "$BASE" --kl-divergence 2>&1 | tee "$OUT/$TEST.log" \

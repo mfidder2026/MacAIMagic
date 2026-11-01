@@ -17,6 +17,9 @@ if model is None:
     sys.exit("unknown model: " + sys.argv[2] + " (known: " + ", ".join(x["id"] for x in m["models"]) + ")")
 for f in model["files"]:
     print("\t".join([model["id"], f["local"], str(f["size"]), f["sha256"], f["url"]]))
+d = model.get("draft")
+if d:
+    print("\t".join([model["id"], d["local"], str(d["size"]), d["sha256"], d["url"]]))
 v = next((x for x in m.get("vision", []) if x["id"] == model.get("vision")), None)
 if v:
     print("\t".join(["vision", v["local"], str(v["size"]), v["sha256"], v["url"]]))

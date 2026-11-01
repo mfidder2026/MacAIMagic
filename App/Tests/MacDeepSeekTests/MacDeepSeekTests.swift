@@ -85,7 +85,7 @@ final class GGUFIndexTests: XCTestCase {
 final class CatalogTests: XCTestCase {
     func testCatalogLoads() throws {
         let c = ModelCatalog.shared
-        XCTAssertEqual(c.models.count, 4)
+        XCTAssertEqual(c.models.count, 5)
         for m in c.models {
             XCTAssertFalse(m.files.isEmpty)
             XCTAssertNotNil(c.vision(for: m), m.id)
@@ -100,7 +100,7 @@ final class CatalogTests: XCTestCase {
     /// The names the user sees are our own: the model name starts with the base model, files are named after the id.
     func testNamesAreOurOwn() {
         for m in ModelCatalog.shared.models {
-            XCTAssertTrue(m.name.hasPrefix("DeepSeek-V4.1-Flash") || m.name.hasPrefix("GLM-5.3-Flash"), m.name)
+            XCTAssertTrue(["DeepSeek-V4.1-Flash", "GLM-5.3-Flash", "Qwen3.8-Flash-Next"].contains { m.name.hasPrefix($0) }, m.name)
             XCTAssertTrue(m.files.allSatisfy { $0.local.hasPrefix(m.id) })
         }
     }
@@ -121,5 +121,21 @@ final class StreamingPlanTests: XCTestCase {
         XCTAssertGreaterThan(p.cpuMoELayers, 20)
         XCTAssertLessThan(p.cpuMoELayers, 40)
         XCTAssertLessThanOrEqual(p.dense + p.overhead + p.gpuExperts, p.gpuLimit)
+    }
+}
+
+/// Prints the memory plan of every model whose headers are on disk (MACDEEPSEEK_PLANS=1).
+@MainActor
+final class PlanReportTests: XCTestCase {
+    func testPrintPlans() throws {
+        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_PLANS"] == "1" else { throw XCTSkip("set MACDEEPSEEK_PLANS=1") }
+        let store = ModelStore()
+        for m in ModelCatalog.shared.models where store.status(m.id).headersAvailable {
+            let idx = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))
+            let p = MemoryPlanner.plan(index: idx, system: .current(), contextSize: 65_536, vision: true)
+            print(String(format: "PLAN %@: layers %d, dense %.1f GB, experts %.1f GB, engram %.1f GB, cpu layers %d, gpu experts %.1f GB, cpu experts %.1f GB, streamed %.1f GB, fits %@",
+                         m.id, p.layers, Double(p.dense) / 1e9, Double(p.experts) / 1e9, Double(p.engram) / 1e9, p.cpuMoELayers,
+                         Double(p.gpuExperts) / 1e9, Double(p.cpuExperts) / 1e9, Double(p.streamedExperts) / 1e9, p.fitsInMemory ? "yes" : "no"))
+        }
     }
 }

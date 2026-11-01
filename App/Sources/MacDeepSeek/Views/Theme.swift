@@ -13,10 +13,13 @@ enum Theme {
     static let cool = LinearGradient(colors: [cyan, accent], startPoint: .leading, endPoint: .trailing)
     static let userBubble = LinearGradient(colors: [accent.opacity(0.55), violet.opacity(0.45)], startPoint: .topLeading, endPoint: .bottomTrailing)
 
-    static func family(_ f: String) -> Color { f == "glm" ? mint : accent }
+    static func family(_ f: String) -> Color { f == "glm" ? mint : (f == "qwen" ? amber : accent) }
     static func familyGradient(_ f: String) -> LinearGradient {
-        f == "glm" ? LinearGradient(colors: [mint, cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
-                   : LinearGradient(colors: [accent, violet], startPoint: .topLeading, endPoint: .bottomTrailing)
+        switch f {
+        case "glm": return LinearGradient(colors: [mint, cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case "qwen": return LinearGradient(colors: [amber, pink], startPoint: .topLeading, endPoint: .bottomTrailing)
+        default: return LinearGradient(colors: [accent, violet], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
     }
 }
 

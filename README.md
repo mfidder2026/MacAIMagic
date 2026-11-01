@@ -1,9 +1,10 @@
 # MacDeepSeek
 
-Run **DeepSeek-V4.1-Flash-1017** (748B parameters) and **GLM-5.3-Flash** (321B parameters), two of the largest open
-mixture-of-experts models, fully locally on an Apple Silicon Mac with 128 GB of unified memory. MacDeepSeek is a native
-macOS app with live performance charts. You can chat with the models, upload images, let them search the web, compare
-them side by side, and use them as an OpenAI- or Anthropic-compatible API (for example from Claude Code).
+Run **DeepSeek-V4.1-Flash-1017** (748B parameters), **GLM-5.3-Flash** (321B) and **Qwen3.8-Flash-Next** (180B), some
+of the largest open mixture-of-experts models, fully locally on an Apple Silicon Mac with 128 GB of unified memory.
+MacDeepSeek is a native macOS app with live performance charts. You can chat with the models, upload images, let them
+search the web, **let them work in a folder** (read and write files, run scripts, read logs), compare them side by side,
+and use them as an OpenAI- or Anthropic-compatible API (for example from Claude Code).
 
 ![Live dashboard](docs/screenshots/live.png)
 
@@ -14,17 +15,22 @@ them side by side, and use them as an OpenAI- or Anthropic-compatible API (for e
 
 | Model | Download | In memory | Writing | Prompt reading |
 |---|---|---|---|---|
+| **Qwen3.8-Flash-Next Q4**: 180B MoE, 6B active, 4 bit, MTP | 116 GB | fits (83 GB) | **33 tok/s, 40–55 with MTP** | ~440 tok/s |
+| **GLM-5.3-Flash Compact**: 321B MoE, experts 2–3 bit, MTP | 110 GB | fits (109 GB) | **20 tok/s, 25–29 with MTP** | ~175–185 tok/s |
 | **DeepSeek-V4.1-Flash Compact**: 748B MoE, experts 1.6 bit, attention 8 bit | 278 GB | fits (115 GB) | **19.6–20.1 tok/s** | ~160–175 tok/s |
-| **GLM-5.3-Flash Compact**: 321B MoE, experts 2–3 bit | 110 GB | fits (109 GB) | **19.9–20.4 tok/s** | ~175–180 tok/s |
-| **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 502 GB | streams from the SSD | being measured | being measured |
-| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | streams from the SSD | being measured | being measured |
+| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | 75 GB streams from the SSD | ~2.2 tok/s | ~8 tok/s |
+| **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 502 GB | 173 GB streams from the SSD | ~0.6 tok/s | very slow |
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
-limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt.
+limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
+creative text (low end) to code (high end); see [docs/RESEARCH.md](docs/RESEARCH.md).
 
 - **Compact** versions keep everything a token needs in memory. They are the fast choice.
-- **Q4** versions are close to the original weights, but larger than memory: the experts that don't fit are read from
-  the SSD while the model writes. They are slower and more accurate.
+- **MTP** (multi-token prediction): GLM and Qwen have a small head that guesses the next tokens; the model checks them in
+  one pass. The answers stay exactly the same, and writing gets up to 65% faster.
+- **Q4** versions are close to the original weights, but larger than 128 GB. The experts that don't fit come from the
+  SSD, which makes them far too slow on one Mac. They are meant for a Mac with 256 GB, or two linked Macs (see
+  [docs/RESEARCH.md](docs/RESEARCH.md)).
 
 ## Why a Mac
 
@@ -54,10 +60,14 @@ comes from the internal SSD.
 - **Compare**: measure every downloaded model the same way and see the results side by side
 - Streaming chat with markdown and code blocks (with a copy button)
 - **Thinking** on/off, with a collapsible chain of thought and a reasoning-effort setting
+- **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
+  such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
+  writing and running commands ask for your approval first (Allow, Deny, or Always in this conversation).
 - **Images**: button, drag and drop, or paste (⌘V)
 - **Web search**: the model calls `web_search` and `fetch_url` by itself. The app runs them (DuckDuckGo, or Brave Search
   with your own API key) and shows each step and the sources.
 - Conversations are saved locally
+- The Mac stays awake while the engine runs (the display may still sleep), so long answers and benchmarks don't freeze
 - Local API on `http://127.0.0.1:8080`: OpenAI (`/v1`), Anthropic (`/v1/messages`) and Responses (`/v1/responses`)
 
 ## Requirements
@@ -96,7 +106,8 @@ Put each model in its own folder named after its id, and the vision files in `vi
 models/
 ├── deepseek-v4.1-flash-compact/   deepseek-v4.1-flash-compact-00001-of-00005.gguf …
 ├── glm-5.3-flash-compact/         glm-5.3-flash-compact-00001-of-00004.gguf …
-└── vision/                        deepseek-v4.1-vision.gguf, glm-5.3-vision.gguf
+├── qwen3.8-flash-next-q4/         qwen3.8-flash-next-q4-00001-of-00004.gguf …, qwen3.8-flash-next-mtp.gguf
+└── vision/                        deepseek-v4.1-vision.gguf, glm-5.3-vision.gguf, qwen3.8-vision.gguf
 ```
 
 The default location is `~/Library/Application Support/MacDeepSeek/models/`. To use another folder, choose it in the app
@@ -147,13 +158,17 @@ the settings.
 ## How it works
 
 **Engine.** [llama.cpp](https://github.com/ggml-org/llama.cpp), pinned to commit `ddf48f8`, which supports
-`deepseek41` and `glm5-next` natively, built with Metal. On top of that,
+`deepseek41`, `glm5-next` and `qwen4exp` (Qwen3.8-Flash-Next) natively, built with Metal. On top of that,
 [`patches/0001-deepseek41-split-engram.patch`](patches/0001-deepseek41-split-engram.patch) lets it load DeepSeek GGUFs that
 store the Engram n-gram tables differently:
 
 - the Engram metadata is named `engram.*` instead of `ple.*`, with the bucket counts stored as u32;
 - the tables are split into one tensor per Engram layer, with local offsets;
 - the `hash_layer_count` key is missing. V4.1 has no hash layers, so it now defaults to 0.
+
+The patch also adds `LLAMA_MMAP_PREFETCH=0`, which the app sets for models larger than memory: llama.cpp would otherwise
+read the whole file ahead at load (hundreds of GB) and evict itself. Those models also run with `--no-repack`, so their
+CPU experts stay mapped from the file instead of being repacked into RAM.
 
 **Memory plan.** The app reads the GGUF headers and decides where each part goes:
 
@@ -173,16 +188,23 @@ too big: memory overflows and writing drops from 20 to 3 tokens/s.
 ```
 App/          SwiftUI app (Swift package) and tests
 patches/      llama.cpp patch and pinned commit
-scripts/      build_engine.sh, make_app.sh, run_engine.sh, make_icon.swift
-tools/        models.json, download_model.sh, bench.py, quality.sh, gguf_peek.py
-docs/         screenshots, Dutch README
+scripts/      build_engine.sh, make_app.sh, run_engine.sh, stop_engine.sh, make_icon.swift
+tools/        models.json, download_model.sh, bench.py, speed_mix.py, stream_tune.sh, quality.sh, gguf_peek.py
+docs/         screenshots, research notes, Dutch README
 RELEASE/      ready-made app build
 ```
 
+## Research
+
+[docs/RESEARCH.md](docs/RESEARCH.md) has the measurements behind these choices: what MacDeepSeek learned from MTPLX
+(speculative decoding with MTP), why the Q4 versions are too slow on one 128 GB Mac, and whether two MacBooks can be
+linked into one large memory.
+
 ## Roadmap
 
+- Two Macs as one: split a model across two 128 GB Macs over Thunderbolt (llama.cpp RPC), to run the Q4 versions in memory
+- An expert cache for models larger than memory: read the experts the router picks with large parallel reads
 - Faster prompt reading (Metal kernels for low-bit experts at large batch sizes)
-- An expert cache that learns which experts a conversation uses (for the Q4 models)
 - English interface
 
 ## Credits and licenses
@@ -192,6 +214,7 @@ MacDeepSeek is MIT-licensed (see [LICENSE](LICENSE)). It builds on:
 - [llama.cpp / ggml](https://github.com/ggml-org/llama.cpp) (MIT): the inference engine, bundled in the release build
 - [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) (MIT), by DeepSeek
 - [GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) (MIT), by Z.ai
+- [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next), by Qwen (its own license, see the model page)
 - The quantized GGUF files are downloaded from Hugging Face from their publishers; see [`tools/models.json`](tools/models.json)
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

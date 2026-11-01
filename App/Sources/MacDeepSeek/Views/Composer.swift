@@ -55,6 +55,7 @@ struct Composer: View {
                     .toggleStyle(.button).help("Laat het model eerst nadenken (beter, maar trager)")
                 Toggle(isOn: $settings.webSearch) { Label("Web", systemImage: "globe") }
                     .toggleStyle(.button).help("Het model mag het web doorzoeken en pagina's lezen")
+                WorkspaceButton(conversationID: conversationID)
                 Spacer()
                 if chat.busy {
                     Button { chat.stop() } label: { Image(systemName: "stop.circle.fill").font(.title2) }
@@ -145,5 +146,51 @@ enum ImageAttachment {
         NSGraphicsContext.restoreGraphicsState()
         guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else { return nil }
         return Attachment(filename: name, jpeg: jpeg)
+    }
+}
+
+/// This chat's folder: shows its name, opens a picker, and switches the file tools on or off.
+struct WorkspaceButton: View {
+    let conversationID: Conversation.ID
+    @EnvironmentObject var settings: Settings
+    @EnvironmentObject var store: ConversationStore
+
+    private var folder: String? { store.conversations.first { $0.id == conversationID }?.workspace }
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Toggle(isOn: $settings.workspaceTools) {
+                Label(folder.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Werkmap", systemImage: "folder.badge.gearshape")
+            }
+            .toggleStyle(.button)
+            .help(folder.map { "Het model werkt in \($0) (schrijven en commando's na jouw toestemming)" }
+                  ?? "Kies een map waarin het model in dit gesprek bestanden mag lezen, maken en scripts mag starten")
+            .onChange(of: settings.workspaceTools) { _, on in if on && folder == nil { choose() } }
+            Menu {
+                Button("Kies map voor dit gesprek…") { choose() }
+                if let folder {
+                    Button("Toon in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) }
+                    Button("Geen werkmap in dit gesprek") { store.update(conversationID) { $0.workspace = nil }; store.save() }
+                }
+            } label: { EmptyView() }
+            .menuStyle(.borderlessButton).frame(width: 16)
+        }
+    }
+
+    private func choose() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.message = "Kies de map waarin het model in dit gesprek mag werken"
+        if let folder { panel.directoryURL = URL(fileURLWithPath: folder) }
+        if panel.runModal() == .OK, let url = panel.url {
+            store.update(conversationID) { $0.workspace = url.path }
+            store.save()
+            settings.workspace = url.path      // new chats start here
+            settings.workspaceTools = true
+        } else if folder == nil {
+            settings.workspaceTools = false
+        }
     }
 }

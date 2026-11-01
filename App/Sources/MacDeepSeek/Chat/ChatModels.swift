@@ -24,6 +24,9 @@ struct ToolActivity: Codable, Hashable, Identifiable {
     var id = UUID()
     var label: String
     var done: Bool
+    /// What the tool returned (shortened), shown when the user opens the step.
+    var output: String? = nil
+    var denied: Bool? = nil
 }
 
 struct ChatMessage: Codable, Identifiable, Hashable {
@@ -51,6 +54,8 @@ struct Conversation: Codable, Identifiable, Hashable {
     var id = UUID()
     var title: String = "Nieuw gesprek"
     var messages: [ChatMessage] = []
+    /// The folder the model works in for this conversation (files and commands); nil = none.
+    var workspace: String? = nil
     var updated = Date()
 }
 
@@ -80,7 +85,9 @@ final class ConversationStore: ObservableObject {
             selection = first.id
             return
         }
-        let c = Conversation()
+        var c = Conversation()
+        // a new chat starts in the folder chosen last; it can be changed per chat
+        if !Settings.shared.workspace.isEmpty { c.workspace = Settings.shared.workspace }
         conversations.insert(c, at: 0)
         selection = c.id
     }

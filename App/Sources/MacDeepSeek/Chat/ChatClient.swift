@@ -10,9 +10,42 @@ final class ChatClient: ObservableObject {
     /// The model the engine runs, for the system prompt.
     var modelName = "DeepSeek-V4.1-Flash"
     private var task: Task<Void, Never>?
-    private let maxToolRounds = 8
+    /// Web questions need a few rounds; work in a folder (read, write, run, read the log, fix) needs many more.
+    private var maxToolRounds: Int { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil ? 40 : 8 }
 
-    func stop() { task?.cancel() }
+    /// A change the model wants to make (write a file, run a command), waiting for the user's yes or no.
+    struct Approval: Identifiable {
+        let id = UUID()
+        let conversation: Conversation.ID
+        let call: ToolCall
+        let title: String
+        let detail: String
+    }
+    @Published private(set) var pendingApproval: Approval?
+    private var approvalContinuation: CheckedContinuation<Bool, Never>?
+    /// Conversations where the user chose "always allow".
+    private var trusted: Set<Conversation.ID> = []
+
+    func answer(_ approval: Approval, allow: Bool, always: Bool = false) {
+        if always { trusted.insert(approval.conversation) }
+        pendingApproval = nil
+        approvalContinuation?.resume(returning: allow)
+        approvalContinuation = nil
+    }
+
+    private func askApproval(_ call: ToolCall, in conversation: Conversation.ID) async -> Bool {
+        if Settings.shared.autoApprove || trusted.contains(conversation) { return true }
+        let text = WorkspaceTools.approvalText(for: call)
+        return await withCheckedContinuation { cont in
+            approvalContinuation = cont
+            pendingApproval = Approval(conversation: conversation, call: call, title: text.title, detail: text.detail)
+        }
+    }
+
+    func stop() {
+        task?.cancel()
+        if let a = pendingApproval { answer(a, allow: false) }
+    }
 
     func send(text: String, attachments: [Attachment], in conversation: Conversation.ID, store: ConversationStore, baseURL: URL) {
         guard !busy else { return }
@@ -32,6 +65,8 @@ final class ChatClient: ObservableObject {
     }
 
     private func run(_ id: Conversation.ID, store: ConversationStore, baseURL: URL) async {
+        // this conversation's folder for the tools and the system prompt
+        WorkspaceTools.current = store.conversations.first { $0.id == id }?.workspace ?? ""
         var activities: [ToolActivity] = []
         var sources: [Source] = []
         for _ in 0..<maxToolRounds {
@@ -67,19 +102,33 @@ final class ChatClient: ObservableObject {
 
             // run the tools; the next round's message carries the activity list, this one folds away
             for call in result.toolCalls {
-                activities.append(ToolActivity(label: WebTools.label(for: call), done: false))
+                let isWorkspace = WorkspaceTools.names.contains(call.name)
+                activities.append(ToolActivity(label: isWorkspace ? WorkspaceTools.label(for: call) : WebTools.label(for: call), done: false))
                 store.update(id) { c in
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = activities }
                 }
-                let out = await WebTools.run(call)
+                var text: String
+                if isWorkspace {
+                    if WorkspaceTools.needsApproval.contains(call.name), !(await askApproval(call, in: id)) {
+                        text = "The user did not allow this. Ask what they want instead, or continue without it."
+                        activities[activities.count - 1].denied = true
+                    } else {
+                        text = await WorkspaceTools.run(call)
+                    }
+                } else {
+                    let out = await WebTools.run(call)
+                    text = out.text
+                    for s in out.sources where !sources.contains(where: { $0.url == s.url }) { sources.append(s) }
+                }
+                guard !Task.isCancelled else { return }
                 activities[activities.count - 1].done = true
-                for s in out.sources where !sources.contains(where: { $0.url == s.url }) { sources.append(s) }
+                activities[activities.count - 1].output = String(text.prefix(4000))
                 store.update(id) { c in
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) {
                         c.messages[i].activities = []
                         c.messages[i].sources = []
                     }
-                    c.messages.append(ChatMessage(role: .tool, text: out.text, toolCallId: call.id))
+                    c.messages.append(ChatMessage(role: .tool, text: text, toolCallId: call.id))
                 }
             }
         }
@@ -95,6 +144,16 @@ final class ChatClient: ObservableObject {
         var system = "Je bent \(modelName), lokaal draaiend op de Mac van de gebruiker via MacDeepSeek. Vandaag is het \(df.string(from: Date()))."
         if s.webSearch {
             system += " Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL."
+        }
+        if s.workspaceTools, let ws = WorkspaceTools.workspace {
+            system += """
+            \n\nJe werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file \
+            (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), \
+            edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). \
+            Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, \
+            maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. \
+            De gebruiker keurt schrijven en commando's goed; leg kort uit wat je doet.
+            """
         }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
 
@@ -142,7 +201,9 @@ final class ChatClient: ObservableObject {
             // enable_thinking is understood by both templates (DeepSeek maps it to thinking_mode)
             "chat_template_kwargs": ["enable_thinking": s.thinking, "reasoning_effort": s.reasoningEffort],
         ]
-        if s.webSearch { body["tools"] = WebTools.definitions }
+        var tools: [[String: Any]] = s.webSearch ? WebTools.definitions : []
+        if s.workspaceTools && WorkspaceTools.workspace != nil { tools += WorkspaceTools.definitions }
+        if !tools.isEmpty { body["tools"] = tools }
 
         var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
         req.httpMethod = "POST"

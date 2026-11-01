@@ -26,4 +26,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-The models are not included. They are downloaded from Hugging Face from their publishers (see `tools/models.json`), under their own licenses: DeepSeek-V4.1-Flash-1017 and GLM-5.3-Flash are MIT-licensed, as are the quantized files.
+The models are not included. They are downloaded from Hugging Face from their publishers (see `tools/models.json`), under their own licenses: DeepSeek-V4.1-Flash-1017 and GLM-5.3-Flash are MIT-licensed, as are their quantized files; Qwen3.8-Flash-Next and its quantized files are under the Qwen license (see the model page on Hugging Face).

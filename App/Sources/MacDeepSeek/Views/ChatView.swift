@@ -41,9 +41,32 @@ struct ChatView: View {
                 EmptyChat(draft: $draft)
             }
             if !engine.state.isRunning { EngineBanner() }
+            if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
         }
         .navigationTitle(conversation?.title ?? "MacDeepSeek")
+    }
+}
+
+/// This chat's folder, always visible: click to open it in the Finder.
+private struct WorkspaceChip: View {
+    @EnvironmentObject var store: ConversationStore
+    @EnvironmentObject var settings: Settings
+
+    var body: some View {
+        if settings.workspaceTools, let id = store.selection, let folder = store.conversations.first(where: { $0.id == id })?.workspace {
+            Button { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "folder.fill").foregroundStyle(Theme.amber)
+                    Text((folder as NSString).abbreviatingWithTildeInPath).lineLimit(1).truncationMode(.middle)
+                }
+                .font(.callout)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(.ultraThinMaterial, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Werkmap van dit gesprek: klik om hem in de Finder te openen")
+        }
     }
 }
 
@@ -63,6 +86,7 @@ private struct LiveStrip: View {
             }
             .padding(.horizontal, 10).padding(.vertical, 5)
             .background(.ultraThinMaterial, in: Capsule())
+            WorkspaceChip()
             Spacer()
             if chat.busy || (metrics.current?.tokensPerSec ?? 0) > 0 {
                 Sparkline(values: metrics.samples.suffix(60).map(\.tokensPerSec))
@@ -230,13 +254,7 @@ struct MessageRow: View {
                     }
                     if !message.activities.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(message.activities) { a in
-                                HStack(spacing: 6) {
-                                    if a.done { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
-                                    else { ProgressView().controlSize(.mini) }
-                                    Text(a.label).font(.callout).foregroundStyle(.secondary).lineLimit(1)
-                                }
-                            }
+                            ForEach(message.activities) { a in ActivityRow(activity: a) }
                         }
                     }
                     if message.text.isEmpty && message.reasoning.isEmpty && streaming && message.error == nil {
@@ -370,4 +388,73 @@ struct MarkdownText: View {
 func copy(_ s: String) {
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(s, forType: .string)
+}
+
+/// One tool step; opens to show what the tool returned (command output, file listing, …).
+struct ActivityRow: View {
+    let activity: ToolActivity
+    @State private var open = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button { if activity.output != nil { withAnimation(.snappy) { open.toggle() } } } label: {
+                HStack(spacing: 6) {
+                    if activity.denied == true { Image(systemName: "hand.raised.fill").foregroundStyle(Theme.amber) }
+                    else if activity.done { Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint) }
+                    else { ProgressView().controlSize(.mini) }
+                    Text(activity.label).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                    if activity.output != nil {
+                        Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(open ? 90 : 0))
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            if open, let out = activity.output {
+                ScrollView([.vertical, .horizontal]) {
+                    Text(out).font(.caption.monospaced()).textSelection(.enabled).padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 220)
+                .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+}
+
+/// "May the model write this file / run this command?"
+private struct ApprovalCard: View {
+    let approval: ChatClient.Approval
+    @EnvironmentObject var chat: ChatClient
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: approval.call.name == "run_command" ? "terminal.fill" : "doc.badge.plus")
+                    .foregroundStyle(Theme.amber)
+                Text(approval.title).font(.system(.headline, design: .rounded))
+            }
+            ScrollView {
+                Text(approval.detail).font(.callout.monospaced()).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+            }
+            .frame(maxHeight: 160)
+            .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+            HStack {
+                Button("Weigeren", role: .cancel) { chat.answer(approval, allow: false) }
+                    .keyboardShortcut(.escape, modifiers: [])
+                Spacer()
+                Button("Altijd in dit gesprek") { chat.answer(approval, allow: true, always: true) }
+                Button { chat.answer(approval, allow: true) } label: { Label("Toestaan", systemImage: "checkmark") }
+                    .buttonStyle(.borderedProminent).tint(Theme.amber).keyboardShortcut(.return, modifiers: [])
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.amber.opacity(0.6), lineWidth: 1.5))
+        .shadow(color: Theme.amber.opacity(0.25), radius: 14)
+        .frame(maxWidth: 860)
+        .padding(.horizontal, 24)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
 }

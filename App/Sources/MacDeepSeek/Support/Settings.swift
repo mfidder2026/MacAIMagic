@@ -18,4 +18,11 @@ final class Settings: ObservableObject {
     @AppStorage("systemPrompt") var systemPrompt = ""
     @AppStorage("autoStart") var autoStart = false
     @AppStorage("modelFolder") var modelFolder = ""
+    /// The folder the model may work in (files and commands), and whether that is on.
+    @AppStorage("workspace") var workspace = ""
+    @AppStorage("workspaceTools") var workspaceTools = true
+    /// Skip the yes/no question for writing and commands (tests, or users who want it).
+    @AppStorage("autoApprove") var autoApprove = false
+    /// Speculative decoding with the model's multi-token prediction head (GLM, Qwen).
+    @AppStorage("mtp") var mtp = true
 }

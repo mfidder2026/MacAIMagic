@@ -46,7 +46,7 @@ private struct ModelCard: View {
     private var selected: Bool { app.selectedModelID == model.id }
     private var running: Bool { engine.model?.id == model.id && engine.state.isRunning }
     /// Does the part used for every token fit in memory? (expert-heavy models: ~95% of the file minus Engram)
-    private var fits: Bool { model.id.hasSuffix("compact") }
+    private var fits: Bool { model.fitsInMemory ?? true }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -76,6 +76,7 @@ private struct ModelCard: View {
                 Badge(text: fits ? "Past in geheugen" : "Streamt van SSD", icon: fits ? "memorychip" : "bolt.horizontal",
                       color: fits ? Theme.mint : Theme.amber)
                 if status.vision?.complete == true { Badge(text: "Vision", icon: "eye") }
+                if model.hasMTP { Badge(text: "MTP", icon: "forward.fill", color: Theme.violet) }
             }
             if !status.isComplete {
                 ProgressView(value: status.fraction).tint(Theme.family(model.family))
