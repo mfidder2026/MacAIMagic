@@ -181,10 +181,13 @@ struct PlanStrip: View {
     var body: some View {
         GlassCard(title: "Waar het model staat", icon: "square.stack.3d.up.fill", glow: Theme.cyan) {
             let total = Double(plan.physical)
-            let parts: [(String, Double, Color)] = [
+            let parts: [(String, Double, Color)] = plan.expertCache > 0 ? [
+                ("Vast (GPU)", Double(plan.dense + plan.overhead), Theme.violet),
+                ("Expert-cache GPU", Double(plan.expertCache), Theme.accent),
+            ] : [
                 ("Vast (GPU)", Double(plan.dense + plan.overhead), Theme.violet),
                 ("Experts GPU", Double(plan.gpuExperts), Theme.accent),
-                ("Experts CPU", Double(plan.cpuExperts - min(plan.cpuExperts, plan.streamedExperts)), Theme.cyan),
+                ("Experts CPU", Double(plan.cpuExperts), Theme.cyan),
             ]
             GeometryReader { geo in
                 HStack(spacing: 2) {

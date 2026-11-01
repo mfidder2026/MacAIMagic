@@ -146,10 +146,18 @@ private struct PlanDetails: View {
         GlassCard(title: "Geheugenplan", icon: "memorychip", glow: Theme.violet) {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
                 GridRow { Text("Vaste gewichten (GPU)").foregroundStyle(.secondary); Text(plan.dense.gb) }
-                GridRow { Text("Experts op de GPU").foregroundStyle(.secondary); Text("\(plan.gpuExperts.gb) · lagen \(plan.cpuMoELayers)–\(plan.layers - 1)") }
-                GridRow {
-                    Text("Experts via CPU").foregroundStyle(.secondary)
-                    Text(plan.cpuMoELayers == 0 ? "geen" : "\(plan.cpuExperts.gb) · lagen 0–\(plan.cpuMoELayers - 1)" + (plan.streamedExperts > 0 ? " · deels van SSD" : ""))
+                if plan.expertCache > 0 {
+                    GridRow { Text("Expert-cache (GPU)").foregroundStyle(.secondary); Text(plan.expertCache.gb + " · de experts die het gesprek het meest gebruikt") }
+                    GridRow { Text("Experts van de SSD").foregroundStyle(.secondary); Text(plan.streamedExperts.gb + " · alleen als een woord ze nodig heeft") }
+                } else {
+                    GridRow { Text("Experts op de GPU").foregroundStyle(.secondary); Text(plan.gpuExperts.gb) }
+                    GridRow {
+                        Text("Experts via CPU").foregroundStyle(.secondary)
+                        Text(plan.cpuMoELayers == 0 ? "geen" : "\(plan.cpuExperts.gb) · \(plan.cpuMoELayers) lagen")
+                    }
+                }
+                if !plan.tensorSplit.isEmpty {
+                    GridRow { Text("Lagen per Mac").foregroundStyle(.secondary); Text(plan.tensorSplit.dropLast().map { "helper \($0)" }.joined(separator: " · ") + " · deze Mac \(max(plan.tensorSplit.last ?? 1, 1) - 1)") }
                 }
                 if plan.engram > 0 {
                     GridRow { Text("Engram-tabellen (SSD)").foregroundStyle(.secondary); Text(plan.engram.gb + " · per token een paar rijen") }

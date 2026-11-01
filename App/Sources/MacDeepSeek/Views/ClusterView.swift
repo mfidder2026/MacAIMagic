@@ -99,8 +99,12 @@ private struct MainSide: View {
             if let plan = app.plan {
                 Text(plan.fitsInMemory
                      ? "\(app.selectedModel?.name ?? "Het model") past zo helemaal in het geheugen van het cluster."
-                     : "\(app.selectedModel?.name ?? "Het model") past nog niet helemaal: ongeveer \(plan.streamedExperts.gbShort) komt van de SSD.")
+                     : "\(app.selectedModel?.name ?? "Het model") past nog niet helemaal: de meest gebruikte experts (\(plan.expertCache.gbShort)) staan in de GPU-cache van deze Mac, de rest (\(plan.streamedExperts.gbShort)) komt van de SSD.")
                     .font(.callout).foregroundStyle(plan.fitsInMemory ? Theme.mint : Theme.amber)
+                if !plan.tensorSplit.isEmpty {
+                    Text("Lagen: " + zip(cluster.active.map(\.name), plan.tensorSplit).map { "\($0) \($1)" }.joined(separator: " · ") + " · deze Mac \(max(plan.tensorSplit.last ?? 1, 1) - 1)")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
             Text("Wijzigingen gelden bij de volgende start van de engine.").font(.caption).foregroundStyle(.secondary)
         }
@@ -115,6 +119,7 @@ private struct MainSide: View {
 }
 
 private struct HelperSide: View {
+    @EnvironmentObject var app: AppState
     @EnvironmentObject var cluster: ClusterController
     @EnvironmentObject var settings: Settings
 
@@ -130,6 +135,20 @@ private struct HelperSide: View {
                 } else {
                     Button { cluster.startHelper() } label: { Label("Start helper", systemImage: "play.fill") }
                         .buttonStyle(.borderedProminent).tint(Theme.mint)
+                }
+            }
+            // a helper's GPU may hold about 75% of its memory by default; raised, it takes more layers of the model
+            let suggested = Int((app.system.physicalMemory - MemoryPlanner.osHeadroom) >> 20)
+            if app.system.wiredLimitMB < suggested - 1024 {
+                HStack {
+                    Text("De GPU van deze Mac mag nu \(app.system.effectiveGPULimit.gb) gebruiken.").font(.callout)
+                    Spacer()
+                    Button("Verhoog naar \((UInt64(suggested) << 20).gb)") {
+                        app.raiseWiredLimit(mb: suggested)
+                        // the helper announces its GPU memory when it starts
+                        if cluster.helperRunning { cluster.restartHelper() }
+                    }
+                    .help("Voert 'sysctl iogpu.wired_limit_mb' uit (vraagt je wachtwoord). Geldt tot de volgende herstart.")
                 }
             }
             Toggle("Ook bereikbaar via het lokale netwerk (niet alleen via Thunderbolt)", isOn: $settings.clusterAllowLAN)

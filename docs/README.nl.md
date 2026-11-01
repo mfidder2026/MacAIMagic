@@ -14,25 +14,32 @@ De Engelse [README](../README.md) is de volledige versie; dit is een samenvattin
 | **Qwen3.8-Flash-Next Q4**: 180B, 6B actief, 4 bit, MTP | 116 GB | past (83 GB) | **33 tok/s, 40–55 met MTP** | ~440 tok/s |
 | **GLM-5.3-Flash Compact**: experts 2–3 bit, MTP | 110 GB | past (109 GB) | **20 tok/s, 25–29 met MTP** | ~175–185 tok/s |
 | **DeepSeek-V4.1-Flash Compact**: experts 1,6 bit, attention 8 bit | 278 GB | past (115 GB) | **19,6–20,1 tok/s** | ~160–175 tok/s |
-| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | 75 GB van de SSD | ~2,2 tok/s | ~8 tok/s |
-| **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 460 GB | 173 GB van de SSD | ~2,8 tok/s | ~9 tok/s |
+| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **5–6 tok/s** | ~70–100 tok/s |
+| **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 460 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **7–8,5 tok/s** | ~65–95 tok/s |
 
-Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard GPU-limiet van macOS.
+Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard GPU-limiet van macOS. De Q4-modellen met
+de GPU-limiet verhoogd naar 120 GB (knop onder Modellen); van een koude start tot een warme (de expert-cache van de
+vorige keer).
 
 - **Compact**: alles wat per woord nodig is, staat in het geheugen. Snel.
 - **MTP**: GLM en Qwen raden de volgende woorden vooruit en het model controleert ze in één keer. Zelfde antwoorden,
   tot 65% sneller schrijven.
-- **Q4**: dichter bij het origineel, maar groter dan 128 GB. Op één Mac veel te traag; bedoeld voor 256 GB of twee
-  gekoppelde Macs (zie [RESEARCH.md](RESEARCH.md)).
+- **Q4**: dichter bij het origineel, maar groter dan 128 GB. De GPU houdt de experts die het gesprek het meest gebruikt
+  (~95 GB) in een cache; de rest komt met veel parallelle leesacties van de SSD (6 GB/s). Na een herstart laadt de
+  cache zichzelf terug, zodat ook het eerste antwoord meteen op snelheid is. Verhoog daarvoor de GPU-limiet met de knop
+  onder Modellen (zie [RESEARCH.md](RESEARCH.md)).
 - **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
   lezen. Schrijven en commando's vragen eerst jouw toestemming.
 
 ## Cluster
 
 Verbind meerdere Macs met Thunderbolt en gebruik hun geheugen samen. Op de extra Macs kies je in MacDeepSeek onder
-**Cluster** de rol **Helper** en druk je op **Start helper**; op de hoofd-Mac verschijnen ze vanzelf. Met een MacBook Pro
+**Cluster** de rol **Helper** en druk je op **Start helper**; op de hoofd-Mac verschijnen ze vanzelf. Elke helper neemt
+zoveel hele lagen als zijn GPU kan houden; de hoofd-Mac de rest, zo nodig met de expert-cache. Met een MacBook Pro
 M3 Max (128 GB), een Mac Studio M5 (96 GB) en een Mac Studio M1 (32 GB) heb je samen ~256 GB: GLM-5.3-Flash Q4 past dan
-helemaal in het geheugen. Getest op één Mac met een lokale helper: het verdelen kost ~7% schrijfsnelheid.
+helemaal in het geheugen, en van DeepSeek-V4.1-Flash Q4 staat bijna de helft van de experts van de hoofd-Mac in de cache.
+Op een helper verhoogt **Verhoog GPU-limiet** wat zijn GPU mag gebruiken (bij 96 GB van ~72 naar ~88 GB). Getest op één
+Mac met een lokale helper: het verdelen kost ~7% schrijfsnelheid.
 
 ## Installeren
 

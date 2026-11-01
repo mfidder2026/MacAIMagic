@@ -34,11 +34,12 @@ final class EngineController: ObservableObject {
             "--host", s.host, "--port", String(s.port),
             "--ctx-size", String(plan.contextSize),
             "--n-gpu-layers", "999",
-            "--n-cpu-moe", String(plan.cpuMoELayers),
             "--flash-attn", "on",
-            // measured on an M3 Max: ubatch 1024 reads prompts ~20% faster than 512;
-            // 2048 grows the compute buffers past the wired limit and writing drops from 20 to 3 tok/s
-            "--ubatch-size", "1024", "--batch-size", "2048",
+            // measured on an M3 Max: ubatch 1024 reads prompts ~20% faster than 512; for a model that fits, 2048 grows the
+            // compute buffers past the wired limit and writing drops from 20 to 3 tok/s. A model larger than memory reads
+            // its uncached experts from the SSD once per ubatch, so there 4096 reads a 2,500-token prompt in one pass:
+            // 81 instead of 60 tok/s (DeepSeek Q4), 92 instead of 56 (GLM Q4); the plan makes room for the buffers
+            "--ubatch-size", plan.expertCache > 0 ? "4096" : "1024", "--batch-size", plan.expertCache > 0 ? "4096" : "2048",
             "--fit", "off",               // the plan above already decided where every tensor goes
             "--threads", String(plan.threads),
             "--parallel", "1",            // one conversation at a time keeps the whole KV and compute budget for it
@@ -47,15 +48,29 @@ final class EngineController: ObservableObject {
             "--metrics",
             "--alias", model.id,
         ]
-        // larger than memory: CPU experts stay mapped from the file (page cache), never repacked into RAM
+        if plan.tensorSplit.isEmpty {
+            args += ["--n-cpu-moe", String(plan.cpuMoELayers)]
+        } else {
+            // cluster: llama.cpp puts the helpers first, so the layers kept in this Mac's memory are the last ones
+            args += ["--tensor-split", plan.tensorSplit.map(String.init).joined(separator: ",")]
+            if !plan.hostExpertLayers.isEmpty {
+                let layers = plan.hostExpertLayers.map(String.init).joined(separator: "|")
+                args += ["--override-tensor", "blk\\.(\(layers))\\.ffn_(up|down|gate|gate_up)_(ch|)exps=CPU"]
+            }
+        }
+        // larger than memory: the experts stay mapped from the file, never repacked into RAM, and the GPU caches the
+        // ones the conversation uses most
         if !plan.fitsInMemory { args += ["--no-repack"] }
+        if plan.expertCache > 0 { args += ["--moe-cache-mib", String(plan.expertCache >> 20)] }
         if let vision { args += ["--mmproj", vision.path] }
-        // cluster: the helpers' GPUs join as RPC devices; llama.cpp spreads the layers by the free memory each reports
+        // cluster: the helpers' GPUs join as RPC devices
         if let rpc { args += ["--rpc", rpc] }
         // multi-token prediction: a small head guesses the next tokens, the model checks them in one pass
         // (measured on GLM-5.3 Compact: 2 tokens ahead gives +44% on code, +20% on explanations and the same
-        // speed on creative text; 3+ ahead loses on creative text because too many guesses are rejected)
-        if s.mtp && model.hasMTP {
+        // speed on creative text; 3+ ahead loses on creative text because too many guesses are rejected).
+        // Not for a model larger than memory: checking 3 tokens needs more experts from the SSD, and the head runs without
+        // the expert cache (GLM-5.3-Flash Q4: 5.2-5.5 tok/s with MTP, 5.2-5.9 without)
+        if s.mtp && model.hasMTP && plan.expertCache == 0 {
             if model.mtp == "file", let draft { args += ["--spec-type", "draft-mtp", "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
             else if model.mtp == "builtin" { args += ["--spec-type", "draft-mtp", "--spec-draft-n-max", "2"] }
         }
@@ -77,6 +92,15 @@ final class EngineController: ObservableObject {
         env["LLAMA_ARG_LAZY_MODE"] = "auto"   // tables over 4 GB (DeepSeek's Engram) are read row by row from the SSD
         // larger than memory: reading the whole file ahead at load would take minutes and evict itself
         if !plan.fitsInMemory { env["LLAMA_MMAP_PREFETCH"] = "0" }
+        if plan.expertCache > 0 {
+            // the experts in the GPU cache are saved when the engine stops and read back at the next start, so the first
+            // answer is as fast as the later ones
+            env["LLAMA_MOE_CACHE_FILE"] = Paths.modelDir(model.id).appendingPathComponent("expert-cache.bin").path
+            // writing (up to 8 tokens at once) reads its experts from the cache; prompts copy the experts they use to the
+            // GPU without pushing the conversation's experts out of the cache
+            env["LLAMA_MOE_CACHE_MAX_BATCH"] = "8"
+            env["GGML_OP_OFFLOAD_MIN_BATCH"] = "9"
+        }
         p.environment = env
 
         FileManager.default.createFile(atPath: Paths.engineLog.path, contents: nil)

@@ -37,7 +37,7 @@ final class AppState: ObservableObject {
         guard let index else { return nil }
         return MemoryPlanner.plan(index: index, system: system, contextSize: Settings.shared.contextSize,
                                   vision: Settings.shared.vision && selectedModel.flatMap(models.visionURL) != nil,
-                                  extraGPU: cluster.extraGPU, extraPhysical: cluster.extraPhysical)
+                                  helpers: cluster.helperBudgets)
     }
 
     var canStart: Bool {
@@ -61,7 +61,14 @@ final class AppState: ObservableObject {
 
     func startEngine() {
         if index == nil { loadIndex() }
-        guard let m = selectedModel, let plan else { return }
+        guard let m = selectedModel, let index, var plan else { return }
+        if !plan.fitsInMemory {
+            // the expert cache leaves room for what other apps hold right now
+            plan = MemoryPlanner.plan(index: index, system: system, contextSize: Settings.shared.contextSize,
+                                      vision: Settings.shared.vision && models.visionURL(m) != nil,
+                                      helpers: cluster.helperBudgets,
+                                      inUse: system.physicalMemory - min(system.physicalMemory, SystemInfo.availableMemory()))
+        }
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
                      vision: Settings.shared.vision ? models.visionURL(m) : nil, draft: models.draftURL(m),
                      rpc: cluster.rpcArgument)

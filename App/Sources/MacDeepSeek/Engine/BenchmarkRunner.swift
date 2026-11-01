@@ -13,6 +13,8 @@ struct BenchResult: Codable, Identifiable, Hashable {
     var ssdMBs: Double          // average SSD reads while writing
     var wiredGB: Double
     var cpuMoELayers: Int
+    /// Larger than memory: the GPU expert cache (nil in results from before 1.4)
+    var expertCacheGB: Double?
 }
 
 /// Runs the same measurement on each model in turn: start it, read a ~2.5K-token prompt, write 300 tokens.
@@ -63,7 +65,8 @@ final class BenchmarkRunner: ObservableObject {
                 let r = BenchResult(modelID: id, modelName: model.name, loadSeconds: load,
                                     promptTPS: p.promptTPS, promptTokens: p.promptTokens,
                                     decodeTPS: d.decodeTPS, decodeTokens: d.decodeTokens,
-                                    ssdMBs: ssd, wiredGB: during.map(\.wiredGB).max() ?? 0, cpuMoELayers: plan.cpuMoELayers)
+                                    ssdMBs: ssd, wiredGB: during.map(\.wiredGB).max() ?? 0, cpuMoELayers: plan.cpuMoELayers,
+                                    expertCacheGB: Double(plan.expertCache) / 1e9)
                 results.append(r)
                 save()
             } catch {

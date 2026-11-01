@@ -107,20 +107,37 @@ final class CatalogTests: XCTestCase {
 }
 
 final class StreamingPlanTests: XCTestCase {
-    /// A Q4-sized model (~290 GB of experts) on a 128 GB Mac: part on the GPU, the rest streams.
+    /// A Q4-sized model (~290 GB of experts) on a 128 GB Mac: every expert stays mapped, the GPU caches the most used.
     func testLargerThanMemory() {
         var idx = GGUFIndex()
         idx.metadata["deepseek41.block_count"] = UInt32(40)
         idx.tensors.append(.init(name: "token_embd.weight", bytes: 9_000_000_000))
         for il in 0..<40 { idx.tensors.append(.init(name: "blk.\(il).ffn_up_exps.weight", bytes: 7_250_000_000)) }
         let mac = SystemInfo(chip: "Apple M3 Max", physicalMemory: 137_438_953_472, performanceCores: 12,
-                             gpuWorkingSet: 115_400_000_000, wiredLimitMB: 0, freeDisk: 1_000_000_000_000)
-        let p = MemoryPlanner.plan(index: idx, system: mac, contextSize: 65_536, vision: false)
+                             gpuWorkingSet: 103_000_000_000, wiredLimitMB: 122_880, freeDisk: 1_000_000_000_000)
+        let p = MemoryPlanner.plan(index: idx, system: mac, contextSize: 32_768, vision: false)
         XCTAssertFalse(p.fitsInMemory)
+        XCTAssertEqual(p.cpuMoELayers, 40, "all experts stay mapped from the file")
+        XCTAssertTrue(p.tensorSplit.isEmpty)
+        XCTAssertGreaterThan(p.expertCache, 90_000_000_000)
         XCTAssertGreaterThan(p.streamedExperts, 150_000_000_000)
-        XCTAssertGreaterThan(p.cpuMoELayers, 20)
-        XCTAssertLessThan(p.cpuMoELayers, 40)
-        XCTAssertLessThanOrEqual(p.dense + p.overhead + p.gpuExperts, p.gpuLimit)
+        // the GPU holds the dense weights, buffers and the cache, and macOS keeps its headroom and staging page cache
+        XCTAssertLessThanOrEqual(p.dense + p.overhead + p.expertCache, p.gpuLimit)
+        XCTAssertLessThanOrEqual(p.dense + p.overhead + p.expertCache + MemoryPlanner.osHeadroom + MemoryPlanner.stagingReserve, p.physical)
+    }
+
+    /// With the macOS default GPU limit the cache is smaller, and the plan suggests raising the limit.
+    func testDefaultLimitShrinksCache() {
+        var idx = GGUFIndex()
+        idx.metadata["deepseek41.block_count"] = UInt32(40)
+        idx.tensors.append(.init(name: "token_embd.weight", bytes: 9_000_000_000))
+        for il in 0..<40 { idx.tensors.append(.init(name: "blk.\(il).ffn_up_exps.weight", bytes: 7_250_000_000)) }
+        let mac = SystemInfo(chip: "Apple M3 Max", physicalMemory: 137_438_953_472, performanceCores: 12,
+                             gpuWorkingSet: 103_000_000_000, wiredLimitMB: 0, freeDisk: 1_000_000_000_000)
+        let p = MemoryPlanner.plan(index: idx, system: mac, contextSize: 32_768, vision: false)
+        XCTAssertLessThan(p.dense + p.overhead + p.expertCache, 103_000_000_000)
+        XCTAssertGreaterThan(p.expertCache, 75_000_000_000)
+        XCTAssertTrue(p.warnings.contains { $0.contains("Verhoog de GPU-limiet") })
     }
 }
 
@@ -133,32 +150,51 @@ final class PlanReportTests: XCTestCase {
         for m in ModelCatalog.shared.models where store.status(m.id).headersAvailable {
             let idx = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))
             let p = MemoryPlanner.plan(index: idx, system: .current(), contextSize: 65_536, vision: true)
-            print(String(format: "PLAN %@: layers %d, dense %.1f GB, experts %.1f GB, engram %.1f GB, cpu layers %d, gpu experts %.1f GB, cpu experts %.1f GB, streamed %.1f GB, fits %@",
+            print(String(format: "PLAN %@: layers %d, dense %.1f GB, experts %.1f GB, engram %.1f GB, cpu layers %d, gpu experts %.1f GB, cpu experts %.1f GB, expert cache %.1f GB, streamed %.1f GB, fits %@",
                          m.id, p.layers, Double(p.dense) / 1e9, Double(p.experts) / 1e9, Double(p.engram) / 1e9, p.cpuMoELayers,
-                         Double(p.gpuExperts) / 1e9, Double(p.cpuExperts) / 1e9, Double(p.streamedExperts) / 1e9, p.fitsInMemory ? "yes" : "no"))
+                         Double(p.gpuExperts) / 1e9, Double(p.cpuExperts) / 1e9, Double(p.expertCache) / 1e9, Double(p.streamedExperts) / 1e9, p.fitsInMemory ? "yes" : "no"))
         }
     }
 }
 
 final class ClusterPlanTests: XCTestCase {
-    /// GLM-5.3-Flash Q4 (~190 GB of experts) on the MacBook alone streams from the SSD; with a 96 GB M5 and a 32 GB M1
-    /// as helpers it fits in memory.
+    private let mac = SystemInfo(chip: "Apple M3 Max", physicalMemory: 137_438_953_472, performanceCores: 12,
+                                 gpuWorkingSet: 115_400_000_000, wiredLimitMB: 0, freeDisk: 1_000_000_000_000)
+    /// M5 96 GB (GPU ~72 GB) and M1 32 GB (GPU ~21 GB), minus their own headroom as ClusterController counts it
+    private let helpers: [UInt64] = [69_000_000_000, 18_000_000_000]
+
+    /// GLM-5.3-Flash Q4 (~190 GB of experts) on the MacBook alone streams from the SSD; with the helpers it fits in memory.
     func testHelpersMakeQ4Fit() {
         var idx = GGUFIndex()
         idx.metadata["glm5-next.block_count"] = UInt32(46)
         idx.tensors.append(.init(name: "token_embd.weight", bytes: 9_800_000_000))
         for il in 3..<46 { idx.tensors.append(.init(name: "blk.\(il).ffn_up_exps.weight", bytes: 4_416_000_000)) }
-        let mac = SystemInfo(chip: "Apple M3 Max", physicalMemory: 137_438_953_472, performanceCores: 12,
-                             gpuWorkingSet: 115_400_000_000, wiredLimitMB: 0, freeDisk: 1_000_000_000_000)
         let alone = MemoryPlanner.plan(index: idx, system: mac, contextSize: 65_536, vision: false)
         XCTAssertFalse(alone.fitsInMemory)
-        // M5 96 GB (GPU ~72 GB) + M1 32 GB (GPU ~21 GB), minus their own headroom as ClusterController counts it
-        let extraGPU: UInt64 = (69 + 18) * 1_000_000_000, extraPhysical: UInt64 = (88 + 24) * 1_000_000_000
-        let cluster = MemoryPlanner.plan(index: idx, system: mac, contextSize: 65_536, vision: false,
-                                         extraGPU: extraGPU, extraPhysical: extraPhysical)
+        let cluster = MemoryPlanner.plan(index: idx, system: mac, contextSize: 65_536, vision: false, helpers: helpers)
         XCTAssertTrue(cluster.fitsInMemory)
         XCTAssertEqual(cluster.streamedExperts, 0, "nothing comes from the SSD")
-        // the GPU limits together are just short, so a few layers run on the main Mac's CPU, from memory
+        // one entry per helper and one for this Mac, together every layer plus the output layer
+        XCTAssertEqual(cluster.tensorSplit.count, 3)
+        XCTAssertEqual(cluster.tensorSplit.reduce(0, +), 47)
+        // the helpers take the first layers, so the layers this Mac keeps in memory are among its own, the last ones
+        let mine = (46 - (cluster.tensorSplit.last! - 1))..<46
+        XCTAssertTrue(cluster.hostExpertLayers.allSatisfy { mine.contains($0) })
         XCTAssertLessThanOrEqual(cluster.cpuMoELayers, 6)
+    }
+
+    /// DeepSeek-V4.1-Flash Q4 (~290 GB of experts) does not fit even in the cluster: this Mac keeps its layers mapped
+    /// and caches the most used experts, with a much larger share of its experts in the cache than alone.
+    func testDeepSeekQ4StreamsLessInCluster() {
+        var idx = GGUFIndex()
+        idx.metadata["deepseek41.block_count"] = UInt32(40)
+        idx.tensors.append(.init(name: "token_embd.weight", bytes: 9_000_000_000))
+        for il in 0..<40 { idx.tensors.append(.init(name: "blk.\(il).ffn_up_exps.weight", bytes: 7_250_000_000)) }
+        let alone = MemoryPlanner.plan(index: idx, system: mac, contextSize: 32_768, vision: false)
+        let cluster = MemoryPlanner.plan(index: idx, system: mac, contextSize: 32_768, vision: false, helpers: helpers)
+        XCTAssertGreaterThan(cluster.expertCache, 0)
+        XCTAssertLessThan(cluster.streamedExperts, alone.streamedExperts - 70_000_000_000)
+        XCTAssertEqual(cluster.hostExpertLayers.count, cluster.tensorSplit.last! - 1, "all of this Mac's layers")
+        XCTAssertEqual(cluster.hostExpertLayers.first, 40 - cluster.hostExpertLayers.count)
     }
 }

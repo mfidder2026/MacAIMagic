@@ -110,12 +110,18 @@ final class ClusterIntegrationTests: XCTestCase {
         print("FOUND:", helper.name, helper.chip, helper.memoryGB, "GB, GPU", helper.gpuGB, "GB")
         app.cluster.selected = [helper.id]
         XCTAssertEqual(app.cluster.rpcArgument, "127.0.0.1:\(ClusterController.defaultPort)")
+        // the helper runs on this same Mac: give it about half of GLM Compact
+        app.cluster.budgetOverride = [50_000_000_000]
 
         Settings.shared.mtp = false
         app.selectedModelID = "glm-5.3-flash-compact"
+        let plan = try XCTUnwrap(app.plan)
+        print("SPLIT:", plan.tensorSplit)
+        XCTAssertEqual(plan.tensorSplit.count, 2)
         app.startEngine()
-        XCTAssertTrue(app.engine.arguments(model: app.selectedModel!, shards: app.models.shardURLs(app.selectedModel!),
-                                           plan: app.plan!, vision: nil, rpc: app.cluster.rpcArgument).contains("--rpc"))
+        let args = app.engine.arguments(model: app.selectedModel!, shards: app.models.shardURLs(app.selectedModel!),
+                                        plan: plan, vision: nil, rpc: app.cluster.rpcArgument)
+        XCTAssertTrue(args.contains("--rpc") && args.contains("--tensor-split"))
         let t1 = Date()
         while !app.engine.state.isRunning && Date().timeIntervalSince(t1) < 1200 {
             if case .failed(let e) = app.engine.state { XCTFail(e); break }
@@ -129,6 +135,65 @@ final class ClusterIntegrationTests: XCTestCase {
         req.httpBody = try JSONSerialization.data(withJSONObject: [
             "messages": [["role": "user", "content": "Wat is de hoofdstad van Frankrijk? Eén zin."]],
             "max_tokens": 120, "temperature": 0, "chat_template_kwargs": ["enable_thinking": false]])
+        let (data, _) = try await URLSession.shared.data(for: req)
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let message = ((json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]) ?? [:]
+        let text = (message["content"] as? String ?? "") + " " + (message["reasoning_content"] as? String ?? "")
+        let tps = (json?["timings"] as? [String: Any])?["predicted_per_second"] as? Double ?? 0
+        print("ANSWER:", text, String(format: "(%.1f tok/s)", tps))
+        XCTAssertTrue(text.contains("Parijs") || text.contains("Paris"), text)
+
+        await app.engine.stopAndWait()
+        app.cluster.stopHelper()
+        try await Task.sleep(for: .seconds(6))
+    }
+
+    /// DeepSeek Q4 does not fit even in a cluster: the helper takes whole layers, this Mac keeps the rest mapped and
+    /// caches the most used experts (MACDEEPSEEK_CLUSTER_STREAM_TEST=1; the helper shares this Mac's memory, so both
+    /// the helper and the cache are kept small).
+    func testStreamingWithHelper() async throws {
+        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_CLUSTER_STREAM_TEST"] == "1" else { throw XCTSkip("set MACDEEPSEEK_CLUSTER_STREAM_TEST=1") }
+        let app = AppState()
+        let s = Settings.shared
+        let savedRole = s.clusterRole
+        UserDefaults.standard.set(60.0, forKey: "expertCacheMaxGB")
+        defer {
+            s.clusterRole = savedRole
+            UserDefaults.standard.removeObject(forKey: "expertCacheMaxGB")
+        }
+        s.clusterRole = "helper"
+        app.cluster.startHelper(bind: "127.0.0.1")
+        XCTAssertTrue(app.cluster.helperRunning, app.cluster.helperLog.joined(separator: "\n"))
+        s.clusterRole = "main"
+        let t0 = Date()
+        while !app.cluster.helpers.contains(where: { $0.host == "127.0.0.1" }) && Date().timeIntervalSince(t0) < 20 {
+            try await Task.sleep(for: .milliseconds(300))
+        }
+        let helper = try XCTUnwrap(app.cluster.helpers.first { $0.host == "127.0.0.1" }, "helper not found via Bonjour")
+        app.cluster.selected = [helper.id]
+        app.cluster.budgetOverride = [23_000_000_000]   // three layers of DeepSeek Q4
+
+        app.selectedModelID = "deepseek-v4.1-flash-q4"
+        let plan = try XCTUnwrap(app.plan)
+        print("SPLIT:", plan.tensorSplit, "host layers:", plan.hostExpertLayers.first ?? -1, "...", plan.hostExpertLayers.last ?? -1,
+              "cache:", plan.expertCache.gb)
+        XCTAssertEqual(plan.tensorSplit.first, 3)
+        XCTAssertGreaterThan(plan.expertCache, 0)
+        app.startEngine()
+        let t1 = Date()
+        while !app.engine.state.isRunning && Date().timeIntervalSince(t1) < 1800 {
+            if case .failed(let e) = app.engine.state { XCTFail(e); break }
+            try await Task.sleep(for: .seconds(1))
+        }
+        print("ENGINE READY after", Int(Date().timeIntervalSince(t1)), "s")
+
+        var req = URLRequest(url: app.engine.baseURL.appendingPathComponent("v1/chat/completions"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: [
+            "messages": [["role": "user", "content": "Wat is de hoofdstad van Frankrijk? Eén zin."]],
+            "max_tokens": 120, "temperature": 0, "chat_template_kwargs": ["enable_thinking": false]])
+        req.timeoutInterval = 1800
         let (data, _) = try await URLSession.shared.data(for: req)
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let message = ((json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]) ?? [:]

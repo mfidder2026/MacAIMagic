@@ -100,11 +100,17 @@ private struct BarCard: View {
 private struct ResultsTable: View {
     let results: [BenchResult]
 
+    /// Where the experts were: all on the GPU, some layers on the CPU, or mapped from the SSD with a GPU cache.
+    private func experts(_ r: BenchResult) -> String {
+        if let cache = r.expertCacheGB, cache > 0 { return String(format: "cache %.0f GB", cache) }
+        return r.cpuMoELayers == 0 ? "GPU" : "\(r.cpuMoELayers) lagen CPU"
+    }
+
     var body: some View {
         GlassCard(title: "Alle cijfers", icon: "tablecells", glow: Theme.cyan) {
             Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 8) {
                 GridRow {
-                    ForEach(["Model", "Schrijven", "Lezen", "Laden", "SSD", "GPU-geheugen", "CPU-lagen", "Gemeten"], id: \.self) {
+                    ForEach(["Model", "Schrijven", "Lezen", "Laden", "SSD", "GPU-geheugen", "Experts", "Gemeten"], id: \.self) {
                         Text($0).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     }
                 }
@@ -117,7 +123,7 @@ private struct ResultsTable: View {
                         Text(String(format: "%.0f s", r.loadSeconds))
                         Text(String(format: "%.0f MB/s", r.ssdMBs))
                         Text(String(format: "%.0f GB", r.wiredGB))
-                        Text("\(r.cpuMoELayers)")
+                        Text(experts(r))
                         Text(r.date, style: .date).foregroundStyle(.secondary)
                     }
                     .font(.callout.monospacedDigit())

@@ -1,6 +1,5 @@
 import Foundation
 import IOKit.pwr_mgt
-import Metal
 
 /// Several Macs as one memory. A helper Mac runs llama.cpp's RPC server (ggml-rpc-server) on its GPU and announces
 /// itself with Bonjour; the main Mac finds the helpers, and its engine spreads the model's layers over its own GPU and
@@ -53,7 +52,10 @@ final class ClusterController: NSObject, ObservableObject {
 
     /// Extra GPU memory the active helpers bring (minus room for their own macOS and buffers).
     var extraGPU: UInt64 { UInt64(active.reduce(0) { $0 + max($1.gpuGB - 3, 0) } * 1e9) }
-    var extraPhysical: UInt64 { UInt64(active.reduce(0) { $0 + max($1.memoryGB - 8, 0) } * 1e9) }
+    /// What each active helper's GPU can hold for the model, in `--rpc` order (unknown for a helper added by hand: 0).
+    var helperBudgets: [UInt64] { budgetOverride ?? active.map { UInt64(max($0.gpuGB - 3, 0) * 1e9) } }
+    /// Tests: a helper on this same Mac shares its memory, so the test says what the helper may take.
+    var budgetOverride: [UInt64]?
     var rpcArgument: String? { active.isEmpty ? nil : active.map { "\($0.host):\($0.port)" }.joined(separator: ",") }
 
     // MARK: - main Mac: find helpers
@@ -172,6 +174,14 @@ final class ClusterController: NSObject, ObservableObject {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5) { if p?.isRunning == true { p?.terminate() } }
     }
 
+    /// Stop and start again, so the helper announces what it can hold now.
+    func restartHelper() {
+        guard let p = server else { return }
+        let restart: () -> Void = { [weak self] in Task { @MainActor in self?.startHelper() } }
+        p.terminationHandler = { [weak self] _ in Task { @MainActor in self?.helperStopped(); restart() } }
+        stopHelper()
+    }
+
     private func helperStopped() {
         server = nil
         helperRunning = false
@@ -181,14 +191,15 @@ final class ClusterController: NSObject, ObservableObject {
     }
 
     private func publish(ip: String) {
-        let device = MTLCreateSystemDefaultDevice()
+        let system = SystemInfo.current()
         let name = Host.current().localizedName ?? "Mac"
         let s = NetService(domain: "local.", type: Self.serviceType, name: name, port: Int32(Self.defaultPort))
         let txt: [String: Data] = [
             "ip": Data(ip.utf8),
-            "chip": Data(SystemInfo.current().chip.utf8),
-            "mem": Data(String(format: "%.0f", Double(ProcessInfo.processInfo.physicalMemory) / 1e9).utf8),
-            "gpu": Data(String(format: "%.0f", Double(device?.recommendedMaxWorkingSetSize ?? 0) / 1e9).utf8),
+            "chip": Data(system.chip.utf8),
+            "mem": Data(String(format: "%.0f", Double(system.physicalMemory) / 1e9).utf8),
+            // the raised GPU limit when there is one, else Metal's recommendation
+            "gpu": Data(String(format: "%.0f", Double(system.effectiveGPULimit) / 1e9).utf8),
         ]
         s.setTXTRecord(NetService.data(fromTXTRecord: txt))
         s.publish()

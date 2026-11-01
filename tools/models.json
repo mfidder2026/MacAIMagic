@@ -45,7 +45,7 @@
       "id": "deepseek-v4.1-flash-q4",
       "name": "DeepSeek-V4.1-Flash Q4",
       "family": "deepseek",
-      "summary": "748B MoE · 4 bit, vrijwel gelijk aan het origineel · op 128 GB traag (~2,8 tok/s): bedoeld voor 2 Macs of 256 GB",
+      "summary": "748B MoE · 4 bit, vrijwel gelijk aan het origineel · groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD (~6–8 tok/s)",
       "vision": "deepseek-v4.1",
       "files": [
         {
@@ -149,7 +149,7 @@
       "id": "glm-5.3-flash-q4",
       "name": "GLM-5.3-Flash Q4",
       "family": "glm",
-      "summary": "321B MoE · 4 bit · op 128 GB traag (~2 tok/s): bedoeld voor 2 Macs of 256 GB",
+      "summary": "321B MoE · 4 bit · groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD (~5–6 tok/s)",
       "vision": "glm-5.3",
       "files": [
         {
