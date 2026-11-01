@@ -201,9 +201,10 @@ struct WorkspaceButton: View {
 }
 
 /// The rights of the model in the work folder at a glance: L S U (lezen, schrijven, uitvoeren) in green (allowed),
-/// orange (asks first) or red (denied), with a menu to change them.
+/// orange (asks first) or red (denied); a click opens the matrix to change them.
 struct RightsButton: View {
     @EnvironmentObject var settings: Settings
+    @State private var open = false
 
     private func binding(_ r: WorkspaceTools.Right) -> Binding<String> {
         switch r {
@@ -216,28 +217,64 @@ struct RightsButton: View {
     static func color(_ value: String) -> Color { value == "allow" ? Theme.mint : value == "deny" ? .red : Theme.amber }
 
     var body: some View {
-        Menu {
-            ForEach(WorkspaceTools.Right.allCases, id: \.self) { r in
-                Picker("\(r.title): \(r.detail.lowercased())", selection: binding(r)) {
-                    Label("Toestaan", systemImage: "checkmark.circle").tag("allow")
-                    Label("Eerst vragen", systemImage: "questionmark.circle").tag("ask")
-                    Label("Weigeren", systemImage: "nosign").tag("deny")
-                }
-                .pickerStyle(.inline)
-            }
-            Divider()
-            Button("Alles toestaan") { settings.rightRead = "allow"; settings.rightWrite = "allow"; settings.rightRun = "allow" }
-            Button("Standaard (lezen mag, de rest eerst vragen)") { settings.rightRead = "allow"; settings.rightWrite = "ask"; settings.rightRun = "ask" }
-        } label: {
-            HStack(spacing: 3) {
+        Button { open.toggle() } label: {
+            HStack(spacing: 4) {
                 ForEach(WorkspaceTools.Right.allCases, id: \.self) { r in
-                    Text(r.letter).font(.system(size: 11, weight: .heavy, design: .rounded).monospaced())
+                    Text(r.letter).font(.system(size: 12, weight: .heavy, design: .rounded))
                         .foregroundStyle(Self.color(binding(r).wrappedValue))
                 }
             }
+            .padding(.horizontal, 9).padding(.vertical, 5)
+            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
+        .buttonStyle(.plain)
         .help("Rechten van het model in de werkmap: Lezen, Schrijven, Uitvoeren. Groen = mag, oranje = eerst vragen, rood = nee.")
+        .popover(isPresented: $open, arrowEdge: .top) { RightsMatrix() }
+    }
+
+}
+
+/// The rights matrix: per kind of action Allow, Ask first or Deny.
+struct RightsMatrix: View {
+    @EnvironmentObject var settings: Settings
+
+    private func binding(_ r: WorkspaceTools.Right) -> Binding<String> {
+        switch r {
+        case .read: return $settings.rightRead
+        case .write: return $settings.rightWrite
+        case .run: return $settings.rightRun
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Wat mag het model in de werkmap?").font(.headline)
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
+                ForEach(WorkspaceTools.Right.allCases, id: \.self) { r in
+                    GridRow {
+                        Text(r.letter).font(.system(.title3, design: .rounded).weight(.heavy))
+                            .foregroundStyle(RightsButton.color(binding(r).wrappedValue)).frame(width: 18)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(r.title).fontWeight(.semibold)
+                            Text(r.detail).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Picker("", selection: binding(r)) {
+                            Text("Toestaan").tag("allow")
+                            Text("Eerst vragen").tag("ask")
+                            Text("Weigeren").tag("deny")
+                        }
+                        .pickerStyle(.segmented).labelsHidden().frame(width: 270)
+                    }
+                }
+            }
+            HStack {
+                Button("Standaard") { settings.rightRead = "allow"; settings.rightWrite = "ask"; settings.rightRun = "ask" }
+                    .help("Lezen mag, schrijven en uitvoeren eerst vragen")
+                Button("Alles toestaan") { settings.rightRead = "allow"; settings.rightWrite = "allow"; settings.rightRun = "allow" }
+                Spacer()
+                Text("Geldt voor alle gesprekken").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
     }
 }
