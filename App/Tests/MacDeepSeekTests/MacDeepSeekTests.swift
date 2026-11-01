@@ -313,3 +313,57 @@ final class ChatScrollTests: XCTestCase {
         XCTAssertLessThan(top, 10, "a short chat starts \(Int(top)) points below the top")
     }
 }
+
+final class LocalizationTests: XCTestCase {
+    private func with(_ lang: AppLanguage, _ body: () -> Void) {
+        let saved = Settings.shared.language
+        Settings.shared.language = lang.rawValue
+        defer { Settings.shared.language = saved }
+        body()
+    }
+
+    func testTranslatesWithValues() {
+        let n = 12
+        with(.en) { XCTAssertEqual(L("\(n) lagen CPU"), "12 layers on CPU") }
+        with(.de) { XCTAssertEqual(L("Temperatuur \(0.7, specifier: "%.1f")"), "Temperatur 0.7") }
+        with(.fr) { XCTAssertEqual(L("Nieuw gesprek"), "Nouvelle conversation") }
+        with(.nl) { XCTAssertEqual(L("Bij \(80)% wordt het begin automatisch samengevat; de berichten blijven zichtbaar."),
+                                   "Bij 80% wordt het begin automatisch samengevat; de berichten blijven zichtbaar.") }
+        with(.en) { XCTAssertEqual(L("Bij \(80)% wordt het begin automatisch samengevat; de berichten blijven zichtbaar."),
+                                   "At 80% the start is summarized automatically; the messages stay visible.") }
+        // an unknown text stays as it is
+        with(.de) { XCTAssertEqual(L("Iets dat nog niet vertaald is"), "Iets dat nog niet vertaald is") }
+    }
+
+    func testEveryLanguageHasEveryKey() {
+        let en = Translations.table["en"] ?? [:]
+        XCTAssertGreaterThan(en.count, 200)
+        XCTAssertEqual(Translations.table["de"]?.count, en.count)
+        XCTAssertEqual(Translations.table["fr"]?.count, en.count)
+    }
+}
+
+/// Pasting in the chat field: an image becomes an attachment, text stays text.
+final class PasteTests: XCTestCase {
+    func testImageAndTextOnPasteboard() throws {
+        let pb = NSPasteboard(name: NSPasteboard.Name("mds-test-\(UUID().uuidString)"))
+        defer { pb.releaseGlobally() }
+        let image = NSImage(size: NSSize(width: 200, height: 120), flipped: false) { r in NSColor.orange.setFill(); r.fill(); return true }
+        pb.clearContents()
+        pb.writeObjects([image])
+        XCTAssertEqual(ImageAttachment.fromPasteboard(pb)?.count, 1, "a screenshot or copied image")
+        pb.clearContents()
+        pb.setString("gewone tekst", forType: .string)
+        XCTAssertNil(ImageAttachment.fromPasteboard(pb), "text pastes as text")
+        pb.clearContents()
+        pb.writeObjects([image])
+        pb.setString("tekst met een plaatje van zichzelf", forType: .string)
+        XCTAssertNil(ImageAttachment.fromPasteboard(pb), "copied rich text stays text")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("mds-paste-\(UUID().uuidString).png")
+        try NSBitmapImageRep(data: image.tiffRepresentation!)!.representation(using: .png, properties: [:])!.write(to: file)
+        defer { try? FileManager.default.removeItem(at: file) }
+        pb.clearContents()
+        pb.writeObjects([file as NSURL])
+        XCTAssertEqual(ImageAttachment.fromPasteboard(pb)?.count, 1, "an image file copied in the Finder")
+    }
+}

@@ -12,8 +12,8 @@ struct ModelsView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "square.stack.3d.up.fill").font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.brand)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Modellen").font(.system(size: 30, weight: .bold, design: .rounded))
-                        Text("\(app.system.chip) · \(app.system.physicalMemory.gbShort) unified · \(app.system.freeDisk.gbShort) vrij op schijf")
+                        Text(L("Modellen")).font(.system(size: 30, weight: .bold, design: .rounded))
+                        Text(L("\(app.system.chip) · \(app.system.physicalMemory.gbShort) unified · \(app.system.freeDisk.gbShort) vrij op schijf"))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -63,27 +63,27 @@ private struct ModelCard: View {
                 .frame(width: 46, height: 46)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(model.name).font(.system(.title3, design: .rounded).weight(.bold))
-                    Text(model.summary).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Text(L(key: model.summary)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 if running {
-                    Text("ACTIEF").font(.caption2.weight(.heavy)).padding(.horizontal, 8).padding(.vertical, 3)
+                    Text(L("ACTIEF")).font(.caption2.weight(.heavy)).padding(.horizontal, 8).padding(.vertical, 3)
                         .background(Theme.mint.opacity(0.2), in: Capsule()).foregroundStyle(Theme.mint)
                 }
             }
             HStack(spacing: 8) {
                 Badge(text: model.totalSize.gbShort, icon: "externaldrive")
-                Badge(text: fits ? "Past in geheugen" : "Streamt van SSD", icon: fits ? "memorychip" : "bolt.horizontal",
+                Badge(text: fits ? L("Past in geheugen") : L("Streamt van SSD"), icon: fits ? "memorychip" : "bolt.horizontal",
                       color: fits ? Theme.mint : Theme.amber)
-                if status.vision?.complete == true { Badge(text: "Vision", icon: "eye") }
+                if status.vision?.complete == true { Badge(text: L("Vision"), icon: "eye") }
                 if model.hasMTP { Badge(text: "MTP", icon: "forward.fill", color: Theme.violet) }
             }
             if !status.isComplete {
                 ProgressView(value: status.fraction).tint(Theme.family(model.family))
                 HStack {
-                    Text("\(status.have.gbShort) van \(status.expected.gbShort)").font(.caption).foregroundStyle(.secondary)
+                    Text(L("\(status.have.gbShort) van \(status.expected.gbShort)")).font(.caption).foregroundStyle(.secondary)
                     if let eta = models.etaSeconds(model.id) {
-                        Text("· \(String(format: "%.0f MB/s", models.speed / 1e6)) · nog \(duration(eta))").font(.caption).foregroundStyle(.secondary)
+                        Text(L("· \(String(format: "%.0f MB/s", models.speed / 1e6)) · nog \(duration(eta))")).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                 }
@@ -91,17 +91,17 @@ private struct ModelCard: View {
             HStack {
                 if !status.isComplete {
                     if models.downloading.contains(model.id) {
-                        Button("Pauzeer") { models.stopDownload(model.id) }
+                        Button(L("Pauzeer")) { models.stopDownload(model.id) }
                     } else {
-                        Button { models.startDownload(model.id) } label: { Label("Download", systemImage: "arrow.down.circle.fill") }
+                        Button { models.startDownload(model.id) } label: { Label(L("Download"), systemImage: "arrow.down.circle.fill") }
                             .buttonStyle(.borderedProminent).tint(Theme.family(model.family))
                     }
                 }
                 Spacer()
                 if selected {
-                    Label("Gekozen", systemImage: "checkmark.circle.fill").font(.callout).foregroundStyle(Theme.family(model.family))
+                    Label(L("Gekozen"), systemImage: "checkmark.circle.fill").font(.callout).foregroundStyle(Theme.family(model.family))
                 } else {
-                    Button("Kies") { Task { await app.select(model.id) } }.disabled(!status.headersAvailable)
+                    Button(L("Kies")) { Task { await app.select(model.id) } }.disabled(!status.headersAvailable)
                 }
             }
         }
@@ -143,35 +143,35 @@ private struct PlanDetails: View {
     let plan: MemoryPlan
 
     var body: some View {
-        GlassCard(title: "Geheugenplan", icon: "memorychip", glow: Theme.violet) {
+        GlassCard(title: L("Geheugenplan"), icon: "memorychip", glow: Theme.violet) {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 6) {
-                GridRow { Text("Vaste gewichten (GPU)").foregroundStyle(.secondary); Text(plan.dense.gb) }
+                GridRow { Text(L("Vaste gewichten (GPU)")).foregroundStyle(.secondary); Text(plan.dense.gb) }
                 if plan.expertCache > 0 {
-                    GridRow { Text("Expert-cache (GPU)").foregroundStyle(.secondary); Text(plan.expertCache.gb + " · de experts die het gesprek het meest gebruikt") }
-                    GridRow { Text("Experts van de SSD").foregroundStyle(.secondary); Text(plan.streamedExperts.gb + " · alleen als een woord ze nodig heeft") }
+                    GridRow { Text(L("Expert-cache (GPU)")).foregroundStyle(.secondary); Text(plan.expertCache.gb + L(" · de experts die het gesprek het meest gebruikt")) }
+                    GridRow { Text(L("Experts van de SSD")).foregroundStyle(.secondary); Text(plan.streamedExperts.gb + L(" · alleen als een woord ze nodig heeft")) }
                 } else {
-                    GridRow { Text("Experts op de GPU").foregroundStyle(.secondary); Text(plan.gpuExperts.gb) }
+                    GridRow { Text(L("Experts op de GPU")).foregroundStyle(.secondary); Text(plan.gpuExperts.gb) }
                     GridRow {
-                        Text("Experts via CPU").foregroundStyle(.secondary)
-                        Text(plan.cpuMoELayers == 0 ? "geen" : "\(plan.cpuExperts.gb) · \(plan.cpuMoELayers) lagen")
+                        Text(L("Experts via CPU")).foregroundStyle(.secondary)
+                        Text(plan.cpuMoELayers == 0 ? "geen" : L("\(plan.cpuExperts.gb) · \(plan.cpuMoELayers) lagen"))
                     }
                 }
                 if !plan.tensorSplit.isEmpty {
-                    GridRow { Text("Lagen per Mac").foregroundStyle(.secondary); Text(plan.tensorSplit.dropLast().map { "helper \($0)" }.joined(separator: " · ") + " · deze Mac \(max(plan.tensorSplit.last ?? 1, 1) - 1)") }
+                    GridRow { Text(L("Lagen per Mac")).foregroundStyle(.secondary); Text(plan.tensorSplit.dropLast().map { "helper \($0)" }.joined(separator: " · ") + L(" · deze Mac \(max(plan.tensorSplit.last ?? 1, 1) - 1)")) }
                 }
                 if plan.engram > 0 {
-                    GridRow { Text("Engram-tabellen (SSD)").foregroundStyle(.secondary); Text(plan.engram.gb + " · per token een paar rijen") }
+                    GridRow { Text(L("Engram-tabellen (SSD)")).foregroundStyle(.secondary); Text(plan.engram.gb + L(" · per token een paar rijen")) }
                 }
-                GridRow { Text("KV-cache + buffers").foregroundStyle(.secondary); Text(plan.overhead.gb + " · \(plan.contextSize / 1024)K context") }
-                GridRow { Text("GPU-limiet").foregroundStyle(.secondary); Text(plan.gpuLimit.gb + (app.system.wiredLimitMB > 0 ? " (verhoogd)" : " (macOS-standaard)")) }
+                GridRow { Text(L("KV-cache + buffers")).foregroundStyle(.secondary); Text(plan.overhead.gb + L(" · \(plan.contextSize / 1024)K context")) }
+                GridRow { Text(L("GPU-limiet")).foregroundStyle(.secondary); Text(plan.gpuLimit.gb + (app.system.wiredLimitMB > 0 ? L(" (verhoogd)") : L(" (macOS-standaard)"))) }
             }
             .font(.callout)
             ForEach(plan.warnings, id: \.self) { w in
                 Label(w, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(Theme.amber)
             }
             if app.system.wiredLimitMB < plan.suggestedWiredLimitMB - 1024 {
-                Button("Verhoog GPU-limiet naar \((UInt64(plan.suggestedWiredLimitMB) << 20).gb)") { app.raiseWiredLimit(mb: plan.suggestedWiredLimitMB) }
-                    .help("Voert 'sysctl iogpu.wired_limit_mb' uit (vraagt je wachtwoord). Geldt tot de volgende herstart.")
+                Button(L("Verhoog GPU-limiet naar \((UInt64(plan.suggestedWiredLimitMB) << 20).gb)")) { app.raiseWiredLimit(mb: plan.suggestedWiredLimitMB) }
+                    .help(L("Voert 'sysctl iogpu.wired_limit_mb' uit (vraagt je wachtwoord). Geldt tot de volgende herstart."))
             }
         }
     }
@@ -183,7 +183,7 @@ private struct EngineCard: View {
     @State private var showLog = false
 
     var body: some View {
-        GlassCard(title: "Engine", icon: "bolt.horizontal.fill", glow: Theme.mint) {
+        GlassCard(title: L("Engine"), icon: "bolt.horizontal.fill", glow: Theme.mint) {
             HStack {
                 EngineStatusPill()
                 Text(app.selectedModel?.name ?? "").foregroundStyle(.secondary)
@@ -193,9 +193,9 @@ private struct EngineCard: View {
             if case .starting = engine.state { ProgressView(value: engine.loadProgress).tint(Theme.mint) }
             if case .failed(let e) = engine.state { Text(e).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
             if Paths.engineBinary("llama-server") == nil {
-                Label("Engine nog niet gebouwd: voer scripts/build_engine.sh uit.", systemImage: "hammer").font(.callout).foregroundStyle(Theme.amber)
+                Label(L("Engine nog niet gebouwd: voer scripts/build_engine.sh uit."), systemImage: "hammer").font(.callout).foregroundStyle(Theme.amber)
             }
-            DisclosureGroup("Log", isExpanded: $showLog) {
+            DisclosureGroup(L("Log"), isExpanded: $showLog) {
                 ScrollViewReader { proxy in
                     ScrollView {
                         Text(engine.logTail.suffix(200).joined(separator: "\n"))
@@ -214,11 +214,11 @@ private struct APICard: View {
     @EnvironmentObject var engine: EngineController
 
     var body: some View {
-        GlassCard(title: "API voor andere apps", icon: "network", glow: Theme.cyan) {
-            Text("Zolang de engine draait, kunnen andere programma's het model gebruiken via dezelfde poort.")
+        GlassCard(title: L("API voor andere apps"), icon: "network", glow: Theme.cyan) {
+            Text(L("Zolang de engine draait, kunnen andere programma's het model gebruiken via dezelfde poort."))
                 .font(.callout).foregroundStyle(.secondary)
-            snippet("OpenAI-compatibel", "\(engine.baseURL.absoluteString)/v1")
-            snippet("Anthropic-compatibel (Claude Code)", "ANTHROPIC_BASE_URL=\(engine.baseURL.absoluteString) claude")
+            snippet(L("OpenAI-compatibel"), "\(engine.baseURL.absoluteString)/v1")
+            snippet(L("Anthropic-compatibel (Claude Code)"), "ANTHROPIC_BASE_URL=\(engine.baseURL.absoluteString) claude")
             snippet("Responses API (Codex)", "\(engine.baseURL.absoluteString)/v1/responses")
         }
     }
@@ -241,13 +241,13 @@ private struct FolderCard: View {
     @EnvironmentObject var settings: Settings
 
     var body: some View {
-        GlassCard(title: "Modelmap", icon: "folder.fill", glow: Theme.amber) {
-            Text("Elk model staat in een eigen submap; afbeeldingsmodellen in vision/.").font(.callout).foregroundStyle(.secondary)
+        GlassCard(title: L("Modelmap"), icon: "folder.fill", glow: Theme.amber) {
+            Text(L("Elk model staat in een eigen submap; afbeeldingsmodellen in vision/.")).font(.callout).foregroundStyle(.secondary)
             HStack {
                 Text(Paths.modelsRoot.path).font(.caption.monospaced()).textSelection(.enabled)
                 Spacer()
-                Button("Kies map…") { chooseFolder() }
-                if !settings.modelFolder.isEmpty { Button("Standaard") { settings.modelFolder = ""; app.loadIndex() } }
+                Button(L("Kies map…")) { chooseFolder() }
+                if !settings.modelFolder.isEmpty { Button(L("Standaard")) { settings.modelFolder = ""; app.loadIndex() } }
             }
         }
     }
@@ -257,7 +257,7 @@ private struct FolderCard: View {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        panel.message = "Kies de map met de modelmappen (bijv. deepseek-v4.1-flash-compact/)"
+        panel.message = L("Kies de map met de modelmappen (bijv. deepseek-v4.1-flash-compact/)")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         settings.modelFolder = url.path
         app.loadIndex()

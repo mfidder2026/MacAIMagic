@@ -60,8 +60,8 @@ enum WebTools {
     static func label(for call: ToolCall) -> String {
         let args = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any] ?? [:]
         switch call.name {
-        case "web_search": return "Zoeken: \(args["query"] as? String ?? "")"
-        case "fetch_url": return "Lezen: \(URL(string: args["url"] as? String ?? "")?.host ?? "pagina")"
+        case "web_search": return L("Zoeken: \(args["query"] as? String ?? "")")
+        case "fetch_url": return L("Lezen: \(URL(string: args["url"] as? String ?? "")?.host ?? "…")")
         default: return call.name
         }
     }

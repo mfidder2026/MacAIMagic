@@ -4,10 +4,14 @@ import SwiftUI
 struct MacDeepSeekApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var app = AppState()
+    @ObservedObject private var settings = Settings.shared
 
     var body: some Scene {
         WindowGroup("MacDeepSeek") {
             RootView()
+                // a new language redraws every view, and dates follow it
+                .id(settings.language)
+                .environment(\.locale, Locale(identifier: settings.language))
                 .environmentObject(app)
                 .environmentObject(app.engine)
                 .environmentObject(app.models)
@@ -28,12 +32,14 @@ struct MacDeepSeekApp: App {
         .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Nieuw gesprek") { app.store.newConversation() }.keyboardShortcut("n")
+                Button(L("Nieuw gesprek")) { app.store.newConversation() }.keyboardShortcut("n")
             }
         }
 
         SwiftUI.Settings {
             SettingsView()
+                .id(settings.language)
+                .environment(\.locale, Locale(identifier: settings.language))
                 .environmentObject(app)
                 .environmentObject(Settings.shared)
         }

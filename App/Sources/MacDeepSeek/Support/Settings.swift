@@ -5,6 +5,8 @@ import SwiftUI
 final class Settings: ObservableObject {
     static let shared = Settings()
 
+    /// The language of the interface (and of the instructions to the model); at first the Mac's own language.
+    @AppStorage("language") var language = AppLanguage.system.rawValue
     @AppStorage("host") var host = "127.0.0.1"
     @AppStorage("port") var port = 8080
     @AppStorage("apiKey") var apiKey = ""

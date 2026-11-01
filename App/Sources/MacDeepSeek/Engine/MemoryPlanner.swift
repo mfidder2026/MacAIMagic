@@ -107,7 +107,7 @@ enum MemoryPlanner {
                 hostLayers.append(il)
             }
             if helpers.isEmpty && gpuLimit + 4_000_000_000 < physical - osHeadroom && !hostLayers.isEmpty {
-                warnings.append("De GPU mag nu \(gpuLimit.gb) vastzetten. Verhoog de limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder, dan staan alle experts op de GPU.")
+                warnings.append(L("De GPU mag nu \(gpuLimit.gb) vastzetten. Verhoog de limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder, dan staan alle experts op de GPU."))
             }
         } else {
             // the compute buffers hold the experts of one layer while a prompt is read (ubatch 4096): measured 6.2 GB for
@@ -120,13 +120,13 @@ enum MemoryPlanner {
             cache = min(UInt64(max(Int64(wiredMax) - Int64(dense) - buffers, 0)), expertCacheLimit ?? .max)
             hostLayers = local
             onGPU = 0
-            warnings.append("Dit model is groter dan het geheugen. De experts die het gesprek het meest gebruikt (\(cache.gb)) blijven op de GPU; de rest (\((experts - min(experts, cache)).gb)) komt van de SSD als een woord ze nodig heeft.")
+            warnings.append(L("Dit model is groter dan het geheugen. De experts die het gesprek het meest gebruikt (\(cache.gb)) blijven op de GPU; de rest (\((experts - min(experts, cache)).gb)) komt van de SSD als een woord ze nodig heeft."))
             if helpers.isEmpty && gpuLimit + 4_000_000_000 < physical - osHeadroom {
-                warnings.append("Verhoog de GPU-limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder: dan krijgt de expert-cache \((min(physical - osHeadroom - stagingReserve, UInt64(suggestedMB) << 20) - min(physical - osHeadroom - stagingReserve, gpuLimit)).gb) meer.")
+                warnings.append(L("Verhoog de GPU-limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder: dan krijgt de expert-cache \((min(physical - osHeadroom - stagingReserve, UInt64(suggestedMB) << 20) - min(physical - osHeadroom - stagingReserve, gpuLimit)).gb) meer."))
             }
         }
         if Int64(dense) + Int64(overhead) > Int64(gpuLimit) {
-            warnings.append("Zelfs de vaste gewichten passen niet onder de GPU-limiet; verhoog de limiet of verklein de context.")
+            warnings.append(L("Zelfs de vaste gewichten passen niet onder de GPU-limiet; verhoog de limiet of verklein de context."))
         }
 
         return MemoryPlan(

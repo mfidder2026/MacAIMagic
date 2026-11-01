@@ -14,7 +14,7 @@ struct LiveView: View {
                 HStack(alignment: .top, spacing: 18) {
                     GlassCard(glow: Theme.violet) {
                         VStack(spacing: 14) {
-                            GaugeRing(value: metrics.current?.tokensPerSec ?? 0, maximum: 30, label: "SCHRIJFSNELHEID", unit: "tokens / s", size: 210)
+                            GaugeRing(value: metrics.current?.tokensPerSec ?? 0, maximum: 30, label: L("SCHRIJFSNELHEID"), unit: L("tokens / s"), size: 210)
                             HStack(spacing: 18) {
                                 MiniStat(label: "GPU", value: metrics.current?.gpu ?? 0, unit: "%", color: Theme.accent)
                                 MiniStat(label: "CPU", value: metrics.current?.cpu ?? 0, unit: "%", color: Theme.cyan)
@@ -25,22 +25,22 @@ struct LiveView: View {
                     }
                     .frame(width: 300)
                     VStack(spacing: 18) {
-                        ChartCard(title: "Tokens per seconde", icon: "bolt.fill", color: Theme.violet,
+                        ChartCard(title: L("Tokens per seconde"), icon: "bolt.fill", color: Theme.violet,
                                   value: String(format: "%.1f tok/s", metrics.current?.tokensPerSec ?? 0)) {
                             AreaSeries(samples: metrics.samples, value: \.tokensPerSec, color: Theme.violet, maxY: 30)
                         }
-                        ChartCard(title: "GPU en CPU", icon: "cpu", color: Theme.accent,
+                        ChartCard(title: L("GPU en CPU"), icon: "cpu", color: Theme.accent,
                                   value: String(format: "GPU %.0f%% · CPU %.0f%%", metrics.current?.gpu ?? 0, metrics.current?.cpu ?? 0)) {
                             DualLine(samples: metrics.samples)
                         }
                     }
                 }
                 HStack(spacing: 18) {
-                    ChartCard(title: "Geheugen", icon: "memorychip", color: Theme.pink,
+                    ChartCard(title: L("Geheugen"), icon: "memorychip", color: Theme.pink,
                               value: String(format: "%.0f / %.0f GB", metrics.current?.usedGB ?? 0, metrics.totalMemoryGB)) {
                         MemoryChart(samples: metrics.samples, total: metrics.totalMemoryGB)
                     }
-                    ChartCard(title: "SSD lezen", icon: "internaldrive", color: Theme.amber,
+                    ChartCard(title: L("SSD lezen"), icon: "internaldrive", color: Theme.amber,
                               value: String(format: "%.0f MB/s", metrics.current?.ssdMBs ?? 0)) {
                         AreaSeries(samples: metrics.samples, value: \.ssdMBs, color: Theme.amber, maxY: nil)
                     }
@@ -56,8 +56,8 @@ struct LiveView: View {
         HStack(alignment: .center, spacing: 14) {
             BrandMark(size: 44, active: (metrics.current?.tokensPerSec ?? 0) > 0)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Live").font(.system(size: 30, weight: .bold, design: .rounded))
-                Text(engine.model?.name ?? app.selectedModel?.name ?? "Geen model")
+                Text(L("Live")).font(.system(size: 30, weight: .bold, design: .rounded))
+                Text(engine.model?.name ?? app.selectedModel?.name ?? L("Geen model"))
                     .font(.system(.title3, design: .rounded)).foregroundStyle(.secondary)
             }
             Spacer()
@@ -179,15 +179,15 @@ struct PlanStrip: View {
     let plan: MemoryPlan
 
     var body: some View {
-        GlassCard(title: "Waar het model staat", icon: "square.stack.3d.up.fill", glow: Theme.cyan) {
+        GlassCard(title: L("Waar het model staat"), icon: "square.stack.3d.up.fill", glow: Theme.cyan) {
             let total = Double(plan.physical)
             let parts: [(String, Double, Color)] = plan.expertCache > 0 ? [
-                ("Vast (GPU)", Double(plan.dense + plan.overhead), Theme.violet),
-                ("Expert-cache GPU", Double(plan.expertCache), Theme.accent),
+                (L("Vast (GPU)"), Double(plan.dense + plan.overhead), Theme.violet),
+                (L("Expert-cache GPU"), Double(plan.expertCache), Theme.accent),
             ] : [
-                ("Vast (GPU)", Double(plan.dense + plan.overhead), Theme.violet),
-                ("Experts GPU", Double(plan.gpuExperts), Theme.accent),
-                ("Experts CPU", Double(plan.cpuExperts), Theme.cyan),
+                (L("Vast (GPU)"), Double(plan.dense + plan.overhead), Theme.violet),
+                (L("Experts GPU"), Double(plan.gpuExperts), Theme.accent),
+                (L("Experts CPU"), Double(plan.cpuExperts), Theme.cyan),
             ]
             GeometryReader { geo in
                 HStack(spacing: 2) {
@@ -208,10 +208,10 @@ struct PlanStrip: View {
                     }
                 }
                 if plan.streamedExperts > 0 {
-                    HStack(spacing: 5) { Circle().fill(Theme.amber).frame(width: 8, height: 8); Text("Van SSD \(plan.streamedExperts.gbShort)") }
+                    HStack(spacing: 5) { Circle().fill(Theme.amber).frame(width: 8, height: 8); Text(L("Van SSD \(plan.streamedExperts.gbShort)")) }
                 }
                 if plan.engram > 0 {
-                    HStack(spacing: 5) { Circle().fill(Theme.amber.opacity(0.5)).frame(width: 8, height: 8); Text("Engram (SSD) \(plan.engram.gbShort)") }
+                    HStack(spacing: 5) { Circle().fill(Theme.amber.opacity(0.5)).frame(width: 8, height: 8); Text(L("Engram (SSD) \(plan.engram.gbShort)")) }
                 }
             }
             .font(.caption).foregroundStyle(.secondary)
@@ -227,10 +227,10 @@ struct EngineButton: View {
     var body: some View {
         switch engine.state {
         case .running, .starting:
-            Button(role: .destructive) { engine.stop() } label: { Label("Stop", systemImage: "stop.fill") }
+            Button(role: .destructive) { engine.stop() } label: { Label(L("Stop"), systemImage: "stop.fill") }
                 .buttonStyle(.bordered)
         default:
-            Button { app.startEngine() } label: { Label("Start", systemImage: "play.fill").padding(.horizontal, 6) }
+            Button { app.startEngine() } label: { Label(L("Start"), systemImage: "play.fill").padding(.horizontal, 6) }
                 .buttonStyle(.borderedProminent).tint(Theme.accent).disabled(!app.canStart)
         }
     }

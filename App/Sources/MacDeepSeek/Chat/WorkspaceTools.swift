@@ -8,13 +8,13 @@ enum WorkspaceTools {
     /// The kinds of action the user gives rights for (allow, ask, deny).
     enum Right: String, CaseIterable {
         case read, write, run
-        var letter: String { self == .read ? "L" : self == .write ? "S" : "U" }
-        var title: String { self == .read ? "Lezen" : self == .write ? "Schrijven" : "Uitvoeren" }
+        var letter: String { self == .read ? L("L") : self == .write ? L("S") : L("U") }
+        var title: String { self == .read ? L("Lezen") : self == .write ? L("Schrijven") : L("Uitvoeren") }
         var detail: String {
             switch self {
-            case .read: return "Mappen bekijken en bestanden lezen"
-            case .write: return "Bestanden maken en aanpassen"
-            case .run: return "Commando's, scripts en apps starten"
+            case .read: return L("Mappen bekijken en bestanden lezen")
+            case .write: return L("Bestanden maken en aanpassen")
+            case .run: return L("Commando's, scripts en apps starten")
             }
         }
     }
@@ -112,11 +112,11 @@ enum WorkspaceTools {
         let a = args(call)
         let path = a["path"] as? String ?? ""
         switch call.name {
-        case "list_dir": return "Map bekijken: \(path)"
-        case "read_file": return "Lezen: \(path)"
-        case "write_file": return "Schrijven: \(path)"
-        case "edit_file": return "Aanpassen: \(path)"
-        case "run_command": return "Uitvoeren: \(a["command"] as? String ?? "")"
+        case "list_dir": return L("Map bekijken: \(path)")
+        case "read_file": return L("Lezen: \(path)")
+        case "write_file": return L("Schrijven: \(path)")
+        case "edit_file": return L("Aanpassen: \(path)")
+        case "run_command": return L("Uitvoeren: \(a["command"] as? String ?? "")")
         default: return call.name
         }
     }
@@ -128,13 +128,13 @@ enum WorkspaceTools {
         case "write_file":
             let content = a["content"] as? String ?? ""
             let binary = (a["encoding"] as? String) == "base64"
-            return ("Bestand schrijven: \(a["path"] as? String ?? "")",
-                    binary ? "Binair bestand, \(Data(base64Encoded: content)?.count ?? 0) bytes" : String(content.prefix(1500)))
+            return (L("Bestand schrijven: \(a["path"] as? String ?? "")"),
+                    binary ? L("Binair bestand, \(Data(base64Encoded: content)?.count ?? 0) bytes") : String(content.prefix(1500)))
         case "edit_file":
-            return ("Bestand aanpassen: \(a["path"] as? String ?? "")",
+            return (L("Bestand aanpassen: \(a["path"] as? String ?? "")"),
                     "− \((a["old_text"] as? String ?? "").prefix(600))\n+ \((a["new_text"] as? String ?? "").prefix(600))")
         case "run_command":
-            return ("Commando uitvoeren in de werkmap", a["command"] as? String ?? "")
+            return (L("Commando uitvoeren in de werkmap"), a["command"] as? String ?? "")
         default:
             return (call.name, call.arguments)
         }

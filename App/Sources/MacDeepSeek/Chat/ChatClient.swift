@@ -175,25 +175,25 @@ final class ChatClient: ObservableObject {
         // a transcript without images and with long tool results shortened, so the request itself fits
         let budget = Int(Double(contextLimit) * 2.5)   // characters, about 0.7 of the context in tokens
         var lines: [String] = []
-        if let previous = c.summary { lines.append("Eerdere samenvatting:\n" + previous) }
+        if let previous = c.summary { lines.append(L("Eerdere samenvatting:") + "\n" + previous) }
         for m in old {
             switch m.role {
-            case .user: lines.append("Gebruiker: " + m.text + (m.attachments.isEmpty ? "" : " [afbeelding]"))
+            case .user: lines.append(L("Gebruiker:") + " " + m.text + (m.attachments.isEmpty ? "" : " [" + L("afbeelding") + "]"))
             case .assistant:
-                if !m.text.isEmpty { lines.append("Assistent: " + m.text) }
-                for call in m.toolCalls { lines.append("Assistent gebruikt \(call.name): " + String(call.arguments.prefix(600))) }
-            case .tool: lines.append("Resultaat: " + String(m.text.prefix(1500)))
+                if !m.text.isEmpty { lines.append(L("Assistent:") + " " + m.text) }
+                for call in m.toolCalls { lines.append(L("Assistent gebruikt \(call.name):") + " " + String(call.arguments.prefix(600))) }
+            case .tool: lines.append(L("Resultaat:") + " " + String(m.text.prefix(1500)))
             case .system: continue
             }
         }
         var transcript = lines.joined(separator: "\n\n")
-        if transcript.count > budget { transcript = "[begin weggelaten]\n" + String(transcript.suffix(budget)) }
+        if transcript.count > budget { transcript = "[" + L("begin weggelaten") + "]\n" + String(transcript.suffix(budget)) }
 
         let body: [String: Any] = [
             "model": modelName,
             "messages": [
-                ["role": "system", "content": "Je vat een gesprek samen zodat het verder kan zonder de oorspronkelijke berichten. Houd vast: het doel van de gebruiker, beslissingen, namen en paden van bestanden, commando's die werkten of faalden, de stand van het werk en open vragen of taken. Schrijf beknopt, in het Nederlands, als lijst met kopjes."],
-                ["role": "user", "content": "Vat dit gesprek samen:\n\n" + transcript],
+                ["role": "system", "content": L("Je vat een gesprek samen zodat het verder kan zonder de oorspronkelijke berichten. Houd vast: het doel van de gebruiker, beslissingen, namen en paden van bestanden, commando's die werkten of faalden, de stand van het werk en open vragen of taken. Schrijf beknopt, in het Nederlands, als lijst met kopjes.")],
+                ["role": "user", "content": L("Vat dit gesprek samen:") + "\n\n" + transcript],
             ],
             "stream": false,
             "temperature": 0.3,
@@ -223,36 +223,27 @@ final class ChatClient: ObservableObject {
     private func requestMessages(_ history: [ChatMessage], summary: String? = nil) -> [[String: Any]] {
         let s = Settings.shared
         let df = DateFormatter()
-        df.locale = Locale(identifier: "nl_NL")
+        df.locale = Locale(identifier: AppLanguage.current.rawValue)
         df.dateStyle = .full
-        var system = "Je bent \(modelName), lokaal draaiend op de Mac van de gebruiker via MacDeepSeek. Vandaag is het \(df.string(from: Date()))."
+        var system = L("Je bent \(modelName), lokaal draaiend op de Mac van de gebruiker via MacDeepSeek. Vandaag is het \(df.string(from: Date())).")
         if s.webSearch {
-            system += " Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL."
+            system += " " + L("Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL.")
         }
         // the user's general notes, for every conversation (the folder's notes come after them)
         if let text = try? String(contentsOf: Paths.generalNotes, encoding: .utf8), !text.isEmpty {
-            system += "\n\nAlgemene notities van de gebruiker (MACDEEPSEEK.md), volg ze op:\n" + String(text.prefix(8000))
+            system += "\n\n" + L("Algemene notities van de gebruiker (MACDEEPSEEK.md), volg ze op:") + "\n" + String(text.prefix(8000))
         }
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
-            system += """
-            \n\nJe werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file \
-            (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), \
-            edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). \
-            Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, \
-            maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. \
-            Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het \
-            eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. \
-            Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.
-            """
+            system += "\n\n" + L("Je werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.")
             // the user's own notes for this folder, like CLAUDE.md for Claude Code
             let notes = ws.appendingPathComponent("MACDEEPSEEK.md")
             if let text = try? String(contentsOf: notes, encoding: .utf8), !text.isEmpty {
-                system += "\n\nNotities van de gebruiker voor deze werkmap (MACDEEPSEEK.md), volg ze op:\n" + String(text.prefix(8000))
+                system += "\n\n" + L("Notities van de gebruiker voor deze werkmap (MACDEEPSEEK.md), volg ze op:") + "\n" + String(text.prefix(8000))
             }
         }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
         if let summary {
-            system += "\n\nSamenvatting van het begin van dit gesprek (die berichten zijn weggelaten om ruimte te maken in je context):\n" + summary
+            system += "\n\n" + L("Samenvatting van het begin van dit gesprek (die berichten zijn weggelaten om ruimte te maken in je context):") + "\n" + summary
         }
 
         var out: [[String: Any]] = [["role": "system", "content": system]]

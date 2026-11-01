@@ -105,7 +105,7 @@ struct GGUFIndex {
         case notGGUF(String), truncated
         var errorDescription: String? {
             switch self {
-            case .notGGUF(let f): return "\(f) is geen GGUF-bestand"
+            case .notGGUF(let f): return L("\(f) is geen GGUF-bestand")
             case .truncated: return "GGUF-header is onvolledig"
             }
         }

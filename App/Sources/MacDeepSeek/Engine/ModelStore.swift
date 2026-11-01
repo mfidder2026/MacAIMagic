@@ -104,7 +104,7 @@ final class ModelStore: ObservableObject {
 
     func startDownload(_ id: String) {
         guard processes[id] == nil, !downloading.contains(id), let script = Paths.script("download_model.sh") else {
-            lastMessage[id] = "download_model.sh niet gevonden"
+            lastMessage[id] = L("download_model.sh niet gevonden")
             return
         }
         let p = Process()

@@ -16,15 +16,15 @@ struct CompareView: View {
                 HStack(spacing: 14) {
                     Image(systemName: "chart.bar.xaxis").font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.brand)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Vergelijken").font(.system(size: 30, weight: .bold, design: .rounded))
-                        Text("Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven.")
+                        Text(L("Vergelijken")).font(.system(size: 30, weight: .bold, design: .rounded))
+                        Text(L("Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven."))
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                GlassCard(title: "Meten", icon: "stopwatch.fill", glow: Theme.violet) {
+                GlassCard(title: L("Meten"), icon: "stopwatch.fill", glow: Theme.violet) {
                     if ready.isEmpty {
-                        Text("Nog geen model gedownload.").foregroundStyle(.secondary)
+                        Text(L("Nog geen model gedownload.")).foregroundStyle(.secondary)
                     }
                     ForEach(ready) { m in
                         Toggle(isOn: Binding(get: { selection.contains(m.id) },
@@ -32,7 +32,7 @@ struct CompareView: View {
                             HStack {
                                 Circle().fill(Theme.familyGradient(m.family)).frame(width: 10, height: 10)
                                 Text(m.name)
-                                Text(m.summary).font(.caption).foregroundStyle(.secondary)
+                                Text(L(key: m.summary)).font(.caption).foregroundStyle(.secondary)
                             }
                         }
                         .toggleStyle(.checkbox)
@@ -45,23 +45,23 @@ struct CompareView: View {
                             Button {
                                 let ids = models.catalog.models.map(\.id).filter(selection.contains)
                                 Task { await bench.run(ids, app: app) }
-                            } label: { Label("Start meting", systemImage: "play.fill") }
+                            } label: { Label(L("Start meting"), systemImage: "play.fill") }
                                 .buttonStyle(.borderedProminent).tint(Theme.violet).disabled(selection.isEmpty)
                             if !bench.results.isEmpty {
-                                Button("Wis resultaten", role: .destructive) { bench.clear() }
+                                Button(L("Wis resultaten"), role: .destructive) { bench.clear() }
                             }
                         }
                     }
-                    Text("Elk model wordt om de beurt gestart; grote modellen laden de eerste keer enkele minuten.")
+                    Text(L("Elk model wordt om de beurt gestart; grote modellen laden de eerste keer enkele minuten."))
                         .font(.caption).foregroundStyle(.tertiary)
                 }
 
                 if !bench.latest.isEmpty {
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)], spacing: 18) {
-                        BarCard(title: "Schrijven", unit: "tokens/s", icon: "bolt.fill", results: bench.latest, value: \.decodeTPS)
-                        BarCard(title: "Prompt lezen", unit: "tokens/s", icon: "text.viewfinder", results: bench.latest, value: \.promptTPS)
-                        BarCard(title: "Laadtijd", unit: "seconden", icon: "hourglass", results: bench.latest, value: \.loadSeconds)
-                        BarCard(title: "SSD tijdens schrijven", unit: "MB/s", icon: "internaldrive", results: bench.latest, value: \.ssdMBs)
+                        BarCard(title: L("Schrijven"), unit: "tokens/s", icon: "bolt.fill", results: bench.latest, value: \.decodeTPS)
+                        BarCard(title: L("Prompt lezen"), unit: "tokens/s", icon: "text.viewfinder", results: bench.latest, value: \.promptTPS)
+                        BarCard(title: L("Laadtijd"), unit: "seconden", icon: "hourglass", results: bench.latest, value: \.loadSeconds)
+                        BarCard(title: L("SSD tijdens schrijven"), unit: "MB/s", icon: "internaldrive", results: bench.latest, value: \.ssdMBs)
                     }
                     ResultsTable(results: bench.latest)
                 }
@@ -103,14 +103,14 @@ private struct ResultsTable: View {
     /// Where the experts were: all on the GPU, some layers on the CPU, or mapped from the SSD with a GPU cache.
     private func experts(_ r: BenchResult) -> String {
         if let cache = r.expertCacheGB, cache > 0 { return String(format: "cache %.0f GB", cache) }
-        return r.cpuMoELayers == 0 ? "GPU" : "\(r.cpuMoELayers) lagen CPU"
+        return r.cpuMoELayers == 0 ? "GPU" : L("\(r.cpuMoELayers) lagen CPU")
     }
 
     var body: some View {
-        GlassCard(title: "Alle cijfers", icon: "tablecells", glow: Theme.cyan) {
+        GlassCard(title: L("Alle cijfers"), icon: "tablecells", glow: Theme.cyan) {
             Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 8) {
                 GridRow {
-                    ForEach(["Model", "Schrijven", "Lezen", "Laden", "SSD", "GPU-geheugen", "Experts", "Gemeten"], id: \.self) {
+                    ForEach([L("Model"), L("Schrijven"), L("Lezen"), L("Laden"), "SSD", L("GPU-geheugen"), L("Experts"), L("Gemeten")], id: \.self) {
                         Text($0).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                     }
                 }

@@ -12,6 +12,7 @@ struct Composer: View {
     @Binding var text: String
     @State private var attachments: [Attachment] = []
     @State private var importing = false
+    @State private var pasteMonitor: Any?
     @State private var dropTarget = false
     @FocusState private var focused: Bool
 
@@ -40,26 +41,35 @@ struct Composer: View {
                     }
                 }
             }
-            TextField("Vraag \(engine.model?.shortName ?? app.selectedModel?.shortName ?? "DeepSeek") iets…", text: $text, axis: .vertical)
+            TextField(L("Vraag \(engine.model?.shortName ?? app.selectedModel?.shortName ?? "DeepSeek") iets…"), text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.body)
                 .lineLimit(1...10)
                 .focused($focused)
                 .onSubmit(send)
                 .onPasteCommand(of: [.image, .fileURL]) { providers in load(providers) }
+                // while the field edits text, ⌘V goes straight to the text editor, which drops images: catch it first
+                .onAppear { pasteMonitor = pasteMonitor ?? NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                    guard event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                          event.charactersIgnoringModifiers == "v", settings.vision,
+                          let pasted = ImageAttachment.fromPasteboard(.general) else { return event }
+                    attachments += pasted
+                    return nil
+                } }
+                .onDisappear { if let m = pasteMonitor { NSEvent.removeMonitor(m) }; pasteMonitor = nil }
             HStack(spacing: 8) {
                 Button { importing = true } label: { Image(systemName: "photo.badge.plus") }
-                    .help("Afbeelding toevoegen").disabled(!settings.vision)
-                Toggle(isOn: $settings.thinking) { Label("Denken", systemImage: "brain") }
-                    .toggleStyle(.button).help("Laat het model eerst nadenken (beter, maar trager)")
-                Toggle(isOn: $settings.webSearch) { Label("Web", systemImage: "globe") }
-                    .toggleStyle(.button).help("Het model mag het web doorzoeken en pagina's lezen")
+                    .help(L("Afbeelding toevoegen")).disabled(!settings.vision)
+                Toggle(isOn: $settings.thinking) { Label(L("Denken"), systemImage: "brain") }
+                    .toggleStyle(.button).help(L("Laat het model eerst nadenken (beter, maar trager)"))
+                Toggle(isOn: $settings.webSearch) { Label(L("Web"), systemImage: "globe") }
+                    .toggleStyle(.button).help(L("Het model mag het web doorzoeken en pagina's lezen"))
                 WorkspaceButton(conversationID: conversationID)
                 RightsButton()
                 Spacer()
                 if chat.busy {
                     Button { chat.stop() } label: { Image(systemName: "stop.circle.fill").font(.title2) }
-                        .buttonStyle(.plain).help("Stop")
+                        .buttonStyle(.plain).help(L("Stop"))
                 } else {
                     Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title2) }
                         .buttonStyle(.plain).foregroundStyle(canSend ? Theme.accent : .secondary)
@@ -101,7 +111,7 @@ struct Composer: View {
 
     private func send() {
         guard canSend else { return }
-        chat.modelName = engine.model?.name ?? app.selectedModel?.name ?? "DeepSeek-V4.1-Flash"
+        chat.modelName = engine.model?.name ?? app.selectedModel?.name ?? L("DeepSeek-V4.1-Flash")
         chat.send(text: text.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments,
                   in: conversationID, store: store, baseURL: engine.baseURL)
         text = ""
@@ -118,7 +128,7 @@ struct Composer: View {
                 }
             } else if p.canLoadObject(ofClass: NSImage.self) {
                 _ = p.loadObject(ofClass: NSImage.self) { obj, _ in
-                    guard let img = obj as? NSImage, let a = ImageAttachment.make(from: img, name: "Geplakt") else { return }
+                    guard let img = obj as? NSImage, let a = ImageAttachment.make(from: img, name: L("Geplakt")) else { return }
                     Task { @MainActor in attachments.append(a) }
                 }
             }
@@ -129,6 +139,22 @@ struct Composer: View {
 enum ImageAttachment {
     /// The vision tower takes at most ~1024 image tokens; larger pictures only cost prompt time.
     static let maxSide: CGFloat = 1344
+
+    /// The images on a pasteboard (a screenshot, an image copied from an app, image files copied in the Finder); nil when
+    /// it holds no image, so text pastes as usual.
+    static func fromPasteboard(_ pb: NSPasteboard) -> [Attachment]? {
+        let urls = (pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? [])
+            .filter { UTType(filenameExtension: $0.pathExtension)?.conforms(to: .image) == true }
+        if !urls.isEmpty {
+            let list = urls.compactMap { make(from: $0) }
+            return list.isEmpty ? nil : list
+        }
+        // copied text often carries a picture of itself too: text wins
+        guard pb.string(forType: .string) == nil, pb.canReadObject(forClasses: [NSImage.self], options: nil),
+              let img = (pb.readObjects(forClasses: [NSImage.self]) as? [NSImage])?.first,
+              let a = make(from: img, name: L("Geplakt")) else { return nil }
+        return [a]
+    }
 
     static func make(from url: URL) -> Attachment? {
         guard let img = NSImage(contentsOf: url) else { return nil }
@@ -165,17 +191,17 @@ struct WorkspaceButton: View {
     var body: some View {
         HStack(spacing: 2) {
             Toggle(isOn: $settings.workspaceTools) {
-                Label(folder.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Werkmap", systemImage: "folder.badge.gearshape")
+                Label(folder.map { URL(fileURLWithPath: $0).lastPathComponent } ?? L("Werkmap"), systemImage: "folder.badge.gearshape")
             }
             .toggleStyle(.button)
-            .help(folder.map { "Het model werkt in \($0) (schrijven en commando's na jouw toestemming)" }
-                  ?? "Kies een map waarin het model in dit gesprek bestanden mag lezen, maken en scripts mag starten")
+            .help(folder.map { L("Het model werkt in \($0) (rechten: knop L S U)") }
+                  ?? L("Kies een map waarin het model in dit gesprek bestanden mag lezen, maken en scripts mag starten"))
             .onChange(of: settings.workspaceTools) { _, on in if on && folder == nil { choose() } }
             Menu {
-                Button("Kies map voor dit gesprek…") { choose() }
+                Button(L("Kies map voor dit gesprek…")) { choose() }
                 if let folder {
-                    Button("Toon in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) }
-                    Button("Geen werkmap in dit gesprek") { store.update(conversationID) { $0.workspace = nil }; store.save() }
+                    Button(L("Toon in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: folder)]) }
+                    Button(L("Geen werkmap in dit gesprek")) { store.update(conversationID) { $0.workspace = nil }; store.save() }
                 }
             } label: { EmptyView() }
             .menuStyle(.borderlessButton).frame(width: 16)
@@ -187,7 +213,7 @@ struct WorkspaceButton: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        panel.message = "Kies de map waarin het model in dit gesprek mag werken"
+        panel.message = L("Kies de map waarin het model in dit gesprek mag werken")
         if let folder { panel.directoryURL = URL(fileURLWithPath: folder) }
         if panel.runModal() == .OK, let url = panel.url {
             store.update(conversationID) { $0.workspace = url.path }
@@ -228,7 +254,7 @@ struct RightsButton: View {
             .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
-        .help("Rechten van het model in de werkmap: Lezen, Schrijven, Uitvoeren. Groen = mag, oranje = eerst vragen, rood = nee.")
+        .help(L("Rechten van het model in de werkmap: Lezen, Schrijven, Uitvoeren. Groen = mag, oranje = eerst vragen, rood = nee."))
         .popover(isPresented: $open, arrowEdge: .top) { RightsMatrix() }
     }
 
@@ -248,7 +274,7 @@ struct RightsMatrix: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Wat mag het model in de werkmap?").font(.headline)
+            Text(L("Wat mag het model in de werkmap?")).font(.headline)
             Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 10) {
                 ForEach(WorkspaceTools.Right.allCases, id: \.self) { r in
                     GridRow {
@@ -259,20 +285,20 @@ struct RightsMatrix: View {
                             Text(r.detail).font(.caption).foregroundStyle(.secondary)
                         }
                         Picker("", selection: binding(r)) {
-                            Text("Toestaan").tag("allow")
-                            Text("Eerst vragen").tag("ask")
-                            Text("Weigeren").tag("deny")
+                            Text(L("Toestaan")).tag("allow")
+                            Text(L("Eerst vragen")).tag("ask")
+                            Text(L("Weigeren")).tag("deny")
                         }
                         .pickerStyle(.segmented).labelsHidden().frame(width: 270)
                     }
                 }
             }
             HStack {
-                Button("Standaard") { settings.rightRead = "allow"; settings.rightWrite = "ask"; settings.rightRun = "ask" }
-                    .help("Lezen mag, schrijven en uitvoeren eerst vragen")
-                Button("Alles toestaan") { settings.rightRead = "allow"; settings.rightWrite = "allow"; settings.rightRun = "allow" }
+                Button(L("Standaard")) { settings.rightRead = "allow"; settings.rightWrite = "ask"; settings.rightRun = "ask" }
+                    .help(L("Lezen mag, schrijven en uitvoeren eerst vragen"))
+                Button(L("Alles toestaan")) { settings.rightRead = "allow"; settings.rightWrite = "allow"; settings.rightRun = "allow" }
                 Spacer()
-                Text("Geldt voor alle gesprekken").font(.caption).foregroundStyle(.secondary)
+                Text(L("Geldt voor alle gesprekken")).font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(16)

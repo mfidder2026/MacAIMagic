@@ -63,6 +63,9 @@ struct Conversation: Codable, Identifiable, Hashable {
     var summary: String? = nil
     var summaryUpTo: UUID? = nil
 
+    /// The title in the chosen language while it is still the default.
+    var displayTitle: String { title == "Nieuw gesprek" ? L("Nieuw gesprek") : title }
+
     /// The messages that still go to the model (after the summary).
     var unsummarized: ArraySlice<ChatMessage> {
         guard let last = summaryUpTo, let i = messages.firstIndex(where: { $0.id == last }) else { return messages[...] }

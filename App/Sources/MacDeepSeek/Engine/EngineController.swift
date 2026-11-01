@@ -81,7 +81,7 @@ final class EngineController: ObservableObject {
     func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil, rpc: String? = nil) {
         guard process == nil else { return }
         guard let bin = Paths.engineBinary("llama-server") else {
-            state = .failed("Engine niet gevonden. Bouw hem met scripts/build_engine.sh.")
+            state = .failed(L("Engine niet gevonden. Bouw hem met scripts/build_engine.sh."))
             return
         }
         let p = Process()
@@ -120,14 +120,14 @@ final class EngineController: ObservableObject {
         do {
             try p.run()
         } catch {
-            state = .failed("Kon de engine niet starten: \(error.localizedDescription)")
+            state = .failed(L("Kon de engine niet starten: \(error.localizedDescription)"))
             return
         }
         process = p
         preventSleep(true)
         loadProgress = 0
         logTail = ["$ \(bin.lastPathComponent) " + p.arguments!.joined(separator: " ")]
-        state = .starting("Model laden…")
+        state = .starting(L("Model laden…"))
         pollHealth()
     }
 
@@ -155,9 +155,9 @@ final class EngineController: ObservableObject {
             if line.contains("llama_model_loader:") || line.contains("print_info: general.") || line.contains("quantize.") { continue }
             logTail.append(String(line))
             // llama.cpp prints a dot per loaded chunk; the tensor loader also reports "loading tensors"
-            if line.contains("load_tensors") { state = .starting("Gewichten laden…") }
-            if line.contains("warming up") { state = .starting("Opwarmen…"); loadProgress = 0.95 }
-            if line.contains("lazy read enabled") { state = .starting("Engram-tabellen koppelen…") }
+            if line.contains("load_tensors") { state = .starting(L("Gewichten laden…")) }
+            if line.contains("warming up") { state = .starting(L("Opwarmen…")); loadProgress = 0.95 }
+            if line.contains("lazy read enabled") { state = .starting(L("Engram-tabellen koppelen…")) }
         }
         if text.allSatisfy({ $0 == "." || $0 == "\n" }) { loadProgress = min(0.9, loadProgress + 0.002 * Double(text.count)) }
         if logTail.count > 400 { logTail.removeFirst(logTail.count - 400) }
@@ -174,7 +174,7 @@ final class EngineController: ObservableObject {
             state = .stopped
         } else {
             let last = logTail.last(where: { $0.contains("error") || $0.contains("failed") }) ?? logTail.last ?? ""
-            state = .failed("Engine gestopt (code \(code)): \(last)")
+            state = .failed(L("Engine gestopt (code \(code)): \(last)"))
         }
     }
 

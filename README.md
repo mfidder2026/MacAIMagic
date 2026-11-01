@@ -9,7 +9,7 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 ![Live dashboard](docs/screenshots/live.png)
 
 > All screenshots show real answers and real measurements on a MacBook Pro M3 Max (128 GB).
-> The app's interface is in Dutch for now.
+> The app speaks English, German, French and Dutch (Settings → Taal / Language; at first your Mac's language).
 
 ## Models
 
@@ -70,8 +70,9 @@ comes from the internal SSD.
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
   what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACDEEPSEEK.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacDeepSeek/MACDEEPSEEK.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.
+- **Languages**: English, German, French or Dutch, chosen in Settings and at first taken from macOS; the model gets its instructions in the same language.
 - **Context**: a meter at the top of the chat shows how much of the model's context a conversation takes (64K by default, up to 1M for DeepSeek and GLM, 256K for Qwen). At 80% the start of the conversation is summarized by the model and sent as a summary instead (the messages stay visible, with a marker); there is also a button to do it now.
-- **Images**: button, drag and drop, or paste (⌘V)
+- **Images**: button, drag and drop, or paste (⌘V, also while typing: screenshots, copied images, image files from the Finder)
 - **Web search**: the model calls `web_search` and `fetch_url` by itself. The app runs them (DuckDuckGo, or Brave Search
   with your own API key) and shows each step and the sources.
 - Conversations are saved locally
@@ -253,7 +254,7 @@ help), and how several Macs are linked into one large memory.
 
 - Measure the cluster on real hardware (M3 Max + M5 + M1) and tune how the layers are split
 - Faster prompt reading for models that fit (Metal kernels for low-bit experts at large batch sizes)
-- English interface
+- Switch models within one conversation (a fast model for routine work, a large one for hard problems)
 
 ## Credits and licenses
 

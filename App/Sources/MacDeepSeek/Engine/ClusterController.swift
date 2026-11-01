@@ -133,11 +133,11 @@ final class ClusterController: NSObject, ObservableObject {
     func startHelper(bind override: String? = nil) {
         guard server == nil else { return }
         guard let bin = Paths.engineBinary("ggml-rpc-server") else {
-            helperLog = ["ggml-rpc-server niet gevonden: bouw de engine opnieuw (scripts/build_engine.sh)."]
+            helperLog = [L("ggml-rpc-server niet gevonden: bouw de engine opnieuw (scripts/build_engine.sh).")]
             return
         }
         guard let ip = override ?? Self.bindAddress() else {
-            helperLog = ["Geen Thunderbolt-verbinding gevonden. Sluit de Macs aan met een Thunderbolt-kabel (Systeeminstellingen → Netwerk → Thunderbolt-brug), of sta het lokale netwerk toe."]
+            helperLog = [L("Geen Thunderbolt-verbinding gevonden. Sluit de Macs aan met een Thunderbolt-kabel (Systeeminstellingen → Netwerk → Thunderbolt-brug), of sta het lokale netwerk toe.")]
             return
         }
         let p = Process()
@@ -158,7 +158,7 @@ final class ClusterController: NSObject, ObservableObject {
         }
         p.terminationHandler = { [weak self] _ in Task { @MainActor in self?.helperStopped() } }
         do { try p.run() } catch {
-            helperLog = ["Kon de helper niet starten: \(error.localizedDescription)"]
+            helperLog = [L("Kon de helper niet starten: \(error.localizedDescription)")]
             return
         }
         server = p
@@ -192,7 +192,7 @@ final class ClusterController: NSObject, ObservableObject {
 
     private func publish(ip: String) {
         let system = SystemInfo.current()
-        let name = Host.current().localizedName ?? "Mac"
+        let name = Host.current().localizedName ?? L("Mac")
         let s = NetService(domain: "local.", type: Self.serviceType, name: name, port: Int32(Self.defaultPort))
         let txt: [String: Data] = [
             "ip": Data(ip.utf8),

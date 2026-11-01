@@ -45,7 +45,7 @@ struct ChatView: View {
             if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
         }
-        .navigationTitle(conversation?.title ?? "MacDeepSeek")
+        .navigationTitle(conversation?.displayTitle ?? "MacDeepSeek")
     }
 
     /// The last visible message that the summary replaces (the divider goes under it).
@@ -65,7 +65,7 @@ private struct SummaryDivider: View {
             HStack(spacing: 8) {
                 Rectangle().fill(Theme.amber.opacity(0.4)).frame(height: 1)
                 Button { open.toggle() } label: {
-                    Label("Hierboven samengevat om context vrij te maken", systemImage: "rectangle.compress.vertical")
+                    Label(L("Hierboven samengevat om context vrij te maken"), systemImage: "rectangle.compress.vertical")
                         .font(.caption.weight(.semibold))
                 }
                 .buttonStyle(.plain).foregroundStyle(Theme.amber)
@@ -97,7 +97,7 @@ private struct ContextMeter: View {
         Button { open.toggle() } label: {
             HStack(spacing: 6) {
                 if chat.compacting { ProgressView().controlSize(.mini) }
-                Text(chat.compacting ? "Samenvatten…" : "\(Self.short(used)) / \(Self.short(limit))")
+                Text(chat.compacting ? L("Samenvatten…") : "\(Self.short(used)) / \(Self.short(limit))")
                     .font(.caption.monospacedDigit().weight(.semibold))
                 Capsule().fill(.white.opacity(0.12)).frame(width: 46, height: 5)
                     .overlay(alignment: .leading) { Capsule().fill(color).frame(width: 46 * share, height: 5) }
@@ -108,11 +108,11 @@ private struct ContextMeter: View {
         .buttonStyle(.plain)
         .popover(isPresented: $open, arrowEdge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Context").font(.headline)
-                Text("\(used) van \(limit) tokens gebruikt in dit gesprek").font(.callout)
-                Text("Bij \(Int(ChatClient.compactAt * 100))% wordt het begin automatisch samengevat; de berichten blijven zichtbaar.")
+                Text(L("Context")).font(.headline)
+                Text(L("\(used) van \(limit) tokens gebruikt in dit gesprek")).font(.callout)
+                Text(L("Bij \(Int(ChatClient.compactAt * 100))% wordt het begin automatisch samengevat; de berichten blijven zichtbaar."))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                Button("Nu samenvatten") {
+                Button(L("Nu samenvatten")) {
                     open = false
                     guard let id = store.selection else { return }
                     Task { await chat.compact(id, store: store, baseURL: engine.baseURL) }
@@ -121,7 +121,7 @@ private struct ContextMeter: View {
             }
             .padding(14).frame(width: 300)
         }
-        .help("Context van het model in dit gesprek")
+        .help(L("Context van het model in dit gesprek"))
     }
 }
 
@@ -159,7 +159,7 @@ private struct WorkspaceChip: View {
                 .background(.ultraThinMaterial, in: Capsule())
             }
             .buttonStyle(.plain)
-            .help("Werkmap van dit gesprek: klik om hem in de Finder te openen")
+            .help(L("Werkmap van dit gesprek: klik om hem in de Finder te openen"))
         }
     }
 }
@@ -176,7 +176,7 @@ private struct LiveStrip: View {
             let m = engine.model ?? app.selectedModel
             HStack(spacing: 6) {
                 Circle().fill(Theme.familyGradient(m?.family ?? "deepseek")).frame(width: 9, height: 9)
-                Text(m?.name ?? "Geen model").font(.callout.weight(.semibold))
+                Text(m?.name ?? L("Geen model")).font(.callout.weight(.semibold))
             }
             .padding(.horizontal, 10).padding(.vertical, 5)
             .background(.ultraThinMaterial, in: Capsule())
@@ -229,20 +229,20 @@ private struct EmptyChat: View {
     @Binding var draft: String
     @EnvironmentObject var app: AppState
     private let suggestions = [
-        ("globe", "Wat is het laatste nieuws over Apple Silicon?"),
-        ("chevron.left.forwardslash.chevron.right", "Schrijf een Swift-functie die priemgetallen zoekt"),
-        ("brain", "Leg uit hoe een mixture-of-experts model werkt"),
-        ("photo", "Sleep een afbeelding hierheen en vraag wat erop staat"),
+        ("globe", L("Wat is het laatste nieuws over Apple Silicon?")),
+        ("chevron.left.forwardslash.chevron.right", L("Schrijf een Swift-functie die priemgetallen zoekt")),
+        ("brain", L("Leg uit hoe een mixture-of-experts model werkt")),
+        ("photo", L("Sleep een afbeelding hierheen en vraag wat erop staat")),
     ]
 
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
             BrandMark(size: 84, active: false)
-            Text(app.selectedModel?.name ?? "MacDeepSeek")
+            Text(app.selectedModel?.name ?? L("MacDeepSeek"))
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.brand)
-            Text("Volledig lokaal op je Mac. Niets verlaat je computer, behalve zoekopdrachten als je web zoeken aanzet.")
+            Text(L("Volledig lokaal op je Mac. Niets verlaat je computer, behalve zoekopdrachten als je web zoeken aanzet."))
                 .multilineTextAlignment(.center).foregroundStyle(.secondary).frame(maxWidth: 480)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 ForEach(suggestions, id: \.1) { icon, text in
@@ -276,17 +276,17 @@ private struct EngineBanner: View {
             switch engine.state {
             case .starting(let s):
                 ProgressView().controlSize(.small)
-                Text("\(s) Het eerste laden van 115 GB duurt enkele minuten.")
+                Text(L("\(s) Het eerste laden van 115 GB duurt enkele minuten."))
             case .failed(let e):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 Text(e).lineLimit(2)
                 Spacer()
-                Button("Opnieuw") { app.startEngine() }.disabled(!app.canStart)
+                Button(L("Opnieuw")) { app.startEngine() }.disabled(!app.canStart)
             default:
                 Image(systemName: "power").foregroundStyle(.secondary)
-                Text(app.canStart ? "De engine staat uit." : "Model of engine nog niet klaar: zie Engine & model.")
+                Text(app.canStart ? L("De engine staat uit.") : L("Model of engine nog niet klaar: zie Engine & model."))
                 Spacer()
-                Button("Start engine") { app.startEngine() }.buttonStyle(.borderedProminent).disabled(!app.canStart)
+                Button(L("Start engine")) { app.startEngine() }.buttonStyle(.borderedProminent).disabled(!app.canStart)
             }
         }
         .font(.callout)
@@ -341,7 +341,7 @@ struct MessageRow: View {
                                 .padding(.leading, 10)
                                 .overlay(alignment: .leading) { Rectangle().fill(.quaternary).frame(width: 2) }
                         } label: {
-                            Label(streaming && message.text.isEmpty ? "Denkt na…" : "Gedachtegang",
+                            Label(streaming && message.text.isEmpty ? L("Denkt na…") : L("Gedachtegang"),
                                   systemImage: "brain").font(.callout.weight(.medium))
                                 .foregroundStyle(streaming && message.text.isEmpty ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(.secondary))
                                 .shimmer(streaming && message.text.isEmpty)
@@ -414,7 +414,7 @@ struct MarkdownText: View {
                         HStack {
                             Text(lang.isEmpty ? "code" : lang).font(.caption).foregroundStyle(.secondary)
                             Spacer()
-                            Button { copy(code) } label: { Label("Kopieer", systemImage: "doc.on.doc").font(.caption) }
+                            Button { copy(code) } label: { Label(L("Kopieer"), systemImage: "doc.on.doc").font(.caption) }
                                 .buttonStyle(.plain).foregroundStyle(.secondary)
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)
@@ -536,11 +536,11 @@ private struct ApprovalCard: View {
             .frame(maxHeight: 160)
             .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
             HStack {
-                Button("Weigeren", role: .cancel) { chat.answer(approval, allow: false) }
+                Button(L("Weigeren"), role: .cancel) { chat.answer(approval, allow: false) }
                     .keyboardShortcut(.escape, modifiers: [])
                 Spacer()
-                Button("Altijd in dit gesprek") { chat.answer(approval, allow: true, always: true) }
-                Button { chat.answer(approval, allow: true) } label: { Label("Toestaan", systemImage: "checkmark") }
+                Button(L("Altijd in dit gesprek")) { chat.answer(approval, allow: true, always: true) }
+                Button { chat.answer(approval, allow: true) } label: { Label(L("Toestaan"), systemImage: "checkmark") }
                     .buttonStyle(.borderedProminent).tint(Theme.amber).keyboardShortcut(.return, modifiers: [])
             }
         }

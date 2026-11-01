@@ -37,7 +37,7 @@ struct RootView: View {
                 Button {
                     store.newConversation()
                     if let id = store.selection { pane = .chat(id) }
-                } label: { Label("Nieuw gesprek", systemImage: "square.and.pencil") }
+                } label: { Label(L("Nieuw gesprek"), systemImage: "square.and.pencil") }
             }
         }
         .onAppear {
@@ -63,7 +63,7 @@ struct Sidebar: View {
                 HStack(spacing: 10) {
                     BrandMark(size: 30, active: (metrics.current?.tokensPerSec ?? 0) > 0)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("MacDeepSeek").font(.system(.headline, design: .rounded).weight(.bold))
+                        Text(L("MacDeepSeek")).font(.system(.headline, design: .rounded).weight(.bold))
                         Text(app.selectedModel?.name ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
@@ -71,20 +71,20 @@ struct Sidebar: View {
                 .selectionDisabled()
             }
             Section {
-                Label("Live", systemImage: "waveform.path.ecg").tag(Pane.live)
-                Label("Modellen", systemImage: "square.stack.3d.up").tag(Pane.models)
-                Label("Vergelijken", systemImage: "chart.bar.xaxis").tag(Pane.compare)
-                Label("Cluster", systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
+                Label(L("Live"), systemImage: "waveform.path.ecg").tag(Pane.live)
+                Label(L("Modellen"), systemImage: "square.stack.3d.up").tag(Pane.models)
+                Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
+                Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
             }
-            Section("Gesprekken") {
+            Section(L("Gesprekken")) {
                 ForEach(store.conversations) { c in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(c.title).lineLimit(1)
+                        Text(c.displayTitle).lineLimit(1)
                         Text(c.updated, style: .relative).font(.caption).foregroundStyle(.secondary)
                     }
                     .tag(Pane.chat(c.id))
                     .contextMenu {
-                        Button("Verwijderen", role: .destructive) { store.delete(c.id) }
+                        Button(L("Verwijderen"), role: .destructive) { store.delete(c.id) }
                     }
                 }
             }
@@ -133,7 +133,7 @@ struct MiniDashboard: View {
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
-        .help("Klik voor het volledige live dashboard")
+        .help(L("Klik voor het volledige live dashboard"))
     }
 
     private func ssd(_ mbs: Double) -> String {
@@ -204,7 +204,7 @@ struct EngineStatusPill: View {
         .padding(.horizontal, 11).padding(.vertical, 5)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(color.opacity(0.4), lineWidth: 1))
-        .help("Engine-status: klik voor het live dashboard")
+        .help(L("Engine-status: klik voor het live dashboard"))
     }
 
     private var color: Color {
@@ -219,8 +219,8 @@ struct EngineStatusPill: View {
         switch engine.state {
         case .running: return "\(engine.model?.shortName ?? "Model") actief"
         case .starting(let s): return s
-        case .failed: return "Engine fout"
-        case .stopped: return "Engine uit"
+        case .failed: return L("Engine fout")
+        case .stopped: return L("Engine uit")
         }
     }
 }

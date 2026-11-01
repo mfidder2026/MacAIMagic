@@ -98,6 +98,6 @@ final class RightsTests: XCTestCase {
         XCTAssertEqual(WorkspaceTools.right(for: "write_file"), .write)
         XCTAssertEqual(WorkspaceTools.right(for: "edit_file"), .write)
         XCTAssertEqual(WorkspaceTools.right(for: "run_command"), .run)
-        XCTAssertEqual(WorkspaceTools.Right.allCases.map(\.letter), ["L", "S", "U"])
+        XCTAssertEqual(Set(WorkspaceTools.Right.allCases.map(\.letter)).count, 3, "three different letters in every language")
     }
 }
