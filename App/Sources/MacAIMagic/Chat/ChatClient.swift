@@ -225,20 +225,22 @@ final class ChatClient: ObservableObject {
         let df = DateFormatter()
         df.locale = Locale(identifier: AppLanguage.current.rawValue)
         df.dateStyle = .full
-        var system = L("Je bent \(modelName), lokaal draaiend op de Mac van de gebruiker via MacDeepSeek. Vandaag is het \(df.string(from: Date())).")
+        var system = L("Je bent \(modelName), lokaal draaiend op de Mac van de gebruiker via MacAIMagic. Vandaag is het \(df.string(from: Date())).")
         if s.webSearch {
             system += " " + L("Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL.")
         }
         // the user's general notes, for every conversation (the folder's notes come after them)
         if let text = try? String(contentsOf: Paths.generalNotes, encoding: .utf8), !text.isEmpty {
-            system += "\n\n" + L("Algemene notities van de gebruiker (MACDEEPSEEK.md), volg ze op:") + "\n" + String(text.prefix(8000))
+            system += "\n\n" + L("Algemene notities van de gebruiker (MACAIMAGIC.md), volg ze op:") + "\n" + String(text.prefix(8000))
         }
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
             system += "\n\n" + L("Je werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.")
             // the user's own notes for this folder, like CLAUDE.md for Claude Code
-            let notes = ws.appendingPathComponent("MACDEEPSEEK.md")
+            // the notes file had the app's former name before 1.6; that name still works
+            let notes = ["MACAIMAGIC.md", "MAC" + "DEEPSEEK.md"].map { ws.appendingPathComponent($0) }
+                .first { FileManager.default.fileExists(atPath: $0.path) } ?? ws.appendingPathComponent("MACAIMAGIC.md")
             if let text = try? String(contentsOf: notes, encoding: .utf8), !text.isEmpty {
-                system += "\n\n" + L("Notities van de gebruiker voor deze werkmap (MACDEEPSEEK.md), volg ze op:") + "\n" + String(text.prefix(8000))
+                system += "\n\n" + L("Notities van de gebruiker voor deze werkmap (MACAIMAGIC.md), volg ze op:") + "\n" + String(text.prefix(8000))
             }
         }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
@@ -312,7 +314,7 @@ final class ChatClient: ObservableObject {
         if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
             var msg = ""
             for try await line in bytes.lines { msg += line }
-            throw NSError(domain: "MacDeepSeek", code: http.statusCode,
+            throw NSError(domain: "MacAIMagic", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey: "Engine gaf \(http.statusCode): \(msg.prefix(400))"])
         }
 

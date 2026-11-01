@@ -1,13 +1,13 @@
 import SwiftUI
 
 @main
-struct MacDeepSeekApp: App {
+struct MacAIMagicApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var app = AppState()
     @ObservedObject private var settings = Settings.shared
 
     var body: some Scene {
-        WindowGroup("MacDeepSeek") {
+        WindowGroup("MacAIMagic") {
             RootView()
                 // a new language redraws every view, and dates follow it
                 .id(settings.language)

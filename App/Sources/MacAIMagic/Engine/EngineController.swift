@@ -183,7 +183,7 @@ final class EngineController: ObservableObject {
         if on, sleepAssertion == 0 {
             IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
                                         IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                                        "MacDeepSeek: het model draait" as CFString, &sleepAssertion)
+                                        "MacAIMagic: het model draait" as CFString, &sleepAssertion)
         } else if !on, sleepAssertion != 0 {
             IOPMAssertionRelease(sleepAssertion)
             sleepAssertion = 0

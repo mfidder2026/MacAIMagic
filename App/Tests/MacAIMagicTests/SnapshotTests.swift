@@ -1,20 +1,20 @@
 import XCTest
 import SwiftUI
-@testable import MacDeepSeek
+@testable import MacAIMagic
 
 /// Renders the main screens offscreen to PNG, for the README.
-/// MACDEEPSEEK_SNAPSHOTS=<dir> renders with sample data; add MACDEEPSEEK_ENGINE_TEST=1 to fill the chats with real
+/// MACAIMAGIC_SNAPSHOTS=<dir> renders with sample data; add MACAIMAGIC_ENGINE_TEST=1 to fill the chats with real
 /// answers from the running engine (web search, an image, thinking).
 @MainActor
 final class SnapshotTests: XCTestCase {
     private var dir: URL!
 
     override func setUp() async throws {
-        guard let d = ProcessInfo.processInfo.environment["MACDEEPSEEK_SNAPSHOTS"] else { throw XCTSkip("no snapshot dir") }
+        guard let d = ProcessInfo.processInfo.environment["MACAIMAGIC_SNAPSHOTS"] else { throw XCTSkip("no snapshot dir") }
         dir = URL(fileURLWithPath: d)
     }
 
-    private var live: Bool { ProcessInfo.processInfo.environment["MACDEEPSEEK_ENGINE_TEST"] == "1" }
+    private var live: Bool { ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" }
 
     func testRenderScreens() async throws {
         let app = AppState()

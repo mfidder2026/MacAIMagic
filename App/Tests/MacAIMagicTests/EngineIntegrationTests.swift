@@ -1,12 +1,12 @@
 import XCTest
-@testable import MacDeepSeek
+@testable import MacAIMagic
 
 /// Runs the app's own chat loop (streaming, tool calls, web search) against a running engine.
-/// Set MACDEEPSEEK_ENGINE_TEST=1 with the engine on 127.0.0.1:8080.
+/// Set MACAIMAGIC_ENGINE_TEST=1 with the engine on 127.0.0.1:8080.
 @MainActor
 final class EngineIntegrationTests: XCTestCase {
     func testWebSearchLoop() async throws {
-        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
         Settings.shared.webSearch = true
         Settings.shared.thinking = false
         let store = ConversationStore()
@@ -32,11 +32,11 @@ final class EngineIntegrationTests: XCTestCase {
 }
 
 /// The Compare screen's measurement, end to end: the app starts each model itself and measures it.
-/// MACDEEPSEEK_BENCH="id1,id2" with the engine stopped.
+/// MACAIMAGIC_BENCH="id1,id2" with the engine stopped.
 @MainActor
 final class BenchmarkIntegrationTests: XCTestCase {
     func testBenchmarkModels() async throws {
-        guard let ids = ProcessInfo.processInfo.environment["MACDEEPSEEK_BENCH"]?.split(separator: ",").map(String.init) else {
+        guard let ids = ProcessInfo.processInfo.environment["MACAIMAGIC_BENCH"]?.split(separator: ",").map(String.init) else {
             throw XCTSkip("no models to benchmark")
         }
         let app = AppState()
@@ -50,11 +50,11 @@ final class BenchmarkIntegrationTests: XCTestCase {
     }
 }
 
-/// The model works in a folder: writes a file, runs it, reads the output (MACDEEPSEEK_ENGINE_TEST=1, engine running).
+/// The model works in a folder: writes a file, runs it, reads the output (MACAIMAGIC_ENGINE_TEST=1, engine running).
 @MainActor
 final class WorkspaceIntegrationTests: XCTestCase {
     func testModelCreatesAndRunsFiles() async throws {
-        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("mds-agent-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let s = Settings.shared
@@ -87,11 +87,11 @@ final class WorkspaceIntegrationTests: XCTestCase {
 }
 
 /// The cluster end to end on one Mac: the app starts a helper on 127.0.0.1, finds it with Bonjour, starts GLM Compact
-/// spread over its own GPU and the helper, and checks the answer. MACDEEPSEEK_CLUSTER_TEST=1, no engine running.
+/// spread over its own GPU and the helper, and checks the answer. MACAIMAGIC_CLUSTER_TEST=1, no engine running.
 @MainActor
 final class ClusterIntegrationTests: XCTestCase {
     func testHelperFoundAndUsed() async throws {
-        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_CLUSTER_TEST"] == "1" else { throw XCTSkip("set MACDEEPSEEK_CLUSTER_TEST=1") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_CLUSTER_TEST"] == "1" else { throw XCTSkip("set MACAIMAGIC_CLUSTER_TEST=1") }
         let app = AppState()
         let s = Settings.shared
         let savedRole = s.clusterRole
@@ -149,10 +149,10 @@ final class ClusterIntegrationTests: XCTestCase {
     }
 
     /// DeepSeek Q4 does not fit even in a cluster: the helper takes whole layers, this Mac keeps the rest mapped and
-    /// caches the most used experts (MACDEEPSEEK_CLUSTER_STREAM_TEST=1; the helper shares this Mac's memory, so both
+    /// caches the most used experts (MACAIMAGIC_CLUSTER_STREAM_TEST=1; the helper shares this Mac's memory, so both
     /// the helper and the cache are kept small).
     func testStreamingWithHelper() async throws {
-        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_CLUSTER_STREAM_TEST"] == "1" else { throw XCTSkip("set MACDEEPSEEK_CLUSTER_STREAM_TEST=1") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_CLUSTER_STREAM_TEST"] == "1" else { throw XCTSkip("set MACAIMAGIC_CLUSTER_STREAM_TEST=1") }
         let app = AppState()
         let s = Settings.shared
         let savedRole = s.clusterRole
@@ -208,11 +208,11 @@ final class ClusterIntegrationTests: XCTestCase {
     }
 }
 
-/// A full conversation is summarized, and the model still knows what was said before (MACDEEPSEEK_ENGINE_TEST=1, engine running).
+/// A full conversation is summarized, and the model still knows what was said before (MACAIMAGIC_ENGINE_TEST=1, engine running).
 @MainActor
 final class CompactIntegrationTests: XCTestCase {
     func testCompactKeepsWhatMatters() async throws {
-        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
         let store = ConversationStore()
         var c = Conversation(title: "Compact-test")
         let turns = [("Mijn kat heet Pluis en is drie jaar.", "Leuk, Pluis!"), ("Ik werk aan avontuur.bas in de map Werkmap.", "Goed, ik help mee."),

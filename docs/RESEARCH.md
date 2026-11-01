@@ -1,6 +1,6 @@
 # Research notes
 
-Measurements and findings behind MacDeepSeek's choices, all on a MacBook Pro M3 Max with 128 GB.
+Measurements and findings behind MacAIMagic's choices, all on a MacBook Pro M3 Max with 128 GB.
 
 ## 1. Speculative decoding with MTP (learned from MTPLX)
 
@@ -39,7 +39,7 @@ For reference, MTPLX's own logs show a median of 41 tok/s for Qwen3.8-Flash-Next
 and the user's own chats rather than these prompts), so this is not a strict head-to-head; it does show that llama.cpp
 with MTP is at least as fast on this model.
 
-With 3 tokens ahead, too many guesses on creative text are rejected and checking them costs more than it saves. MacDeepSeek
+With 3 tokens ahead, too many guesses on creative text are rejected and checking them costs more than it saves. MacAIMagic
 therefore uses MTP with 2 tokens ahead for the models that have an MTP head.
 
 DeepSeek-V4.1 has no MTP head in these files; its own draft model (DSpark, 8 GB) does not fit next to the 115 GB compact
@@ -54,7 +54,7 @@ The Q4 versions are close to the original weights, but on a 128 GB Mac part of t
 | DeepSeek-V4.1-Flash Q4 | 289 GB (40 layers × 384 experts of 18.8 MB, MXFP4) | 6 per layer: 4.5 GB |
 | GLM-5.3-Flash Q4 | 190 GB (43 layers × 288 experts of 15.2 MB, Q4_K/Q5_K) | 8 per layer: 5.2 GB |
 
-### Before: page faults (MacDeepSeek 1.3)
+### Before: page faults (MacAIMagic 1.3)
 
 The first layers kept their experts on the CPU, mapped from the file; the rest of memory held whole layers on the GPU.
 
@@ -87,7 +87,7 @@ macOS serves a page fault on a mapped file with a small read (16–22 KB on aver
 1 MiB chunks over 16 threads, even 3 missing matrices (19 MB) arrive at 6 GB/s. On data already in memory the
 `madvise` costs 16 µs per matrix.
 
-### Now: the GPU expert cache, filled at SSD speed (MacDeepSeek 1.4)
+### Now: the GPU expert cache, filled at SSD speed (MacAIMagic 1.4)
 
 llama.cpp has a GPU cache for experts kept on the host (`--moe-cache-mib`, a segmented LRU per group of layers): the
 router picks the experts, the cache uploads the ones it does not have, and the GPU computes all of them. Out of the box it
@@ -118,7 +118,7 @@ cache warms up over the rounds), then a prompt of ~1,850 tokens. Cache sizes as 
 | cache 90 GB, parallel loading | 6.1 / 8.1 / 7.5 tok/s | 48 tok/s |
 | + read-ahead (2 per layer) | 6.2 / 8.2 / 7.6 tok/s | 47 tok/s |
 | + prompt batch 2048 (cache 86 GB) | 6.1–6.3 / 8.2–8.4 tok/s | 65 tok/s |
-| + prompt read-ahead (MacDeepSeek 1.4) | 6.4 / 8.3 tok/s | **66 tok/s** |
+| + prompt read-ahead (MacAIMagic 1.4) | 6.4 / 8.3 tok/s | **66 tok/s** |
 | + warm start (cache saved by the previous run) | **8.0** / 8.3 / 7.8 tok/s | 47 tok/s |
 
 **GLM-5.3-Flash Q4**
@@ -129,9 +129,9 @@ cache warms up over the rounds), then a prompt of ~1,850 tokens. Cache sizes as 
 | llama.cpp's MoE cache as is | 1.4–1.6 tok/s | a 30-token prompt took 15–70 s |
 | cache 90 GB, parallel loading, read-ahead | 5.2 / 5.9 / 5.3 tok/s | 39 tok/s |
 | + prompt batch 2048 (cache 86 GB) | 5.2 / 6.2 tok/s | 61 tok/s |
-| + prompt read-ahead (MacDeepSeek 1.4) | 5.1 / 6.1 tok/s | **72 tok/s** |
+| + prompt read-ahead (MacAIMagic 1.4) | 5.1 / 6.1 tok/s | **72 tok/s** |
 
-And measured by the app itself (`MACDEEPSEEK_BENCH`: the app's own memory plan, ~94 GB of cache, ubatch 4096; a
+And measured by the app itself (`MACAIMAGIC_BENCH`: the app's own memory plan, ~94 GB of cache, ubatch 4096; a
 2,500-token prompt, then 300 tokens of a story), first with an empty cache, then with the cache the first run saved:
 
 | | Writing, cold / warm | Prompt reading, cold / warm | Wired |
@@ -155,7 +155,7 @@ What did not work, or not well enough:
 - **Reading many guesses ahead.** The 12 best guesses cover 76% of the misses, but cost 5.5 reads per miss and made
   writing slower. The 2 best uncached guesses per layer cover 48% and gain ~2%.
 - **MTP.** GLM's MTP head checks 3 tokens per pass; for a streamed model that needs more experts per pass: 5.2–5.5 tok/s
-  with MTP against 5.2–5.9 without (temperature 0). MacDeepSeek turns MTP off for models larger than memory.
+  with MTP against 5.2–5.9 without (temperature 0). MacAIMagic turns MTP off for models larger than memory.
 - **Engram rows in parallel.** Reading DeepSeek's 48 Engram rows per token on 16 threads instead of one after another
   made no difference (macOS serves these small reads fast), so the engine keeps reading them in order.
 
@@ -190,7 +190,7 @@ the first Mac sends it its share of the layers (`--rpc host:port`, with `--tenso
   MacBooks, the cluster works over plain TCP on the Thunderbolt Bridge.
 - With 2 × 128 GB, GLM-5.3-Flash Q4 (200 GB) fits entirely in memory, and DeepSeek-V4.1-Flash Q4 (~298 GB without
   Engram) almost does. That is the realistic way to run the Q4 versions at a useful speed.
-- **Built and tested** (MacDeepSeek 1.3): a helper on the same Mac (127.0.0.1), found with Bonjour, holding half of
+- **Built and tested** (MacAIMagic 1.3): a helper on the same Mac (127.0.0.1), found with Bonjour, holding half of
   GLM-5.3-Flash Compact: writing 20.4 → 19.0 tok/s (−7%), prompt reading unchanged (~180 tok/s), loading 3 minutes
   (55 GB sent to the helper once; with `-c` the helper keeps its part on disk, in `~/Library/Caches/llama.cpp/rpc`, for
   the next start). Over a real cable add
@@ -209,7 +209,7 @@ the first Mac sends it its share of the layers (`--rpc host:port`, with `--tenso
 
 Overnight measurements showed stalls of exactly 15–16 minutes: the Mac went into idle sleep (10 minutes without user
 activity) and only woke for a few seconds every quarter of an hour (DarkWake). A running engine does not keep macOS
-awake by itself. MacDeepSeek now holds a "prevent idle system sleep" assertion while the engine runs; the display may
+awake by itself. MacAIMagic now holds a "prevent idle system sleep" assertion while the engine runs; the display may
 still sleep.
 
 ## 5. Engine tuning
@@ -221,7 +221,7 @@ still sleep.
   instead of 48 tok/s (DeepSeek Q4), 61 instead of 39 (GLM Q4). `--ubatch-size 4096` does the same for a 2,500-token
   prompt (a system prompt with tools and a question): 81 instead of 60 tok/s (DeepSeek Q4), 92 instead of 56 (GLM Q4).
   The compute buffers grow only a little: DeepSeek Q4 4.8 / 5.2 / 6.2 GB at ubatch 1024 / 2048 / 4096, GLM Q4 2.8 / 3.8
-  GB at 2048 / 4096. MacDeepSeek uses 4096 for these models.
+  GB at 2048 / 4096. MacAIMagic uses 4096 for these models.
 - While the GPU computes a layer of a prompt, the engine reads the next layer's uncached experts in the order the
   scheduler copies them (up, gate, down), at most 4 GB: GLM Q4 72 instead of 61 tok/s, DeepSeek Q4 66 instead of 65.
   Reading them in a different order, or all of them, made DeepSeek slower (58 tok/s): the pages were pushed out of the

@@ -3,7 +3,22 @@ import SwiftUI
 
 /// User settings, kept in UserDefaults.
 final class Settings: ObservableObject {
-    static let shared = Settings()
+    static let shared: Settings = {
+        carryOverFormerSettings()
+        return Settings()
+    }()
+
+    /// Before 1.6 the app had another name and bundle id: its settings carry over once.
+    private static func carryOverFormerSettings() {
+        let now = UserDefaults.standard
+        guard now.object(forKey: "formerSettingsChecked") == nil else { return }
+        now.set(true, forKey: "formerSettingsChecked")
+        let formerID = "app.fremen.mac" + "deepseek"
+        guard Bundle.main.bundleIdentifier != formerID, let former = UserDefaults(suiteName: formerID)?.persistentDomain(forName: formerID) else { return }
+        for (key, value) in former where now.object(forKey: key) == nil && !key.hasPrefix("NS") && !key.hasPrefix("Apple") {
+            now.set(value, forKey: key)
+        }
+    }
 
     /// The language of the interface (and of the instructions to the model); at first the Mac's own language.
     @AppStorage("language") var language = AppLanguage.system.rawValue

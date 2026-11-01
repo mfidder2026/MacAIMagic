@@ -63,7 +63,7 @@ struct Sidebar: View {
                 HStack(spacing: 10) {
                     BrandMark(size: 30, active: (metrics.current?.tokensPerSec ?? 0) > 0)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(L("MacDeepSeek")).font(.system(.headline, design: .rounded).weight(.bold))
+                        Text(L("MacAIMagic")).font(.system(.headline, design: .rounded).weight(.bold))
                         Text(app.selectedModel?.name ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }

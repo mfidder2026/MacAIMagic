@@ -1,24 +1,26 @@
-# MacDeepSeek 1.5.1 (macOS, Apple Silicon)
+# MacAIMagic 1.6 (macOS, Apple Silicon)
 
-`MacDeepSeek-1.5.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
-MacDeepSeek patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
+`MacAIMagic-1.6-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
-1. Unzip and move `MacDeepSeek.app` to `/Applications`.
+1. Unzip and move `MacAIMagic.app` to `/Applications`.
 2. The build is ad-hoc signed, not notarized. Right-click → **Open** the first time, or run
-   `xattr -dr com.apple.quarantine /Applications/MacDeepSeek.app`.
+   `xattr -dr com.apple.quarantine /Applications/MacAIMagic.app`.
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacDeepSeek-1.5.1-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.6-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. As the main Mac it needs 128 GB for the models in this app; as a cluster helper any amount of memory helps.
+
+New in 1.6: the app is called MacAIMagic (formerly MacDeepSeek), because it runs more models than DeepSeek alone. On first start it moves its folder in `~/Library/Application Support` (models, conversations, measurements) and its settings over from the former name; a work folder's notes file under the former name still works.
 
 New in 1.5.1: the writing speed is read from the engine itself, so it also shows when another program (the API) uses the model; and the chat says when the engine is busy with another request, instead of seeming to hang.
 
 New in 1.5: the app speaks English, German, French and Dutch (Settings; at first your Mac's language), also in its instructions to the model. A context meter in the chat, and a full conversation is summarized automatically (context up to 1M for DeepSeek and GLM). Images paste with ⌘V while typing.
 
-New in 1.4.4: general notes for the model in every conversation, in `~/Library/Application Support/MacDeepSeek/MACDEEPSEEK.md` (Settings → Chat → Open bestand); a work folder's own MACDEEPSEEK.md comes after them.
+New in 1.4.4: general notes for the model in every conversation, in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Settings → Chat → Open bestand); a work folder's own MACAIMAGIC.md comes after them.
 
-New in 1.4.3: a `MACDEEPSEEK.md` in the work folder gives the model notes for that folder (like `CLAUDE.md`), and programs with a window are started detached, so the command time-out no longer closes them.
+New in 1.4.3: a `MACAIMAGIC.md` in the work folder gives the model notes for that folder (like `CLAUDE.md`), and programs with a window are started detached, so the command time-out no longer closes them.
 
 New in 1.4.2: a rights matrix for the work folder instead of a question for every step: the **L S U** button next to the folder sets Read, Write and Run to Allow, Ask first or Deny (also under Settings).
 

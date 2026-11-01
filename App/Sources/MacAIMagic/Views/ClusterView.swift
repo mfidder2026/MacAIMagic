@@ -36,7 +36,7 @@ struct ClusterView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(L("1. Verbind elke helper met een Thunderbolt-kabel met de hoofd-Mac (Thunderbolt 4 of 5, geen gewone USB-C-kabel)."))
                         Text(L("2. Op elke Mac: Systeeminstellingen → Netwerk → Thunderbolt-brug moet 'Verbonden' tonen (macOS kent zelf adressen toe)."))
-                        Text(L("3. Installeer MacDeepSeek op de helpers, kies daar 'Helper' en druk op Start helper."))
+                        Text(L("3. Installeer MacAIMagic op de helpers, kies daar 'Helper' en druk op Start helper."))
                         Text(L("4. Op de hoofd-Mac verschijnen de helpers hier vanzelf. Vink ze aan en start het model onder Modellen."))
                     }
                     .font(.callout)

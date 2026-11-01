@@ -209,7 +209,7 @@ final class ClusterController: NSObject, ObservableObject {
     private func preventSleep(_ on: Bool) {
         if on, sleepAssertion == 0 {
             IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                                        "MacDeepSeek: helper in het cluster" as CFString, &sleepAssertion)
+                                        "MacAIMagic: helper in het cluster" as CFString, &sleepAssertion)
         } else if !on, sleepAssertion != 0 {
             IOPMAssertionRelease(sleepAssertion)
             sleepAssertion = 0

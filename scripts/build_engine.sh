@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the MacDeepSeek engine: llama.cpp at a pinned commit + MacDeepSeek patches, Metal, static binaries.
+# Build the MacAIMagic engine: llama.cpp at a pinned commit + MacAIMagic patches, Metal, static binaries.
 # Output: engine/bin/{llama-server,llama-bench,llama-cli}
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

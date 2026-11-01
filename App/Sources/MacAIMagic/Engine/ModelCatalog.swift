@@ -1,6 +1,6 @@
 import Foundation
 
-/// The models MacDeepSeek knows, read from models.json (shared with tools/download_model.sh).
+/// The models MacAIMagic knows, read from models.json (shared with tools/download_model.sh).
 struct ModelFile: Codable, Hashable {
     let local: String
     let size: UInt64

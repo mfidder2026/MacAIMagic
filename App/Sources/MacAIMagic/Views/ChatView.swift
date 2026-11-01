@@ -47,7 +47,7 @@ struct ChatView: View {
             if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
         }
-        .navigationTitle(conversation?.displayTitle ?? "MacDeepSeek")
+        .navigationTitle(conversation?.displayTitle ?? "MacAIMagic")
     }
 
     /// The last visible message that the summary replaces (the divider goes under it).
@@ -253,7 +253,7 @@ private struct EmptyChat: View {
         VStack(spacing: 18) {
             Spacer()
             BrandMark(size: 84, active: false)
-            Text(app.selectedModel?.name ?? L("MacDeepSeek"))
+            Text(app.selectedModel?.name ?? L("MacAIMagic"))
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.brand)
             Text(L("Volledig lokaal op je Mac. Niets verlaat je computer, behalve zoekopdrachten als je web zoeken aanzet."))

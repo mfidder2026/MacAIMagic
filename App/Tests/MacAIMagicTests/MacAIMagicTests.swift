@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import MacDeepSeek
+@testable import MacAIMagic
 
 final class MemoryPlannerTests: XCTestCase {
     /// DeepSeek Compact as measured from its headers: ~9.3 GB dense, 40 layers of ~2.65 GB experts.
@@ -142,11 +142,11 @@ final class StreamingPlanTests: XCTestCase {
     }
 }
 
-/// Prints the memory plan of every model whose headers are on disk (MACDEEPSEEK_PLANS=1).
+/// Prints the memory plan of every model whose headers are on disk (MACAIMAGIC_PLANS=1).
 @MainActor
 final class PlanReportTests: XCTestCase {
     func testPrintPlans() throws {
-        guard ProcessInfo.processInfo.environment["MACDEEPSEEK_PLANS"] == "1" else { throw XCTSkip("set MACDEEPSEEK_PLANS=1") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_PLANS"] == "1" else { throw XCTSkip("set MACAIMAGIC_PLANS=1") }
         let store = ModelStore()
         for m in ModelCatalog.shared.models where store.status(m.id).headersAvailable {
             let idx = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))

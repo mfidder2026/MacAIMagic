@@ -1,10 +1,15 @@
 import Foundation
 
-/// Where MacDeepSeek keeps its models, its engine and its conversations.
+/// Where MacAIMagic keeps its models, its engine and its conversations.
 enum Paths {
     static let appSupport: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("MacDeepSeek", isDirectory: true)
+        let dir = base.appendingPathComponent("MacAIMagic", isDirectory: true)
+        // before 1.6 the app had another name: its folder (models, conversations, measurements) moves along once
+        let former = base.appendingPathComponent("Mac" + "DeepSeek", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: dir.path), FileManager.default.fileExists(atPath: former.path) {
+            try? FileManager.default.moveItem(at: former, to: dir)
+        }
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
@@ -23,8 +28,12 @@ enum Paths {
     static var conversationsFile: URL { appSupport.appendingPathComponent("conversations.json") }
     static var benchmarksFile: URL { appSupport.appendingPathComponent("benchmarks.json") }
     static var engineLog: URL { appSupport.appendingPathComponent("engine.log") }
-    /// The user's notes for the model in every conversation (a work folder can add its own MACDEEPSEEK.md).
-    static var generalNotes: URL { appSupport.appendingPathComponent("MACDEEPSEEK.md") }
+    /// The user's notes for the model in every conversation (a work folder can add its own MACAIMAGIC.md).
+    static var generalNotes: URL {
+        let current = appSupport.appendingPathComponent("MACAIMAGIC.md")
+        let former = appSupport.appendingPathComponent("MAC" + "DEEPSEEK.md")   // the name before 1.6
+        return !FileManager.default.fileExists(atPath: current.path) && FileManager.default.fileExists(atPath: former.path) ? former : current
+    }
 
     /// models.json: inside the app bundle, or in tools/ when run from source.
     static var manifest: URL? { resource("models.json") }
@@ -50,7 +59,7 @@ enum Paths {
     /// The project root when running from source (swift run / swift test in App/, or this file's location).
     private static var sourceRoots: [URL] {
         let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        let thisFile = URL(fileURLWithPath: #filePath)   // …/App/Sources/MacDeepSeek/Support/Paths.swift
+        let thisFile = URL(fileURLWithPath: #filePath)   // …/App/Sources/MacAIMagic/Support/Paths.swift
         return [cwd.deletingLastPathComponent(), cwd,
                 thisFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
                     .deletingLastPathComponent().deletingLastPathComponent()]

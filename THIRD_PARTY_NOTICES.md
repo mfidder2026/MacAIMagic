@@ -1,6 +1,6 @@
 # Third-party notices
 
-The release build of MacDeepSeek bundles binaries built from llama.cpp (commit `ddf48f85c933c1f438212a02eb21e7b001d2d37d`, with `patches/0001-deepseek41-split-engram.patch` applied), under the following license:
+The release build of MacAIMagic bundles binaries built from llama.cpp (commit `ddf48f85c933c1f438212a02eb21e7b001d2d37d`, with `patches/0001-deepseek41-split-engram.patch` applied), under the following license:
 
 ```
 MIT License

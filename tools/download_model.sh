@@ -1,12 +1,12 @@
 #!/bin/bash
 # Download one model from models.json (all shards in parallel, resumable) plus its vision projector, and verify sha256.
 # Usage: download_model.sh <model-id> [models-folder]
-#   default folder: ~/Library/Application Support/MacDeepSeek/models   (the model lands in <folder>/<model-id>/)
+#   default folder: ~/Library/Application Support/MacAIMagic/models   (the model lands in <folder>/<model-id>/)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MANIFEST="$HERE/models.json"
 ID="${1:?usage: download_model.sh <model-id> [models-folder]}"
-ROOT="${2:-$HOME/Library/Application Support/MacDeepSeek/models}"
+ROOT="${2:-$HOME/Library/Application Support/MacAIMagic/models}"
 
 # "<folder>\t<local>\t<size>\t<sha256>\t<url>" per file, from the manifest
 LIST="$(/usr/bin/python3 -I - "$MANIFEST" "$ID" <<'PY'

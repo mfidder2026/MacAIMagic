@@ -1,4 +1,4 @@
-// Renders the MacDeepSeek app icon into an .iconset folder: swift make_icon.swift <out.iconset>
+// Renders the MacAIMagic app icon into an .iconset folder: swift make_icon.swift <out.iconset>
 import AppKit
 
 let out = URL(fileURLWithPath: CommandLine.arguments[1])

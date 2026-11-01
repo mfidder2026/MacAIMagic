@@ -1,7 +1,7 @@
-# MacDeepSeek (Nederlands)
+# MacAIMagic (Nederlands)
 
 Draai **DeepSeek-V4.1-Flash-1017** (748 miljard parameters), **GLM-5.3-Flash** (321 miljard) en **Qwen3.8-Flash-Next** (180 miljard) volledig lokaal
-op een Mac met Apple Silicon en 128 GB unified memory. MacDeepSeek is een eigen macOS-app met live grafieken. Je kunt
+op een Mac met Apple Silicon en 128 GB unified memory. MacAIMagic is een eigen macOS-app met live grafieken. Je kunt
 chatten, afbeeldingen uploaden, het web laten doorzoeken, modellen naast elkaar vergelijken, en het model gebruiken als
 OpenAI- of Anthropic-compatibele API (bijvoorbeeld vanuit Claude Code).
 
@@ -32,11 +32,11 @@ vorige keer).
 - **Afbeeldingen plakken**: ⌘V in het invoerveld, ook tijdens het typen (schermafbeeldingen, gekopieerde plaatjes, afbeeldingsbestanden uit de Finder).
 - **Context**: bovenin de chat zie je hoeveel van de context van het model een gesprek inneemt (standaard 64K, tot 1M voor DeepSeek en GLM, 256K voor Qwen). Bij 80% vat het model het begin van het gesprek samen; de berichten blijven zichtbaar, met een markering. Er is ook een knop om het meteen te doen.
 - **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
-  lezen. Wat het mag, stel je in met het knopje **L S U** (lezen, schrijven, uitvoeren) naast de werkmap: per soort Toestaan, Eerst vragen of Weigeren (standaard mag lezen en vraagt de rest eerst). Een bestand `MACDEEPSEEK.md` in de werkmap geeft het model vaste instructies voor die map, bijvoorbeeld hoe het een emulator start. Algemene instructies voor elk gesprek zet je in `~/Library/Application Support/MacDeepSeek/MACDEEPSEEK.md` (Instellingen → Chat → Open bestand). Beide worden bij elk bericht opnieuw gelezen.
+  lezen. Wat het mag, stel je in met het knopje **L S U** (lezen, schrijven, uitvoeren) naast de werkmap: per soort Toestaan, Eerst vragen of Weigeren (standaard mag lezen en vraagt de rest eerst). Een bestand `MACAIMAGIC.md` in de werkmap geeft het model vaste instructies voor die map, bijvoorbeeld hoe het een emulator start. Algemene instructies voor elk gesprek zet je in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Instellingen → Chat → Open bestand). Beide worden bij elk bericht opnieuw gelezen.
 
 ## Cluster
 
-Verbind meerdere Macs met Thunderbolt en gebruik hun geheugen samen. Op de extra Macs kies je in MacDeepSeek onder
+Verbind meerdere Macs met Thunderbolt en gebruik hun geheugen samen. Op de extra Macs kies je in MacAIMagic onder
 **Cluster** de rol **Helper** en druk je op **Start helper**; op de hoofd-Mac verschijnen ze vanzelf. Elke helper neemt
 zoveel hele lagen als zijn GPU kan houden; de hoofd-Mac de rest, zo nodig met de expert-cache. Met een MacBook Pro
 M3 Max (128 GB), een Mac Studio M5 (96 GB) en een Mac Studio M1 (32 GB) heb je samen ~256 GB: GLM-5.3-Flash Q4 past dan
@@ -49,8 +49,8 @@ Mac met een lokale helper: het verdelen kost ~7% schrijfsnelheid.
 ```sh
 brew install cmake
 ./scripts/build_engine.sh     # llama.cpp ophalen, patchen en bouwen met Metal
-./scripts/make_app.sh         # dist/MacDeepSeek.app bouwen
-open dist/MacDeepSeek.app
+./scripts/make_app.sh         # dist/MacAIMagic.app bouwen
+open dist/MacAIMagic.app
 ```
 
 Of gebruik de kant-en-klare build in [`RELEASE/`](../RELEASE/).
@@ -67,4 +67,4 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8080 claude
 
 ## Licenties
 
-MacDeepSeek: MIT. llama.cpp: MIT. DeepSeek-V4.1-Flash-1017 en GLM-5.3-Flash (en hun gequantiseerde bestanden): MIT. Qwen3.8-Flash-Next: Qwen-licentie.
+MacAIMagic: MIT. llama.cpp: MIT. DeepSeek-V4.1-Flash-1017 en GLM-5.3-Flash (en hun gequantiseerde bestanden): MIT. Qwen3.8-Flash-Next: Qwen-licentie.

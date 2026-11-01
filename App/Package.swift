@@ -2,17 +2,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "MacDeepSeek",
+    name: "MacAIMagic",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "MacDeepSeek",
-            path: "Sources/MacDeepSeek"
+            name: "MacAIMagic",
+            path: "Sources/MacAIMagic"
         ),
         .testTarget(
-            name: "MacDeepSeekTests",
-            dependencies: ["MacDeepSeek"],
-            path: "Tests/MacDeepSeekTests"
+            name: "MacAIMagicTests",
+            dependencies: ["MacAIMagic"],
+            path: "Tests/MacAIMagicTests"
         ),
     ]
 )

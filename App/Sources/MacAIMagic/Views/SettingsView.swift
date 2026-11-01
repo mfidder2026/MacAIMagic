@@ -23,7 +23,7 @@ struct SettingsView: View {
                     }
                     TextField(L("Systeemprompt"), text: $settings.systemPrompt, axis: .vertical).lineLimit(3...8)
                     HStack {
-                        Text(L("Algemene notities voor het model (MACDEEPSEEK.md), in elk gesprek. Een werkmap kan er een eigen MACDEEPSEEK.md bij hebben."))
+                        Text(L("Algemene notities voor het model (MACAIMAGIC.md), in elk gesprek. Een werkmap kan er een eigen MACAIMAGIC.md bij hebben."))
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         Button(L("Open bestand")) {
@@ -49,7 +49,7 @@ struct SettingsView: View {
                 }
                 Section(L("Web zoeken")) {
                     SecureField(L("Brave Search API-sleutel (optioneel)"), text: $settings.braveKey)
-                    Text(L("Zonder sleutel zoekt MacDeepSeek via DuckDuckGo.")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("Zonder sleutel zoekt MacAIMagic via DuckDuckGo.")).font(.caption).foregroundStyle(.secondary)
                 }
             }
             .tabItem { Label(L("Chat"), systemImage: "bubble.left.and.bubble.right") }

@@ -1,5 +1,5 @@
 import XCTest
-@testable import MacDeepSeek
+@testable import MacAIMagic
 
 @MainActor
 final class WorkspaceToolsTests: XCTestCase {

@@ -1,8 +1,8 @@
-# MacDeepSeek
+# MacAIMagic
 
 Run **DeepSeek-V4.1-Flash-1017** (748B parameters), **GLM-5.3-Flash** (321B) and **Qwen3.8-Flash-Next** (180B), some
 of the largest open mixture-of-experts models, fully locally on an Apple Silicon Mac with 128 GB of unified memory.
-MacDeepSeek is a native macOS app with live performance charts. You can chat with the models, upload images, let them
+MacAIMagic is a native macOS app with live performance charts. You can chat with the models, upload images, let them
 search the web, **let them work in a folder** (read and write files, run scripts, read logs), compare them side by side,
 and use them as an OpenAI- or Anthropic-compatible API (for example from Claude Code).
 
@@ -69,7 +69,7 @@ comes from the internal SSD.
 - **Thinking** on/off, with a collapsible chain of thought and a reasoning-effort setting
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
-  what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACDEEPSEEK.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacDeepSeek/MACDEEPSEEK.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.
+  what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACAIMAGIC.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.
 - **Languages**: English, German, French or Dutch, chosen in Settings and at first taken from macOS; the model gets its instructions in the same language.
 - **Context**: a meter at the top of the chat shows how much of the model's context a conversation takes (64K by default, up to 1M for DeepSeek and GLM, 256K for Qwen). At 80% the start of the conversation is summarized by the model and sent as a summary instead (the messages stay visible, with a marker); there is also a button to do it now.
 - **Images**: button, drag and drop, or paste (⌘V, also while typing: screenshots, copied images, image files from the Finder)
@@ -95,7 +95,7 @@ Either download the ready-made build from [`RELEASE/`](RELEASE/), or build it yo
 The release build is ad-hoc signed, not notarized. The first time, right-click the app and choose **Open**, or run:
 
 ```sh
-xattr -dr com.apple.quarantine MacDeepSeek.app
+xattr -dr com.apple.quarantine MacAIMagic.app
 ```
 
 ### 2. Download one or more models
@@ -119,7 +119,7 @@ models/
 └── vision/                        deepseek-v4.1-vision.gguf, glm-5.3-vision.gguf, qwen3.8-vision.gguf
 ```
 
-The default location is `~/Library/Application Support/MacDeepSeek/models/`. To use another folder, choose it in the app
+The default location is `~/Library/Application Support/MacAIMagic/models/`. To use another folder, choose it in the app
 under Modellen → Modelmap → **Kies map…**.
 
 ### 3. Start
@@ -131,12 +131,12 @@ uses about 115–120 of the 128 GB. Optionally, press **Verhoog GPU-limiet** to 
 ## Building from source
 
 ```sh
-git clone https://github.com/mfidder2026/MacDeepSeek.git
-cd MacDeepSeek
+git clone https://github.com/mfidder2026/MacAIMagic.git
+cd MacAIMagic
 brew install cmake
 ./scripts/build_engine.sh     # fetches llama.cpp at a pinned commit, applies the patch, builds with Metal (~5 min)
-./scripts/make_app.sh         # builds dist/MacDeepSeek.app with the engine inside
-open dist/MacDeepSeek.app
+./scripts/make_app.sh         # builds dist/MacAIMagic.app with the engine inside
+open dist/MacAIMagic.app
 ```
 
 Run the engine without the app: `./scripts/run_engine.sh <model-id> [cpu-moe-layers]`. Then benchmark it with
@@ -146,7 +146,7 @@ To measure quality, compare a compact model with its Q4 version (next-token agre
 `tools/quality.sh deepseek` or `tools/quality.sh glm`.
 
 Tests: `cd App && swift test`. The engine tests run only when you ask for them:
-`MACDEEPSEEK_ENGINE_TEST=1 swift test` with the engine running, or `MACDEEPSEEK_BENCH=<ids> swift test` with it stopped.
+`MACAIMAGIC_ENGINE_TEST=1 swift test` with the engine running, or `MACAIMAGIC_BENCH=<ids> swift test` with it stopped.
 
 ## Cluster
 
@@ -157,7 +157,7 @@ plenty: tested on one Mac with a local helper, splitting GLM-5.3-Flash Compact i
 
 1. Connect each helper to the main Mac with a Thunderbolt cable (System Settings → Network → Thunderbolt Bridge shows
    Connected).
-2. On each helper: open MacDeepSeek → **Cluster** → role **Helper** → **Start helper**. The helper only listens on the
+2. On each helper: open MacAIMagic → **Cluster** → role **Helper** → **Start helper**. The helper only listens on the
    Thunderbolt bridge unless you allow the local network; llama.cpp's RPC has no password, so use a direct cable or a
    trusted network.
 3. On the main Mac: **Cluster** shows the helpers with their chip and memory. Tick the ones to use, then start a model.
@@ -194,7 +194,7 @@ the settings.
 ## How it works
 
 **Engine.** [llama.cpp](https://github.com/ggml-org/llama.cpp), pinned to commit `ddf48f8`, which supports
-`deepseek41`, `glm5-next` and `qwen4exp` (Qwen3.8-Flash-Next) natively, built with Metal. MacDeepSeek adds two patches:
+`deepseek41`, `glm5-next` and `qwen4exp` (Qwen3.8-Flash-Next) natively, built with Metal. MacAIMagic adds two patches:
 
 [`patches/0001-deepseek41-split-engram.patch`](patches/0001-deepseek41-split-engram.patch) lets it load DeepSeek GGUFs that
 store the Engram n-gram tables differently:
@@ -246,7 +246,7 @@ RELEASE/      ready-made app build
 
 ## Research
 
-[docs/RESEARCH.md](docs/RESEARCH.md) has the measurements behind these choices: what MacDeepSeek learned from MTPLX
+[docs/RESEARCH.md](docs/RESEARCH.md) has the measurements behind these choices: what MacAIMagic learned from MTPLX
 (speculative decoding with MTP), how the Q4 versions went from 2–3 to 5–8.5 tok/s on one 128 GB Mac (and what did not
 help), and how several Macs are linked into one large memory.
 
@@ -258,7 +258,7 @@ help), and how several Macs are linked into one large memory.
 
 ## Credits and licenses
 
-MacDeepSeek is MIT-licensed (see [LICENSE](LICENSE)). It builds on:
+MacAIMagic is MIT-licensed (see [LICENSE](LICENSE)). It builds on:
 
 - [llama.cpp / ggml](https://github.com/ggml-org/llama.cpp) (MIT): the inference engine, bundled in the release build
 - [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) (MIT), by DeepSeek

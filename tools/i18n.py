@@ -3,12 +3,12 @@
 
   i18n.py wrap <files...>   wrap the Dutch interface texts in L("...") (review the diff afterwards)
   i18n.py keys              list every key used with L("...") in App/Sources (Dutch, %@ for values)
-  i18n.py build             write App/Sources/MacDeepSeek/Support/Translations.swift from tools/i18n/*.json
+  i18n.py build             write App/Sources/MacAIMagic/Support/Translations.swift from tools/i18n/*.json
 """
 import json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "App/Sources/MacDeepSeek")
+SRC = os.path.join(ROOT, "App/Sources/MacAIMagic")
 
 def literals(line):
     """(start, end, inner) of each single-line string literal, with nested strings inside \\( ) skipped."""

@@ -3,7 +3,7 @@
 # Usage: run_engine.sh [model-id] [n-cpu-moe] [ctx-size]      extra llama-server flags: EXTRA_ARGS="…"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ID="${1:-deepseek-v4.1-flash-compact}"
-MODELS="${MODELS_DIR:-$HOME/Library/Application Support/MacDeepSeek/models}"
+MODELS="${MODELS_DIR:-$HOME/Library/Application Support/MacAIMagic/models}"
 
 # first shard and vision file of this model, from models.json
 read -r FIRST VISION < <(/usr/bin/python3 -I - "$ROOT/tools/models.json" "$ID" <<'PY'

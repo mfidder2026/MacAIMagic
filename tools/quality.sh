@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FAMILY="${1:?usage: quality.sh <deepseek|glm> [chunks]}"
 CHUNKS="${2:-24}"
-MODELS="${MODELS_DIR:-$HOME/Library/Application Support/MacDeepSeek/models}"
+MODELS="${MODELS_DIR:-$HOME/Library/Application Support/MacAIMagic/models}"
 OUT="$ROOT/build/quality"
 mkdir -p "$OUT"
 

@@ -5,7 +5,7 @@
 # Watch `sysctl vm.swapusage` while it runs: a cache that is too large makes macOS swap.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ID="${1:?usage: stream_tune.sh <model-id> <cache-MiB…>}"; shift
-LAYERS=$(/usr/bin/python3 -I "$ROOT/tools/gguf_peek.py" "$HOME/Library/Application Support/MacDeepSeek/models/$ID/$ID-00001-of-"*.gguf 2>/dev/null | sed -n 's/.*\.block_count = //p' | head -1)
+LAYERS=$(/usr/bin/python3 -I "$ROOT/tools/gguf_peek.py" "$HOME/Library/Application Support/MacAIMagic/models/$ID/$ID-00001-of-"*.gguf 2>/dev/null | sed -n 's/.*\.block_count = //p' | head -1)
 export LLAMA_MMAP_PREFETCH=0              # no read-ahead of the whole file at load
 export LLAMA_MOE_CACHE_MAX_BATCH=8        # up to 8 tokens read their experts from the cache, larger batches copy them
 export GGML_OP_OFFLOAD_MIN_BATCH=9
