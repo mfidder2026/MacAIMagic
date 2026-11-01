@@ -149,6 +149,10 @@ final class ChatClient: ObservableObject {
         if s.webSearch {
             system += " Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL."
         }
+        // the user's general notes, for every conversation (the folder's notes come after them)
+        if let text = try? String(contentsOf: Paths.generalNotes, encoding: .utf8), !text.isEmpty {
+            system += "\n\nAlgemene notities van de gebruiker (MACDEEPSEEK.md), volg ze op:\n" + String(text.prefix(8000))
+        }
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
             system += """
             \n\nJe werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file \

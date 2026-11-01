@@ -15,6 +15,18 @@ struct SettingsView: View {
                         Text("Temperatuur \(settings.temperature, specifier: "%.1f")")
                     }
                     TextField("Systeemprompt", text: $settings.systemPrompt, axis: .vertical).lineLimit(3...8)
+                    HStack {
+                        Text("Algemene notities voor het model (MACDEEPSEEK.md), in elk gesprek. Een werkmap kan er een eigen MACDEEPSEEK.md bij hebben.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open bestand") {
+                            let url = Paths.generalNotes
+                            if !FileManager.default.fileExists(atPath: url.path) {
+                                try? "# Notities voor het model\n\nSchrijf hier wat het model in elk gesprek moet weten.\n".write(to: url, atomically: true, encoding: .utf8)
+                            }
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
                 }
                 Section("Werkmap") {
                     Toggle("Bestanden en commando's in de werkmap", isOn: $settings.workspaceTools)

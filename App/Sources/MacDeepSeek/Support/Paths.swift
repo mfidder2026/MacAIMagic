@@ -23,6 +23,8 @@ enum Paths {
     static var conversationsFile: URL { appSupport.appendingPathComponent("conversations.json") }
     static var benchmarksFile: URL { appSupport.appendingPathComponent("benchmarks.json") }
     static var engineLog: URL { appSupport.appendingPathComponent("engine.log") }
+    /// The user's notes for the model in every conversation (a work folder can add its own MACDEEPSEEK.md).
+    static var generalNotes: URL { appSupport.appendingPathComponent("MACDEEPSEEK.md") }
 
     /// models.json: inside the app bundle, or in tools/ when run from source.
     static var manifest: URL? { resource("models.json") }
