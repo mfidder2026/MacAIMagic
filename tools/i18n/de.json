@@ -61,6 +61,7 @@
  "De GPU mag nu %@ vastzetten. Verhoog de limiet naar %@ met de knop hieronder, dan staan alle experts op de GPU.": "Die GPU darf jetzt %@ belegen. Erhöhe das Limit mit der Taste unten auf %@, dann liegen alle Experten auf der GPU.",
  "De GPU van deze Mac mag nu %@ gebruiken.": "Die GPU dieses Macs darf jetzt %@ nutzen.",
  "De engine staat uit.": "Die Engine ist aus.",
+ "De engine werkt aan een ander verzoek (bijvoorbeeld via de API). Een nieuw bericht wacht tot dat klaar is.": "Die Engine bearbeitet eine andere Anfrage (zum Beispiel über die API). Eine neue Nachricht wartet, bis sie fertig ist.",
  "DeepSeek-V4.1-Flash": "DeepSeek-V4.1-Flash",
  "Denken": "Denken",
  "Denkniveau": "Denkstufe",

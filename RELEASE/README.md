@@ -1,6 +1,6 @@
-# MacDeepSeek 1.5 (macOS, Apple Silicon)
+# MacDeepSeek 1.5.1 (macOS, Apple Silicon)
 
-`MacDeepSeek-1.5-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacDeepSeek-1.5.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacDeepSeek patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip and move `MacDeepSeek.app` to `/Applications`.
@@ -8,9 +8,11 @@ MacDeepSeek patches). The models are **not** included: see [Installation](../REA
    `xattr -dr com.apple.quarantine /Applications/MacDeepSeek.app`.
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacDeepSeek-1.5-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacDeepSeek-1.5.1-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. As the main Mac it needs 128 GB for the models in this app; as a cluster helper any amount of memory helps.
+
+New in 1.5.1: the writing speed is read from the engine itself, so it also shows when another program (the API) uses the model; and the chat says when the engine is busy with another request, instead of seeming to hang.
 
 New in 1.5: the app speaks English, German, French and Dutch (Settings; at first your Mac's language), also in its instructions to the model. A context meter in the chat, and a full conversation is summarized automatically (context up to 1M for DeepSeek and GLM). Images paste with ⌘V while typing.
 

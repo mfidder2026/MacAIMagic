@@ -9,6 +9,7 @@ struct ChatView: View {
     @EnvironmentObject var store: ConversationStore
     @EnvironmentObject var engine: EngineController
     @EnvironmentObject var chat: ChatClient
+    @EnvironmentObject var metrics: LiveMetrics
     @State private var draft = ""
 
     private var conversation: Conversation? { store.conversations.first { $0.id == conversationID } }
@@ -42,6 +43,7 @@ struct ChatView: View {
                 EmptyChat(draft: $draft)
             }
             if !engine.state.isRunning { EngineBanner() }
+            if engine.state.isRunning && metrics.engineBusy && !chat.busy { OtherRequestBanner() }
             if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
         }
@@ -52,6 +54,18 @@ struct ChatView: View {
     private func lastShownSummarized(_ c: Conversation) -> UUID? {
         guard let upTo = c.summaryUpTo, let i = c.messages.firstIndex(where: { $0.id == upTo }) else { return nil }
         return c.messages[...i].last { !$0.isHidden }?.id
+    }
+}
+
+/// The engine answers one request at a time: a request from elsewhere (the API, a test) makes a new message wait.
+private struct OtherRequestBanner: View {
+    var body: some View {
+        Label(L("De engine werkt aan een ander verzoek (bijvoorbeeld via de API). Een nieuw bericht wacht tot dat klaar is."),
+              systemImage: "hourglass")
+            .font(.callout).foregroundStyle(Theme.amber)
+            .padding(.horizontal, 20).padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.amber.opacity(0.08))
     }
 }
 
