@@ -19,17 +19,18 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 | **GLM-5.3-Flash Compact**: 321B MoE, experts 2–3 bit, MTP | 110 GB | fits (109 GB) | **20 tok/s, 25–29 with MTP** | ~175–185 tok/s |
 | **DeepSeek-V4.1-Flash Compact**: 748B MoE, experts 1.6 bit, attention 8 bit | 278 GB | fits (115 GB) | **19.6–20.1 tok/s** | ~160–175 tok/s |
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | 75 GB streams from the SSD | ~2.2 tok/s | ~8 tok/s |
-| **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 502 GB | 173 GB streams from the SSD | ~0.6 tok/s | very slow |
+| **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | 173 GB streams from the SSD | ~2.8 tok/s | ~9 tok/s |
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
 creative text (low end) to code (high end); see [docs/RESEARCH.md](docs/RESEARCH.md).
 
-- **Compact** versions keep everything a token needs in memory. They are the fast choice.
+- **Compact** versions keep everything a token needs in memory. They are the fast choice. Measured against their Q4
+  versions, both compact versions pick the same next token 84% of the time.
 - **MTP** (multi-token prediction): GLM and Qwen have a small head that guesses the next tokens; the model checks them in
   one pass. The answers stay exactly the same, and writing gets up to 65% faster.
 - **Q4** versions are close to the original weights, but larger than 128 GB. The experts that don't fit come from the
-  SSD, which makes them far too slow on one Mac. They are meant for a Mac with 256 GB, or two linked Macs (see
+  SSD, which makes them slow on one Mac (2–3 tok/s). They are meant for a Mac with 256 GB, or two linked Macs (see
   [docs/RESEARCH.md](docs/RESEARCH.md)).
 
 ## Why a Mac

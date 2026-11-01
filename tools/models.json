@@ -45,7 +45,7 @@
       "id": "deepseek-v4.1-flash-q4",
       "name": "DeepSeek-V4.1-Flash Q4",
       "family": "deepseek",
-      "summary": "748B MoE · 4 bit, vrijwel gelijk aan het origineel · op 128 GB erg traag (~0,6 tok/s): bedoeld voor 2 Macs of 256 GB",
+      "summary": "748B MoE · 4 bit, vrijwel gelijk aan het origineel · op 128 GB traag (~2,8 tok/s): bedoeld voor 2 Macs of 256 GB",
       "vision": "deepseek-v4.1",
       "files": [
         {
@@ -92,9 +92,13 @@
         },
         {
           "local": "deepseek-v4.1-flash-q4-00008-of-00009.gguf",
-          "size": 202758032592,
-          "sha256": "12df293355efbd104b088a77e13ee22410fb1ec3f7ab3863947f09896e64bec7",
-          "url": "https://huggingface.co/unsloth/DeepSeek-V4.1-Flash-1017-GGUF/resolve/main/UD-Q4_K_XL/DeepSeek-V4.1-Flash-1017-UD-Q4_K_XL-00008-of-00009.gguf"
+          "size": 161284798692,
+          "sha256": "5c2a5a4aa87c72cecc0fc2a8898cb2b91ab9ae5a61a5c8befe21df1b3db26179",
+          "url": "https://huggingface.co/unsloth/DeepSeek-V4.1-Flash-1017-GGUF/resolve/main/engram/DeepSeek-V4.1-Flash-1017-engram-Q6_K.gguf_file",
+          "stamp": [
+            8,
+            9
+          ]
         },
         {
           "local": "deepseek-v4.1-flash-q4-00009-of-00009.gguf",

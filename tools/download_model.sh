@@ -16,18 +16,32 @@ model = next((x for x in m["models"] if x["id"] == sys.argv[2]), None)
 if model is None:
     sys.exit("unknown model: " + sys.argv[2] + " (known: " + ", ".join(x["id"] for x in m["models"]) + ")")
 for f in model["files"]:
-    print("\t".join([model["id"], f["local"], str(f["size"]), f["sha256"], f["url"]]))
+    stamp = ",".join(str(n) for n in f.get("stamp", []))
+    print("\t".join([model["id"], f["local"], str(f["size"]), f["sha256"], f["url"], stamp]))
 d = model.get("draft")
 if d:
-    print("\t".join([model["id"], d["local"], str(d["size"]), d["sha256"], d["url"]]))
+    print("\t".join([model["id"], d["local"], str(d["size"]), d["sha256"], d["url"], ""]))
 v = next((x for x in m.get("vision", []) if x["id"] == model.get("vision")), None)
 if v:
-    print("\t".join(["vision", v["local"], str(v["size"]), v["sha256"], v["url"]]))
+    print("\t".join(["vision", v["local"], str(v["size"]), v["sha256"], v["url"], ""]))
 PY
 )" || exit 1
 
+# A shard published on its own (as "1 of 1") gets its place in the set written into its header: split.no / split.count.
+stamp_split() {  # file no count
+  /usr/bin/python3 -I - "$1" "$2" "$3" <<'PY'
+import struct, sys
+path, idx, cnt = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+with open(path, "r+b") as f:
+    head = f.read(1 << 24)
+    for key, val in ((b"split.no", idx - 1), (b"split.count", cnt)):
+        f.seek(head.index(struct.pack("<Q", len(key)) + key + struct.pack("<I", 2)) + len(key) + 12)
+        f.write(struct.pack("<H", val))
+PY
+}
+
 fetch() {
-  local dir="$ROOT/$1" name=$2 size=$3 sha=$4 url=$5
+  local dir="$ROOT/$1" name=$2 size=$3 sha=$4 url=$5 stamp=${6:-}
   local f="$dir/$name"
   mkdir -p "$dir"
   if [ -f "$f.ok" ]; then echo "$name: already verified"; return 0; fi
@@ -42,12 +56,13 @@ fetch() {
   echo "$name: verifying sha256"
   got=$(shasum -a 256 "$f" | cut -d' ' -f1)
   [ "$got" = "$sha" ] || { echo "$name: CHECKSUM MISMATCH ($got)"; return 1; }
+  if [ -n "$stamp" ]; then stamp_split "$f" "${stamp%,*}" "${stamp#*,}" && echo "$name: stamped as shard ${stamp%,*} of ${stamp#*,}"; fi
   touch "$f.ok"; echo "$name: OK"
 }
 
 pids=()
-while IFS=$'\t' read -r dir name size sha url; do
-  fetch "$dir" "$name" "$size" "$sha" "$url" & pids+=($!)
+while IFS=$'\t' read -r dir name size sha url stamp; do
+  fetch "$dir" "$name" "$size" "$sha" "$url" "$stamp" & pids+=($!)
 done <<< "$LIST"
 rc=0; for p in "${pids[@]}"; do wait "$p" || rc=1; done
 [ $rc -eq 0 ] && echo "ALL FILES VERIFIED: $ID" || echo "DOWNLOAD INCOMPLETE: $ID"

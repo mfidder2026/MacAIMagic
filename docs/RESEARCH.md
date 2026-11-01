@@ -61,8 +61,15 @@ What we found with llama.cpp's standard path (the experts that don't fit stay me
   keeps them mapped.
 - **Whole-file read-ahead must be off.** At load, llama.cpp asks macOS to read the entire file ahead (`MADV_WILLNEED`).
   For a model larger than memory that reads hundreds of GB and evicts itself. Our patch adds `LLAMA_MMAP_PREFETCH=0`.
-- **Even then, mmap streaming is far too slow: ~0.6 tok/s** for DeepSeek Q4, with stalls of minutes. macOS pages the
-  experts in as 16–22 KB page faults: the SSD delivers ~1.2 GB/s of its ~6 GB/s, because the reads are small and serial.
+- **Even then, mmap streaming is slow: ~2.8 tok/s for DeepSeek Q4 and ~2.2 tok/s for GLM Q4** (writing), ~9 tok/s
+  prompt reading. macOS pages the experts in as 16–22 KB page faults: the SSD delivers ~1.2 GB/s of its ~6 GB/s,
+  because the reads are small and serial. (A first DeepSeek measurement of 0.6 tok/s was with the misread Engram table
+  below.)
+
+- **DeepSeek Q4 wrote nonsense at first.** Its Engram table shard is published as "MXFP8", stored with ggml type id 43.
+  Standard llama.cpp uses id 43 for F8_E4M3 (no block scales), so it read the table wrongly: the sizes give it away
+  (202.8 GB for 196.6 G values is 33 bytes per 32, the MXFP8 layout). The fix is the same table in Q6_K, which the
+  publisher offers as a drop-in shard: `tools/models.json` downloads that one and stamps its header as shard 8 of 9.
 
 So a 128 GB Mac cannot run the Q4 versions usefully with mmap. What would help is what the PC projects do with VRAM:
 an **expert cache** that, right after the router picks the experts of a layer, reads the missing ones with large
@@ -77,8 +84,12 @@ its token probabilities, then measures the compact version against them:
 | Compact against Q4 | Same next token | Perplexity | KL divergence |
 |---|---|---|---|
 | GLM-5.3-Flash | **84.1%** | +11.8% (4.37 vs 3.91) | 0.23 |
+| DeepSeek-V4.1-Flash | **84.5%** | +32% (3.50 vs 2.65) | 0.30 |
 
-So the compact version picks a different next token about once in six. That is the price of fitting in 128 GB.
+Both compact versions pick a different next token about once in six. DeepSeek's perplexity rises more: going from 4
+to 1.6 bits per expert costs it relatively more certainty. That is the price of fitting in 128 GB. (The publisher of
+the compact DeepSeek file reports 87.5% agreement with the original model on its own held-out text; this is measured
+against Q4 on a different text, so the numbers are not directly comparable.)
 
 ## 3. Two Macs as one big memory
 

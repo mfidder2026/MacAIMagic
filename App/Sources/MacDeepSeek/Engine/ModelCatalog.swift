@@ -6,6 +6,8 @@ struct ModelFile: Codable, Hashable {
     let size: UInt64
     let sha256: String
     let url: String
+    /// [no, count]: a shard published on its own, whose header gets its place in the set after download
+    let stamp: [Int]?
 }
 
 struct ModelInfo: Codable, Identifiable, Hashable {

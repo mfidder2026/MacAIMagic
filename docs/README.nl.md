@@ -14,8 +14,8 @@ De Engelse [README](../README.md) is de volledige versie; dit is een samenvattin
 | **Qwen3.8-Flash-Next Q4**: 180B, 6B actief, 4 bit, MTP | 116 GB | past (83 GB) | **33 tok/s, 40–55 met MTP** | ~440 tok/s |
 | **GLM-5.3-Flash Compact**: experts 2–3 bit, MTP | 110 GB | past (109 GB) | **20 tok/s, 25–29 met MTP** | ~175–185 tok/s |
 | **DeepSeek-V4.1-Flash Compact**: experts 1,6 bit, attention 8 bit | 278 GB | past (115 GB) | **19,6–20,1 tok/s** | ~160–175 tok/s |
-| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | 75 GB van de SSD | ~2 tok/s | traag |
-| **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 502 GB | 173 GB van de SSD | ~0,6 tok/s | zeer traag |
+| **GLM-5.3-Flash Q4**: 4 bit | 201 GB | 75 GB van de SSD | ~2,2 tok/s | ~8 tok/s |
+| **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 460 GB | 173 GB van de SSD | ~2,8 tok/s | ~9 tok/s |
 
 Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard GPU-limiet van macOS.
 
