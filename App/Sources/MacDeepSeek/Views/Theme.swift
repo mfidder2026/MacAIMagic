@@ -155,37 +155,46 @@ extension View {
     func shimmer(_ active: Bool) -> some View { modifier(Shimmer(active: active)) }
 }
 
-/// A pulsing glow ring around the assistant avatar while it writes.
+/// A pulsing glow ring around the assistant avatar while it writes (nothing at all otherwise).
 struct PulseRing: View {
     var active: Bool
-    @State private var pulse = false
 
     var body: some View {
-        Circle()
-            .stroke(Theme.brand, lineWidth: 2)
-            .scaleEffect(pulse ? 1.45 : 1)
-            .opacity(active ? (pulse ? 0 : 0.9) : 0)
-            .onAppear { withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) { pulse = true } }
+        if active {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
+                let phase = tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2) / 1.2
+                Circle().stroke(Theme.brand, lineWidth: 2)
+                    .scaleEffect(1 + 0.45 * phase)
+                    .opacity(0.9 * (1 - phase))
+            }
+        }
     }
 }
 
-/// The animated app mark: a gradient orb with sparkles.
+/// The app mark: a gradient orb with sparkles; it only turns while the model writes (an endless animation keeps the
+/// window server busy and the fans spinning).
 struct BrandMark: View {
     var size: CGFloat = 30
     var active = false
-    @State private var spin = false
 
     var body: some View {
         ZStack {
-            Circle().fill(AngularGradient(colors: [Theme.accent, Theme.violet, Theme.pink, Theme.cyan, Theme.accent], center: .center))
-                .rotationEffect(.degrees(spin ? 360 : 0))
-                .blur(radius: active ? 1 : 0)
+            if active {
+                TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
+                    orb.rotationEffect(.degrees(tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) * 120))
+                }
+            } else {
+                orb
+            }
             Circle().fill(Theme.night.opacity(0.35)).padding(size * 0.08)
             Image(systemName: "sparkles").font(.system(size: size * 0.45, weight: .bold)).foregroundStyle(.white)
         }
         .frame(width: size, height: size)
         .shadow(color: Theme.violet.opacity(active ? 0.9 : 0.4), radius: active ? 12 : 6)
-        .onAppear { withAnimation(.linear(duration: active ? 3 : 12).repeatForever(autoreverses: false)) { spin = true } }
+    }
+
+    private var orb: some View {
+        Circle().fill(AngularGradient(colors: [Theme.accent, Theme.violet, Theme.pink, Theme.cyan, Theme.accent], center: .center))
     }
 }
 

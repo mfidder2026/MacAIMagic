@@ -13,7 +13,6 @@ struct Composer: View {
     @State private var attachments: [Attachment] = []
     @State private var importing = false
     @State private var dropTarget = false
-    @State private var spin = false
     @FocusState private var focused: Bool
 
     private var canSend: Bool {
@@ -71,15 +70,20 @@ struct Composer: View {
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
-            // a turning gradient edge while the model writes; a steady one when dropping a file
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(AngularGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan],
-                                        center: .center, angle: .degrees(spin ? 360 : 0)),
-                        lineWidth: chat.busy || dropTarget ? 2 : 1)
-                .opacity(chat.busy || dropTarget ? 1 : 0.35)
-                .shadow(color: Theme.violet.opacity(chat.busy ? 0.7 : 0), radius: 10)
+            // a turning gradient edge while the model writes; a calm one otherwise (no endless animation when idle)
+            if chat.busy {
+                TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(AngularGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan], center: .center,
+                                                angle: .degrees(tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 4) * 90)),
+                                lineWidth: 2)
+                        .shadow(color: Theme.violet.opacity(0.7), radius: 10)
+                }
+            } else {
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(dropTarget ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Color.white.opacity(0.12)), lineWidth: dropTarget ? 2 : 1)
+            }
         }
-        .onAppear { withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) { spin = true } }
         .frame(maxWidth: 860)
         .padding(.horizontal, 24).padding(.bottom, 16).padding(.top, 8)
         .frame(maxWidth: .infinity)

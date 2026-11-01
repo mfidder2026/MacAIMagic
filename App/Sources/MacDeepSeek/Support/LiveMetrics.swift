@@ -30,8 +30,16 @@ final class LiveMetrics: ObservableObject {
     private var lastTick = Date()
     let totalMemoryGB = Double(ProcessInfo.processInfo.physicalMemory) / 1e9
 
-    init() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+    /// Twice a second while the engine runs, every 2 s when it does not (the charts redraw on every sample).
+    var fast = false {
+        didSet { if fast != oldValue { schedule() } }
+    }
+
+    init() { schedule() }
+
+    private func schedule() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: fast ? 0.5 : 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.sample() }
         }
     }

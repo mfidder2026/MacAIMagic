@@ -37,6 +37,8 @@ final class ModelStore: ObservableObject {
     private var timer: Timer?
     private var lastTotal: UInt64 = 0
     private var lastTick = Date()
+    private var lastExternalCheck = Date.distantPast
+    private var external: Set<String> = []
 
     init() {
         refresh()
@@ -79,8 +81,12 @@ final class ModelStore: ObservableObject {
             lastTotal = total
             lastTick = now
         }
-        // downloads started outside the app (or by an earlier run) count too: never start a second one on the same files
-        let external = Self.externalDownloads()
+        // downloads started outside the app (or by an earlier run) count too: never start a second one on the same files.
+        // Looking for them starts a process, so only every 15 s (every 2 s it kept launchd busy)
+        if now.timeIntervalSince(lastExternalCheck) > 15 {
+            lastExternalCheck = now
+            external = Self.externalDownloads()
+        }
         downloading = Set(processes.keys).union(catalog.models.map(\.id).filter { external.contains($0) })
     }
 

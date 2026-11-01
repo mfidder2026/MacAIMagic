@@ -143,7 +143,7 @@ private struct EmptyChat: View {
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
-            BrandMark(size: 84, active: true)
+            BrandMark(size: 84, active: false)
             Text(app.selectedModel?.name ?? "MacDeepSeek")
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .foregroundStyle(Theme.brand)

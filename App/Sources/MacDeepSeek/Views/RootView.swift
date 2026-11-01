@@ -193,13 +193,10 @@ struct MiniSpark: View {
 
 struct EngineStatusPill: View {
     @EnvironmentObject var engine: EngineController
-    @State private var blink = false
 
     var body: some View {
         HStack(spacing: 7) {
-            Circle().fill(color).frame(width: 8, height: 8)
-                .shadow(color: color, radius: blink ? 6 : 2)
-                .onAppear { withAnimation(.easeInOut(duration: 0.9).repeatForever()) { blink = true } }
+            Circle().fill(color).frame(width: 8, height: 8).shadow(color: color, radius: 4)
             Text(label).font(.callout.weight(.medium))
         }
         .padding(.horizontal, 11).padding(.vertical, 5)

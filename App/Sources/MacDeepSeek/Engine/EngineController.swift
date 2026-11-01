@@ -9,7 +9,10 @@ final class EngineController: ObservableObject {
         var isRunning: Bool { self == .running }
     }
 
-    @Published private(set) var state: State = .stopped
+    @Published private(set) var state: State = .stopped {
+        didSet { onStateChange?(state) }
+    }
+    var onStateChange: ((State) -> Void)?
     @Published private(set) var logTail: [String] = []
     @Published private(set) var loadProgress: Double = 0
 
