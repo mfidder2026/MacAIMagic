@@ -362,3 +362,34 @@ final class QuietStepsIntegrationTests: XCTestCase {
     }
 }
 
+/// Outside the work folder the model must look with run_command instead of saying it cannot search this Mac.
+/// MACAIMAGIC_TEST_URL=<engine>; MACAIMAGIC_TEST_FIND=<path of something outside the folder>, name it in the question.
+@MainActor
+final class OutsideFolderIntegrationTests: XCTestCase {
+    func testModelSearchesOutsideTheFolder() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let address = env["MACAIMAGIC_TEST_URL"], let base = URL(string: address), let find = env["MACAIMAGIC_TEST_FIND"] else { throw XCTSkip("no engine") }
+        let saved = (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun)
+        defer { (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = saved }
+        Settings.shared.webSearch = false
+        Settings.shared.workspaceTools = true
+        (Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = ("allow", "allow", "allow")
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-outside-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = ConversationStore()
+        var c = Conversation(title: "Buiten de map")
+        c.workspace = folder.path
+        store.conversations = [c]   // in memory only
+        let chat = ChatClient()
+        chat.contextLimit = 32_768
+        chat.send(text: "Staat de C64-emulator VICE op deze Mac? Zoek het op en noem het volledige pad.", attachments: [], in: c.id, store: store, baseURL: base)
+        let t0 = Date()
+        while chat.busy && Date().timeIntervalSince(t0) < 300 { try await Task.sleep(for: .milliseconds(300)) }
+        let after = try XCTUnwrap(store.conversations.first)
+        let calls = after.messages.flatMap(\.toolCalls).map(\.name)
+        print("OUTSIDE: \(Int(Date().timeIntervalSince(t0))) s, calls \(calls), last: \(after.messages.last?.text.prefix(300) ?? "")")
+        XCTAssertTrue(calls.contains("run_command"))
+        XCTAssertTrue(after.messages.last?.text.contains(find) == true)
+    }
+}

@@ -87,6 +87,7 @@ final class ConversationStore: ObservableObject {
             conversations = list.sorted { $0.updated > $1.updated }
         }
         if conversations.isEmpty { conversations = [Conversation()] }
+        startInLastFolder()
         selection = conversations.first?.id
     }
 
@@ -96,21 +97,23 @@ final class ConversationStore: ObservableObject {
 
     func binding(_ id: Conversation.ID) -> Int? { conversations.firstIndex { $0.id == id } }
 
+    /// A new chat starts in the folder chosen last; it can be changed per chat.
+    private func startInLastFolder() {
+        guard let first = conversations.first, first.messages.isEmpty, first.workspace == nil,
+              !Settings.shared.workspace.isEmpty else { return }
+        conversations[0].workspace = Settings.shared.workspace
+    }
+
     func newConversation() {
-        if let first = conversations.first, first.messages.isEmpty {
-            selection = first.id
-            return
-        }
-        var c = Conversation()
-        // a new chat starts in the folder chosen last; it can be changed per chat
-        if !Settings.shared.workspace.isEmpty { c.workspace = Settings.shared.workspace }
-        conversations.insert(c, at: 0)
-        selection = c.id
+        if conversations.first?.messages.isEmpty != true { conversations.insert(Conversation(), at: 0) }
+        startInLastFolder()
+        selection = conversations.first?.id
     }
 
     func delete(_ id: Conversation.ID) {
         conversations.removeAll { $0.id == id }
         if conversations.isEmpty { conversations = [Conversation()] }
+        startInLastFolder()
         if selection == id { selection = conversations.first?.id }
         save()
     }

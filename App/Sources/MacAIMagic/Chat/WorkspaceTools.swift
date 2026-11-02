@@ -62,7 +62,7 @@ enum WorkspaceTools {
         var errorDescription: String? {
             switch self {
             case .noWorkspace: return "No workspace folder is set. Ask the user to choose one (Werkmap in the chat)."
-            case .outside(let p): return "\(p) is outside the workspace; only files inside it can be used."
+            case .outside(let p): return "\(p) is outside the workspace; this tool only works inside it. Elsewhere on this Mac, use run_command (ls, mdfind, cat)."
             case .notFound(let p): return "\(p) does not exist."
             case .notUnique(let n): return "old_text occurs \(n) times; it must occur exactly once. Include more surrounding text."
             case .tooBig(let p): return "\(p) is larger than 2 MB; read it with offset/limit or tail."

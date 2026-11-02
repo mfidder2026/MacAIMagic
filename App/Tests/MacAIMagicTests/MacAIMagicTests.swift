@@ -528,3 +528,57 @@ final class WorkspaceNotesTests: XCTestCase {
     }
 }
 
+/// A new chat must have the folder chosen last, or the model gets no tools and says it cannot work on this Mac.
+/// In memory only: delete() and save() would write the real conversations file.
+@MainActor
+final class ChatFolderTests: XCTestCase {
+    private var saved = ""
+
+    override func setUp() async throws {
+        saved = Settings.shared.workspace
+        Settings.shared.workspace = "/tmp/laatste-map"
+    }
+
+    override func tearDown() async throws { Settings.shared.workspace = saved }
+
+    func testEmptyChatWithoutFolderGetsTheLastFolder() {
+        let store = ConversationStore()
+        store.conversations = [Conversation()]
+        store.newConversation()
+        XCTAssertEqual(store.conversations.count, 1)
+        XCTAssertEqual(store.conversations[0].workspace, "/tmp/laatste-map")
+        XCTAssertEqual(store.selection, store.conversations[0].id)
+    }
+
+    func testNewChatAfterAChatGetsTheLastFolder() {
+        let store = ConversationStore()
+        var old = Conversation(title: "Oud")
+        old.messages = [ChatMessage(role: .user, text: "hallo")]
+        store.conversations = [old]
+        store.newConversation()
+        XCTAssertEqual(store.conversations.count, 2)
+        XCTAssertEqual(store.conversations[0].workspace, "/tmp/laatste-map")
+        XCTAssertNil(store.conversations[1].workspace, "a chat with messages keeps what it had")
+    }
+
+    func testChatKeepsItsOwnFolder() {
+        let store = ConversationStore()
+        var own = Conversation()
+        own.workspace = "/tmp/eigen-map"
+        store.conversations = [own]
+        store.newConversation()
+        XCTAssertEqual(store.conversations[0].workspace, "/tmp/eigen-map")
+    }
+
+    func testNoFolderChosenYetLeavesTheChatWithout() {
+        Settings.shared.workspace = ""
+        let store = ConversationStore()
+        store.conversations = [Conversation()]
+        store.newConversation()
+        XCTAssertNil(store.conversations[0].workspace)
+    }
+
+    func testOutsideTheFolderPointsToRunCommand() {
+        XCTAssertTrue(WorkspaceTools.ToolError.outside("/Applications").localizedDescription.contains("run_command"))
+    }
+}

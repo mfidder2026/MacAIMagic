@@ -188,15 +188,20 @@ struct WorkspaceButton: View {
 
     private var folder: String? { store.conversations.first { $0.id == conversationID }?.workspace }
 
+    /// On only when the model can really work here: this chat has a folder and the tools are on.
+    private var active: Binding<Bool> {
+        Binding(get: { settings.workspaceTools && folder != nil },
+                set: { on in if on && folder == nil { choose() } else { settings.workspaceTools = on } })
+    }
+
     var body: some View {
         HStack(spacing: 2) {
-            Toggle(isOn: $settings.workspaceTools) {
+            Toggle(isOn: active) {
                 Label(folder.map { URL(fileURLWithPath: $0).lastPathComponent } ?? L("Werkmap"), systemImage: "folder.badge.gearshape")
             }
             .toggleStyle(.button)
             .help(folder.map { L("Het model werkt in \($0) (rechten: knop L S U)") }
                   ?? L("Kies een map waarin het model in dit gesprek bestanden mag lezen, maken en scripts mag starten"))
-            .onChange(of: settings.workspaceTools) { _, on in if on && folder == nil { choose() } }
             Menu {
                 Button(L("Kies map voor dit gesprek…")) { choose() }
                 if let folder {
@@ -214,14 +219,13 @@ struct WorkspaceButton: View {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.message = L("Kies de map waarin het model in dit gesprek mag werken")
-        if let folder { panel.directoryURL = URL(fileURLWithPath: folder) }
+        let start = folder ?? settings.workspace
+        if !start.isEmpty { panel.directoryURL = URL(fileURLWithPath: start) }
         if panel.runModal() == .OK, let url = panel.url {
             store.update(conversationID) { $0.workspace = url.path }
             store.save()
             settings.workspace = url.path      // new chats start here
             settings.workspaceTools = true
-        } else if folder == nil {
-            settings.workspaceTools = false
         }
     }
 }

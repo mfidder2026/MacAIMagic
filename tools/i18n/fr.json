@@ -66,6 +66,7 @@
  "Bij %@%% wordt het begin automatisch samengevat; de berichten blijven zichtbaar.": "À %@%% le début est résumé automatiquement ; les messages restent visibles.",
  "Binair bestand, %@ bytes": "Fichier binaire, %@ octets",
  "Brave Search API-sleutel (optioneel)": "Clé API Brave Search (facultative)",
+ "Buiten deze map werken list_dir en read_file niet, maar met run_command kun je wel overal op deze Mac zoeken en lezen (ls, mdfind, cat) en geïnstalleerde programma's starten, bijvoorbeeld uit /Applications. Zeg dus niet dat je niet op deze Mac kunt zoeken: doe het met run_command. Schrijf buiten de werkmap alleen als de gebruiker daarom vraagt.": "En dehors de ce dossier, list_dir et read_file ne fonctionnent pas, mais avec run_command tu peux chercher et lire partout sur ce Mac (ls, mdfind, cat) et lancer des programmes installés, par exemple depuis /Applications. Ne dis donc pas que tu ne peux pas chercher sur ce Mac : fais-le avec run_command. N'écris en dehors du dossier de travail que si l'utilisateur le demande.",
  "Chat": "Chat",
  "Cluster": "Cluster",
  "Commando uitvoeren in de werkmap": "Exécuter une commande dans le dossier de travail",

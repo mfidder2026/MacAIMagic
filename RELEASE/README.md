@@ -1,6 +1,6 @@
-# MacAIMagic 1.8.2 (macOS, Apple Silicon)
+# MacAIMagic 1.8.3 (macOS, Apple Silicon)
 
-`MacAIMagic-1.8.2-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.8.3-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,14 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.8.2-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.8.3-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B). As a cluster helper any amount of memory helps.
+
+New in 1.8.3:
+- **Every new chat starts in your work folder.** A new chat could lack the folder, for example after you deleted the last one. The model then had no tools and said it could not work on this Mac.
+- **The Werkmap button tells the truth.** It is on only when this chat really has a folder; off means the model cannot use files or commands here.
+- **The model looks outside the work folder too.** It now knows it can search and read anywhere on the Mac with `run_command` and start installed programs, such as VICE in Applications. Writing outside the folder it does only when you ask.
 
 New in 1.8.2:
 - **A task ends only when the model says so.** After steps, a remark like "this does not work well" no longer ends the task: the model goes on until it starts its message with DONE or asks you something. If it keeps stopping, the app says so. It also knows that `sudo` and `dtruss` do not work here, and that a command without output calls for another approach.

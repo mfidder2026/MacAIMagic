@@ -65,6 +65,18 @@ final class SnapshotTests: XCTestCase {
         app.store.selection = long.id
         try shot(withBackground(ChatView(conversationID: long.id, scrollToEnd: false), app: app), app: app, name: "chat-steps", dark: true)
 
+        // the folder button: off in a chat without a folder, on with the folder's name in a chat that has one
+        let tools = Settings.shared.workspaceTools
+        Settings.shared.workspaceTools = true
+        defer { Settings.shared.workspaceTools = tools }
+        for (folder, name) in [(nil, "chat-no-folder"), ("/Users/gebruiker/Development/C64-project", "chat-folder")] as [(String?, String)] {
+            var c = Conversation(title: "Werkmap")
+            c.workspace = folder
+            app.store.conversations = [c]
+            app.store.selection = c.id
+            try shot(withBackground(ChatView(conversationID: c.id, scrollToEnd: false), app: app), app: app, name: name, dark: true)
+        }
+
         // the models as the Mac Studio M1 sees them
         app.simulatedSystem = SystemInfo(chip: "Apple M1 Max", physicalMemory: 32 << 30, performanceCores: 8,
                                          gpuWorkingSet: 23_000_000_000, wiredLimitMB: 0, freeDisk: 900_000_000_000)
