@@ -227,3 +227,29 @@ still sleep.
   Reading them in a different order, or all of them, made DeepSeek slower (58 tok/s): the pages were pushed out of the
   page cache before they were used.
 - Moving 2 extra layers of experts to the CPU (DeepSeek Compact) costs ~10%.
+
+## 6. Writing a C64 program: two models, and a limit on thinking
+
+A practical coding test (November 2026, MacAIMagic 1.6): the model writes a Commodore 64 BASIC V2 program, VICE runs
+it, and what the screen shows (read with OCR, plus a pixel check for the sprite) goes back to the model, up to four
+rounds. Two tasks: a number-guessing game, and a demo with a title and a self-made smiley sprite that moves back and
+forth. GLM-5.3-Flash Compact (with MTP) against Qwen3.6-35B-A3B Q4, and Qwen writing a fast draft that GLM reviews.
+
+| | Guessing game | Sprite demo |
+|---|---|---|
+| GLM alone, no thinking limit | works, 1st try, 210 s | **never wrote code**: 5 × 32,000 tokens of thinking |
+| GLM alone, thinking limit 16,000 | | works, 2nd try, 1,413 s |
+| Qwen alone, no limit | works, 1st try, 41 s | fails after 4 tries, 1,175 s |
+| Qwen alone, thinking limit 16,000 | | fails after 4 tries, 755 s |
+| Qwen draft + GLM review (limit 16,000 for the sprite) | works, 1st try, 72 + 859 s | works, 1st try, 155 + 694 s |
+
+- Without a limit GLM kept doubting about hardware details (which sprite Y position is the middle of the screen,
+  what each register bit means) and never got to the program. A limit on thinking
+  (`thinking_budget_tokens`, with a message that closes the thinking) solved that; since 1.6.1 the app sends it,
+  16,000 tokens by default.
+- Qwen is 5–10× faster per answer but gets the sprite hardware wrong (it switches the character set with
+  `POKE 53272`, or pokes sprite data into screen memory); GLM gets it right. A Qwen draft reviewed by GLM was the
+  fastest working sprite program.
+- Checking only for an error message is not enough: two "working" results in a first version of the test were an empty
+  answer and a screen full of garbage. The test now requires the title on screen and, for the sprite, pixels in the
+  middle of the screen.
