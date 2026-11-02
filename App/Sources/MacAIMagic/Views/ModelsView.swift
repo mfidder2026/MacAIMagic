@@ -13,7 +13,7 @@ struct ModelsView: View {
                     Image(systemName: "square.stack.3d.up.fill").font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.brand)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("Modellen")).font(.system(size: 30, weight: .bold, design: .rounded))
-                        Text(L("\(app.system.chip) · \(app.system.physicalMemory.gbShort) unified · \(app.system.freeDisk.gbShort) vrij op schijf"))
+                        Text(L("\(app.system.chip) · \(app.system.physicalMemory >> 30) GB unified · \(app.system.freeDisk.gbShort) vrij op schijf"))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -45,8 +45,8 @@ private struct ModelCard: View {
     private var status: ModelStore.ModelStatus { models.status(model.id) }
     private var selected: Bool { app.selectedModelID == model.id }
     private var running: Bool { engine.model?.id == model.id && engine.state.isRunning }
-    /// Does the part used for every token fit in memory? (expert-heavy models: ~95% of the file minus Engram)
-    private var fits: Bool { model.fitsInMemory ?? true }
+    /// Does the model fit in this Mac's memory, stream from the SSD, or not run here at all?
+    private var fit: MemoryPlanner.Fit { MemoryPlanner.fit(model, physical: app.system.physicalMemory) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -73,8 +73,11 @@ private struct ModelCard: View {
             }
             HStack(spacing: 8) {
                 Badge(text: model.totalSize.gbShort, icon: "externaldrive")
-                Badge(text: fits ? L("Past in geheugen") : L("Streamt van SSD"), icon: fits ? "memorychip" : "bolt.horizontal",
-                      color: fits ? Theme.mint : Theme.amber)
+                switch fit {
+                case .fits: Badge(text: L("Past in geheugen"), icon: "memorychip", color: Theme.mint)
+                case .streams: Badge(text: L("Streamt van SSD"), icon: "bolt.horizontal", color: Theme.amber)
+                case .tooBig: Badge(text: L("Te groot voor deze Mac"), icon: "xmark.octagon", color: Theme.pink)
+                }
                 if status.vision?.complete == true { Badge(text: L("Vision"), icon: "eye") }
                 if model.hasMTP { Badge(text: "MTP", icon: "forward.fill", color: Theme.violet) }
             }

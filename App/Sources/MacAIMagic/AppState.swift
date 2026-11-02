@@ -12,6 +12,7 @@ final class AppState: ObservableObject {
     let metrics = LiveMetrics()
     let bench = BenchmarkRunner()
     let cluster = ClusterController()
+    let check = SystemCheck()
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
         didSet { loadIndex(); objectWillChange.send() }
@@ -36,13 +37,23 @@ final class AppState: ObservableObject {
     var plan: MemoryPlan? {
         guard let index else { return nil }
         return MemoryPlanner.plan(index: index, system: system, contextSize: contextSize(index),
-                                  vision: Settings.shared.vision && selectedModel.flatMap(models.visionURL) != nil,
-                                  helpers: cluster.helperBudgets)
+                                  vision: useVision(index), helpers: cluster.helperBudgets)
     }
 
-    /// The chosen context, at most what the model was made for.
+    /// The chosen context, at most what the model was made for, and on a Mac with little memory at most what still
+    /// lets the whole model stay in memory (a cluster gives this Mac room, so there the setting decides).
     func contextSize(_ index: GGUFIndex) -> Int {
-        index.contextLength > 0 ? min(Settings.shared.contextSize, index.contextLength) : Settings.shared.contextSize
+        let chosen = index.contextLength > 0 ? min(Settings.shared.contextSize, index.contextLength) : Settings.shared.contextSize
+        guard cluster.helperBudgets.isEmpty,
+              let room = MemoryPlanner.contextRoom(index: index, system: system, vision: useVision(index)) else { return chosen }
+        return min(chosen, room)
+    }
+
+    /// Vision when it is on and downloaded, unless it would leave the model too little room: then the model goes first.
+    func useVision(_ index: GGUFIndex) -> Bool {
+        guard Settings.shared.vision, selectedModel.flatMap(models.visionURL) != nil else { return false }
+        guard cluster.helperBudgets.isEmpty, MemoryPlanner.contextRoom(index: index, system: system, vision: false) != nil else { return true }
+        return (MemoryPlanner.contextRoom(index: index, system: system, vision: true) ?? 0) >= 16_384
     }
 
     var canStart: Bool {
@@ -70,13 +81,13 @@ final class AppState: ObservableObject {
         if !plan.fitsInMemory {
             // the expert cache leaves room for what other apps hold right now
             plan = MemoryPlanner.plan(index: index, system: system, contextSize: contextSize(index),
-                                      vision: Settings.shared.vision && models.visionURL(m) != nil,
+                                      vision: useVision(index),
                                       helpers: cluster.helperBudgets,
                                       inUse: system.physicalMemory - min(system.physicalMemory, SystemInfo.availableMemory()))
         }
         chat.contextLimit = plan.contextSize
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
-                     vision: Settings.shared.vision ? models.visionURL(m) : nil, draft: models.draftURL(m),
+                     vision: useVision(index) ? models.visionURL(m) : nil, draft: models.draftURL(m),
                      rpc: cluster.rpcArgument)
     }
 

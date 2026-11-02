@@ -53,6 +53,15 @@ final class SnapshotTests: XCTestCase {
         try shot(withBackground(CompareView(), app: app), app: app, name: "compare", dark: true)
         try shot(withBackground(ClusterView(), app: app), app: app, name: "cluster", dark: true)
         try shot(SettingsView(), app: app, name: "settings", dark: true)
+
+        // the system check on this Mac, and as a clean Mac sees it: an empty models folder
+        await app.check.run(app: app)
+        try shot(withBackground(SystemView { _ in }, app: app), app: app, name: "system", dark: true)
+        let saved = Settings.shared.modelFolder
+        Settings.shared.modelFolder = dir.appendingPathComponent("empty-models").path
+        await app.check.run(app: app)
+        try shot(withBackground(SystemView { _ in }, app: app), app: app, name: "system-clean", dark: true)
+        Settings.shared.modelFolder = saved
     }
 
     private func withBackground(_ v: some View, app: AppState) -> some View {
@@ -81,7 +90,7 @@ final class SnapshotTests: XCTestCase {
         let root = view
             .environmentObject(app).environmentObject(app.engine).environmentObject(app.models)
             .environmentObject(app.store).environmentObject(app.chat).environmentObject(Settings.shared)
-            .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster)
+            .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster).environmentObject(app.check)
             .tint(Theme.accent)
             .frame(width: size.width, height: size.height)
             .background(Color(nsColor: .windowBackgroundColor))

@@ -1,7 +1,8 @@
 # MacAIMagic (Nederlands)
 
-Draai **DeepSeek-V4.1-Flash-1017** (748 miljard parameters), **GLM-5.3-Flash** (321 miljard) en **Qwen3.8-Flash-Next** (180 miljard) volledig lokaal
-op een Mac met Apple Silicon en 128 GB unified memory. MacAIMagic is een eigen macOS-app met live grafieken. Je kunt
+Draai **DeepSeek-V4.1-Flash-1017** (748 miljard parameters), **GLM-5.3-Flash** (321 miljard), **Qwen3.8-Flash-Next** (180 miljard) en **Qwen3.6-35B-A3B** volledig lokaal
+op een Mac met Apple Silicon. Met 128 GB draait elk model, met 32 GB Qwen3.6-35B-A3B; de app rekent zelf uit wat past.
+MacAIMagic is een eigen macOS-app met live grafieken. Je kunt
 chatten, afbeeldingen uploaden, het web laten doorzoeken, modellen naast elkaar vergelijken, en het model gebruiken als
 OpenAI- of Anthropic-compatibele API (bijvoorbeeld vanuit Claude Code).
 
@@ -16,6 +17,14 @@ De Engelse [README](../README.md) is de volledige versie; dit is een samenvattin
 | **DeepSeek-V4.1-Flash Compact**: experts 1,6 bit, attention 8 bit | 278 GB | past (115 GB) | **19,6–20,1 tok/s** | ~160–175 tok/s |
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 460 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **7–8,5 tok/s** | ~65–95 tok/s |
+| **Qwen3.6-35B-A3B Q4**: 35B, 3B actief, 4 bit; het model voor een Mac met 32 GB | 23 GB | past (22 GB) | **60–67 tok/s** | ~180 tok/s (korte prompt) |
+
+**Systeemcontrole**: bij elke start controleert de app (zijbalk → **Systeem**) de engine, het downloadgereedschap, de
+modellen, de schijfruimte, de GPU-limiet en de ontwikkeltools van Apple. Wat hij zelf kan oplossen doet hij, de rest
+biedt hij aan met één knop. Hij raadt het beste model aan dat helemaal in het geheugen van deze Mac past (128 GB:
+DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B), of de rol van helper in een cluster.
+Op een Mac met weinig geheugen verkleint de app de context tot wat nog past en zet hij vision zo nodig uit (op 32 GB:
+Qwen3.6 met 32K context). Er zijn geen ontwikkeltools, Python of Homebrew nodig om de app te gebruiken.
 
 Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard GPU-limiet van macOS. De Q4-modellen met
 de GPU-limiet verhoogd naar 120 GB (knop onder Modellen); van een koude start tot een warme (de expert-cache van de

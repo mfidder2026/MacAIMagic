@@ -36,6 +36,8 @@ final class Settings: ObservableObject {
     @AppStorage("temperature") var temperature = 1.0
     @AppStorage("systemPrompt") var systemPrompt = ""
     @AppStorage("autoStart") var autoStart = false
+    /// The system check was shown once (the first start opens it).
+    @AppStorage("systemCheckSeen") var systemCheckSeen = false
     @AppStorage("modelFolder") var modelFolder = ""
     /// The folder the model may work in (files and commands), and whether that is on.
     @AppStorage("workspace") var workspace = ""

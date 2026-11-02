@@ -8,36 +8,46 @@ MANIFEST="$HERE/models.json"
 ID="${1:?usage: download_model.sh <model-id> [models-folder]}"
 ROOT="${2:-$HOME/Library/Application Support/MacAIMagic/models}"
 
-# "<folder>\t<local>\t<size>\t<sha256>\t<url>" per file, from the manifest
-LIST="$(/usr/bin/python3 -I - "$MANIFEST" "$ID" <<'PY'
-import json, sys
-m = json.load(open(sys.argv[1]))
-model = next((x for x in m["models"] if x["id"] == sys.argv[2]), None)
-if model is None:
-    sys.exit("unknown model: " + sys.argv[2] + " (known: " + ", ".join(x["id"] for x in m["models"]) + ")")
-for f in model["files"]:
-    stamp = ",".join(str(n) for n in f.get("stamp", []))
-    print("\t".join([model["id"], f["local"], str(f["size"]), f["sha256"], f["url"], stamp]))
-d = model.get("draft")
-if d:
-    print("\t".join([model["id"], d["local"], str(d["size"]), d["sha256"], d["url"], ""]))
-v = next((x for x in m.get("vision", []) if x["id"] == model.get("vision")), None)
-if v:
-    print("\t".join(["vision", v["local"], str(v["size"]), v["sha256"], v["url"], ""]))
-PY
+# "<folder>\t<local>\t<size>\t<sha256>\t<url>\t<stamp>" per file, from the manifest.
+# JavaScript through osascript, which every Mac has (python3 needs the developer tools on a clean Mac).
+LIST="$(/usr/bin/osascript -l JavaScript - "$MANIFEST" "$ID" <<'JS'
+ObjC.import("Foundation")
+function run(argv) {
+  const m = JSON.parse($.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js)
+  const model = m.models.find(x => x.id === argv[1])
+  if (!model) throw new Error("unknown model: " + argv[1] + " (known: " + m.models.map(x => x.id).join(", ") + ")")
+  const rows = model.files.map(f => [model.id, f.local, f.size, f.sha256, f.url, (f.stamp || []).join(",")])
+  const d = model.draft
+  if (d) rows.push([model.id, d.local, d.size, d.sha256, d.url, ""])
+  const v = (m.vision || []).find(x => x.id === model.vision)
+  if (v) rows.push(["vision", v.local, v.size, v.sha256, v.url, ""])
+  return rows.map(r => r.join("\t")).join("\n")
+}
+JS
 )" || exit 1
 
 # A shard published on its own (as "1 of 1") gets its place in the set written into its header: split.no / split.count.
 stamp_split() {  # file no count
-  /usr/bin/python3 -I - "$1" "$2" "$3" <<'PY'
-import struct, sys
-path, idx, cnt = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-with open(path, "r+b") as f:
-    head = f.read(1 << 24)
-    for key, val in ((b"split.no", idx - 1), (b"split.count", cnt)):
-        f.seek(head.index(struct.pack("<Q", len(key)) + key + struct.pack("<I", 2)) + len(key) + 12)
-        f.write(struct.pack("<H", val))
-PY
+  /usr/bin/osascript -l JavaScript - "$1" "$2" "$3" <<'JS'
+ObjC.import("Foundation")
+// bytes as NSData: every char code 0-255 is one byte in ISO Latin 1
+const data = s => $(s).dataUsingEncoding($.NSISOLatin1StringEncoding)
+const le = (n, width) => Array.from({length: width}, (_, i) => String.fromCharCode(Math.floor(n / 2 ** (8 * i)) % 256)).join("")
+function run(argv) {
+  const [path, idx, cnt] = [argv[0], parseInt(argv[1]), parseInt(argv[2])]
+  const h = $.NSFileHandle.fileHandleForUpdatingAtPath(path)
+  const head = h.readDataOfLength(1 << 24)
+  for (const [key, val] of [["split.no", idx - 1], ["split.count", cnt]]) {
+    // the key as GGUF writes it: uint64 length, the name, uint32 type 2 (uint16), then the value
+    // the bridge hands the location over as a string
+    const at = Number(head.rangeOfDataOptionsRange(data(le(key.length, 8) + key + le(2, 4)), 0, $.NSMakeRange(0, head.length)).location)
+    if (!(at < head.length)) throw new Error(key + " not found in " + path)
+    h.seekToFileOffset(at + key.length + 12)
+    h.writeData(data(le(val, 2)))
+  }
+  h.closeFile
+}
+JS
 }
 
 fetch() {

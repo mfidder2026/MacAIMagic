@@ -4,7 +4,7 @@
       "id": "deepseek-v4.1-flash-compact",
       "name": "DeepSeek-V4.1-Flash Compact",
       "family": "deepseek",
-      "summary": "748B MoE · experts 1,6 bit, attention 8 bit · past in 128 GB",
+      "summary": "748B MoE · experts 1,6 bit, attention 8 bit · 115 GB in het geheugen",
       "vision": "deepseek-v4.1",
       "files": [
         {
@@ -38,8 +38,9 @@
           "url": "https://huggingface.co/peasantsmith/DeepSeek-V4.1-Flash-1017-Maya-GGUF/resolve/main/Maya-XS/DeepSeek-V4.1-Flash-1017-Maya-XS-IQ1_S-00005-of-00005.gguf"
         }
       ],
-      "fitsInMemory": true,
-      "mtp": "none"
+      "mtp": "none",
+      "memory": 115335661568,
+      "dense": 9167341568
     },
     {
       "id": "deepseek-v4.1-flash-q4",
@@ -107,14 +108,15 @@
           "url": "https://huggingface.co/unsloth/DeepSeek-V4.1-Flash-1017-GGUF/resolve/main/UD-Q4_K_XL/DeepSeek-V4.1-Flash-1017-UD-Q4_K_XL-00009-of-00009.gguf"
         }
       ],
-      "fitsInMemory": false,
-      "mtp": "none"
+      "mtp": "none",
+      "memory": 297943697408,
+      "dense": 9165867008
     },
     {
       "id": "glm-5.3-flash-compact",
       "name": "GLM-5.3-Flash Compact",
       "family": "glm",
-      "summary": "321B MoE · experts 2–3 bit · past in 128 GB",
+      "summary": "321B MoE · experts 2–3 bit · 109 GB in het geheugen",
       "vision": "glm-5.3",
       "files": [
         {
@@ -142,8 +144,9 @@
           "url": "https://huggingface.co/unsloth/GLM-5.3-Flash-GGUF/resolve/main/UD-Q2_K_XL/GLM-5.3-Flash-UD-Q2_K_XL-00004-of-00004.gguf"
         }
       ],
-      "fitsInMemory": true,
-      "mtp": "builtin"
+      "mtp": "builtin",
+      "memory": 108710552704,
+      "dense": 7053206656
     },
     {
       "id": "glm-5.3-flash-q4",
@@ -189,14 +192,15 @@
           "url": "https://huggingface.co/unsloth/GLM-5.3-Flash-GGUF/resolve/main/UD-Q4_K_XL/GLM-5.3-Flash-UD-Q4_K_XL-00006-of-00006.gguf"
         }
       ],
-      "fitsInMemory": false,
-      "mtp": "builtin"
+      "mtp": "builtin",
+      "memory": 199697802368,
+      "dense": 9840534656
     },
     {
       "id": "qwen3.8-flash-next-q4",
       "name": "Qwen3.8-Flash-Next Q4",
       "family": "qwen",
-      "summary": "180B MoE · 6B actief · 4 bit · past in 128 GB · MTP voor sneller schrijven",
+      "summary": "180B MoE · 6B actief · 4 bit · 83 GB in het geheugen · MTP voor sneller schrijven",
       "vision": "qwen3.8",
       "draft": {
         "local": "qwen3.8-flash-next-mtp.gguf",
@@ -230,8 +234,26 @@
           "url": "https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF/resolve/main/UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00004-of-00004.gguf"
         }
       ],
-      "fitsInMemory": true,
-      "mtp": "file"
+      "mtp": "file",
+      "memory": 82523491840,
+      "dense": 5505584640
+    },
+    {
+      "id": "qwen3.6-35b-a3b-q4",
+      "name": "Qwen3.6-35B-A3B Q4",
+      "family": "qwen",
+      "summary": "35B MoE · 3B actief · 4 bit · 22 GB in het geheugen · snel, ook op een Mac met 32 GB",
+      "vision": "qwen3.6",
+      "files": [
+        {
+          "local": "qwen3.6-35b-a3b-q4.gguf",
+          "size": 22360456160,
+          "sha256": "707a55a8a4397ecde44de0c499d3e68c1ad1d240d1da65826b4949d1043f4450",
+          "url": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
+        }
+      ],
+      "memory": 22349466112,
+      "dense": 2678180352
     }
   ],
   "vision": [
@@ -255,6 +277,13 @@
       "size": 904004000,
       "sha256": "1f7b7f0b984cf065c604360c29c8098362ed61b290db0ff12c6f360bb1a8a980",
       "url": "https://huggingface.co/unsloth/Qwen3.8-Flash-Next-GGUF/resolve/main/mmproj-F16.gguf"
+    },
+    {
+      "id": "qwen3.6",
+      "local": "qwen3.6-vision.gguf",
+      "size": 899283680,
+      "sha256": "8971ee4f331ff0a4c609374f32984b3d4e6dc086c0aa35f1d637fad1829e887f",
+      "url": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/main/mmproj-F16.gguf"
     }
   ]
 }

@@ -20,6 +20,7 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 | **DeepSeek-V4.1-Flash Compact**: 748B MoE, experts 1.6 bit, attention 8 bit | 278 GB | fits (115 GB) | **19.6–20.1 tok/s** | ~160–175 tok/s |
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
+| **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
@@ -60,7 +61,14 @@ comes from the internal SSD.
 ## Features
 
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
-- **Four models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start
+- **Six models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
+  says for this Mac whether the model fits in memory, streams from the SSD, or is too big.
+- **Works out the Mac it runs on**: the system check at every start (sidebar → **Systeem**) checks the engine, the
+  download tools, the models, disk space, the GPU limit and Apple's developer tools; it lifts macOS's quarantine block
+  on the engine by itself and offers the rest with one button. It recommends the best model that fits whole in this
+  Mac's memory (128 GB: DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B), or the role of
+  cluster helper when none fits. On a Mac with little memory the app shrinks the context to what still fits and turns
+  vision off when it would push the model out of memory (on 32 GB: Qwen3.6 with a 32K context).
 - **Compare**: measure every downloaded model the same way and see the results side by side
 - **Cluster**: link several Macs with Thunderbolt and use their memory together. A helper Mac lends its GPU (llama.cpp
   RPC) and announces itself with Bonjour; the main Mac finds it, and the model's layers are spread over all GPUs in
@@ -82,9 +90,12 @@ comes from the internal SSD.
 
 ## Requirements
 
-- Apple Silicon Mac with **128 GB** unified memory (tested on M3 Max)
+- Apple Silicon Mac (M1 or later). With **128 GB** every model runs (tested on M3 Max); with 96 GB Qwen3.8-Flash-Next
+  fits whole and the larger ones stream from the SSD; with 32 GB Qwen3.6-35B-A3B; any Mac can be a cluster helper.
+  The app works this out itself (see the system check above).
 - macOS 14 or later
-- Disk space: 110–502 GB per model (see the table above)
+- Disk space: 23–502 GB per model (see the table above)
+- No developer tools, Python or Homebrew needed to run the app
 - To build from source: Xcode Command Line Tools and CMake (`brew install cmake`)
 
 ## Installation

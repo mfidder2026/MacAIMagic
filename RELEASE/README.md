@@ -1,6 +1,6 @@
-# MacAIMagic 1.6.2 (macOS, Apple Silicon)
+# MacAIMagic 1.7 (macOS, Apple Silicon)
 
-`MacAIMagic-1.6.2-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.7-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Simplest: install from Terminal. A download with `curl` is not quarantined, so macOS does not block the app:
@@ -13,9 +13,11 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    System Settings → Privacy & Security (since macOS 15, right-click → Open no longer does this).
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.6.2-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.7-macOS-arm64.zip.sha256`
 
-Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. As the main Mac it needs 128 GB for the models in this app; as a cluster helper any amount of memory helps.
+Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. The app picks the model that fits: 128 GB runs every model, 32 GB runs Qwen3.6-35B-A3B; as a cluster helper any amount of memory helps.
+
+New in 1.7: MacAIMagic works out the Mac it runs on. A system check at every start (sidebar → Systeem) checks the engine, the download tools, the models, disk space, the GPU limit and Apple's developer tools, fixes what it can and offers the rest with one button. It recommends the best model that fits in this Mac's memory, and on a Mac with little memory it shrinks the context and turns vision off when needed. New model: Qwen3.6-35B-A3B Q4 (22 GB), which fits a Mac with 32 GB. Model downloads no longer need Python (a clean Mac asked for the developer tools).
 
 New in 1.6.2: the engine starts on every Mac. It used Homebrew's OpenSSL from the build Mac, so on a Mac without it the engine did not start; it now uses only what comes with macOS. Every binary is signed with the hardened runtime, ready for notarization by Apple.
 

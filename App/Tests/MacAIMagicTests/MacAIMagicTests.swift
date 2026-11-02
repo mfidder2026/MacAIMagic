@@ -86,12 +86,14 @@ final class GGUFIndexTests: XCTestCase {
 final class CatalogTests: XCTestCase {
     func testCatalogLoads() throws {
         let c = ModelCatalog.shared
-        XCTAssertEqual(c.models.count, 5)
+        XCTAssertEqual(c.models.count, 6)
         for m in c.models {
             XCTAssertFalse(m.files.isEmpty)
             XCTAssertNotNil(c.vision(for: m), m.id)
+            XCTAssertNotNil(m.memory, m.id)
+            XCTAssertNotNil(m.dense, m.id)
             // llama.cpp finds the other shards from the first one's name: <prefix>-0000N-of-0000M.gguf
-            for (i, f) in m.files.enumerated() {
+            for (i, f) in m.files.enumerated() where m.files.count > 1 {
                 XCTAssertTrue(f.local.hasPrefix(m.id), f.local)
                 XCTAssertTrue(f.local.hasSuffix(String(format: "-%05d-of-%05d.gguf", i + 1, m.files.count)), f.local)
             }
@@ -101,7 +103,7 @@ final class CatalogTests: XCTestCase {
     /// The names the user sees are our own: the model name starts with the base model, files are named after the id.
     func testNamesAreOurOwn() {
         for m in ModelCatalog.shared.models {
-            XCTAssertTrue(["DeepSeek-V4.1-Flash", "GLM-5.3-Flash", "Qwen3.8-Flash-Next"].contains { m.name.hasPrefix($0) }, m.name)
+            XCTAssertTrue(["DeepSeek-V4.1-Flash", "GLM-5.3-Flash", "Qwen3.8-Flash-Next", "Qwen3.6-35B-A3B"].contains { m.name.hasPrefix($0) }, m.name)
             XCTAssertTrue(m.files.allSatisfy { $0.local.hasPrefix(m.id) })
         }
     }
@@ -365,5 +367,53 @@ final class PasteTests: XCTestCase {
         pb.clearContents()
         pb.writeObjects([file as NSURL])
         XCTAssertEqual(ImageAttachment.fromPasteboard(pb)?.count, 1, "an image file copied in the Finder")
+    }
+}
+
+/// The app works out per Mac which model fits and how: the Mac Studio M1 (32 GB), the Mac Studio M5 (96 GB), the MacBook (128 GB).
+final class MachineFitTests: XCTestCase {
+    private func mac(_ gib: UInt64, gpuShare: Double = 0.75) -> SystemInfo {
+        let bytes = gib << 30
+        return SystemInfo(chip: "Apple M1 Max", physicalMemory: bytes, performanceCores: 8,
+                          gpuWorkingSet: UInt64(Double(bytes) * gpuShare), wiredLimitMB: 0, freeDisk: 1_000_000_000_000)
+    }
+
+    func testRecommendedModelPerMac() {
+        let models = ModelCatalog.shared.models
+        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(32).physicalMemory)?.id, "qwen3.6-35b-a3b-q4")
+        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(96).physicalMemory)?.id, "qwen3.8-flash-next-q4")
+        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(128).physicalMemory)?.id, "deepseek-v4.1-flash-compact")
+        XCTAssertNil(SystemCheck.recommended(models, physical: mac(16).physicalMemory), "16 GB: a helper, no model")
+    }
+
+    func testFitPerMac() {
+        let byID = Dictionary(uniqueKeysWithValues: ModelCatalog.shared.models.map { ($0.id, $0) })
+        let small = mac(32).physicalMemory, big = mac(128).physicalMemory
+        XCTAssertEqual(MemoryPlanner.fit(byID["qwen3.6-35b-a3b-q4"]!, physical: small), .fits)
+        XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-compact"]!, physical: small), .tooBig)
+        XCTAssertEqual(MemoryPlanner.fit(byID["deepseek-v4.1-flash-compact"]!, physical: big), .fits)
+        XCTAssertEqual(MemoryPlanner.fit(byID["deepseek-v4.1-flash-q4"]!, physical: big), .streams)
+        XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-compact"]!, physical: mac(96).physicalMemory), .streams)
+    }
+
+    /// Qwen3.6 on 32 GB, planned from the real file: a smaller context, no vision, the whole model in memory.
+    @MainActor func testQwenOn32GB() throws {
+        let file = Paths.modelsRoot.appendingPathComponent("qwen3.6-35b-a3b-q4/qwen3.6-35b-a3b-q4.gguf")
+        guard FileManager.default.fileExists(atPath: file.path) else { throw XCTSkip("Qwen3.6 not downloaded") }
+        let index = try GGUFIndex.load(shards: [file], sizes: [22_360_456_160])
+        let m1 = mac(32, gpuShare: 0.67)
+        let withVision = MemoryPlanner.contextRoom(index: index, system: m1, vision: true) ?? 0
+        let room = try XCTUnwrap(MemoryPlanner.contextRoom(index: index, system: m1, vision: false))
+        print("32 GB: context \(room) without vision, \(withVision) with")
+        XCTAssertLessThan(withVision, 16_384, "vision leaves too little room on 32 GB")
+        XCTAssertGreaterThanOrEqual(room, 16_384)
+        let plan = MemoryPlanner.plan(index: index, system: m1, contextSize: min(65_536, room), vision: false)
+        XCTAssertTrue(plan.fitsInMemory)
+        print("32 GB plan: context \(plan.contextSize), GPU limit \(plan.gpuLimit.gb), experts on CPU in \(plan.cpuMoELayers) layers, suggested limit \(plan.suggestedWiredLimitMB) MB")
+        let raised = MemoryPlanner.plan(index: index, system: SystemInfo(chip: m1.chip, physicalMemory: m1.physicalMemory, performanceCores: 8,
+                                        gpuWorkingSet: m1.gpuWorkingSet, wiredLimitMB: plan.suggestedWiredLimitMB, freeDisk: m1.freeDisk),
+                                        contextSize: min(65_536, room), vision: false)
+        print("32 GB with raised limit: experts on CPU in \(raised.cpuMoELayers) layers")
+        XCTAssertLessThanOrEqual(raised.cpuMoELayers, plan.cpuMoELayers)
     }
 }

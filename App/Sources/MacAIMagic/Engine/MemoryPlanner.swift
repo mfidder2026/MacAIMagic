@@ -41,6 +41,34 @@ struct MemoryPlan {
 }
 
 enum MemoryPlanner {
+    enum Fit { case fits, streams, tooBig }
+
+    /// Before a download: does the model fit in this Mac's memory, can it run with an expert cache and the SSD,
+    /// or is it too big? (After the download `plan` decides from the files themselves.)
+    static func fit(_ model: ModelInfo, physical: UInt64) -> Fit {
+        let memory = model.memory ?? model.totalSize
+        if memory + minimumOverhead + osHeadroom <= physical { return .fits }
+        // streaming: the dense weights, the prompt buffers and a useful expert cache on the GPU, plus the staging reserve
+        let dense = model.dense ?? memory / 10
+        if dense + 6_000_000_000 + minimumCache + osHeadroom + stagingReserve <= physical { return .streams }
+        return .tooBig
+    }
+
+    /// KV for a small context, the compute buffers and the server: the least a model needs next to its weights.
+    static let minimumOverhead: UInt64 = 2_900_000_000
+    /// Below this an expert cache helps too little: nearly every token waits for the SSD.
+    static let minimumCache: UInt64 = 10_000_000_000
+
+    /// The largest context (a multiple of 4096) that still lets the whole model stay in memory, or nil when the model
+    /// does not fit anyway (then it streams from the SSD and the context does not decide that).
+    static func contextRoom(index: GGUFIndex, system: SystemInfo, vision: Bool) -> Int? {
+        let weights = index.denseBytes + index.expertBytesPerLayer.values.reduce(0, +)
+        let fixed = weights + minimumOverhead + osHeadroom + (vision ? 1_500_000_000 : 0)
+        guard fixed < system.physicalMemory, index.kvBytesPerToken > 0 else { return nil }
+        let tokens = Int((system.physicalMemory - fixed) / index.kvBytesPerToken)
+        return max(4096, tokens / 4096 * 4096)
+    }
+
     /// Left for macOS, the app and a browser; less than this and the system starts swapping.
     static let osHeadroom: UInt64 = 8_000_000_000
     /// Larger than memory: page cache for the experts on their way from the SSD to the GPU cache, and macOS's own wired

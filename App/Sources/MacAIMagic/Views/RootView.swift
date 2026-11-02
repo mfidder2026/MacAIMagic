@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Pane: Hashable { case live, models, compare, cluster, chat(Conversation.ID) }
+enum Pane: Hashable { case live, models, compare, cluster, system, chat(Conversation.ID) }
 
 struct RootView: View {
     @EnvironmentObject var app: AppState
@@ -22,6 +22,7 @@ struct RootView: View {
                     case .models?, nil: ModelsView()
                     case .compare?: CompareView()
                     case .cluster?: ClusterView()
+                    case .system?: SystemView { pane = $0 }
                     case .chat(let id)?: ChatView(conversationID: id).id(id)
                     }
                 }
@@ -44,6 +45,12 @@ struct RootView: View {
             // first run: show the models until one is there
             let ready = models.status(app.selectedModelID).isComplete
             pane = ready ? store.selection.map { .chat($0) } : .models
+        }
+        .task {
+            // what this Mac needs is checked at every start; the very first start, or something in the way, shows it
+            await app.check.run(app: app)
+            if app.check.needsAttention || !Settings.shared.systemCheckSeen { pane = .system }
+            Settings.shared.systemCheckSeen = true
         }
         .onChange(of: pane) { _, new in
             if case .chat(let id) = new { store.selection = id }
@@ -75,6 +82,7 @@ struct Sidebar: View {
                 Label(L("Modellen"), systemImage: "square.stack.3d.up").tag(Pane.models)
                 Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
                 Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
+                Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)
             }
             Section(L("Gesprekken")) {
                 ForEach(store.conversations) { c in
