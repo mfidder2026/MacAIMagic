@@ -24,7 +24,12 @@ modellen, de schijfruimte, de GPU-limiet en de ontwikkeltools van Apple. Wat hij
 biedt hij aan met één knop. Hij raadt het beste model aan dat helemaal in het geheugen van deze Mac past (128 GB:
 DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B), of de rol van helper in een cluster.
 Op een Mac met weinig geheugen verkleint de app de context tot wat nog past en zet hij vision zo nodig uit (op 32 GB:
-Qwen3.6 met 32K context). Er zijn geen ontwikkeltools, Python of Homebrew nodig om de app te gebruiken.
+Qwen3.6 met 32K context). Grotere modellen blijven beschikbaar en streamen van de SSD, ook op 32 GB (gemeten: DeepSeek
+Compact ~5 tok/s, zie [RESEARCH](RESEARCH.md)). Er zijn geen ontwikkeltools, Python of Homebrew nodig om de app te gebruiken.
+
+**Werkt door tot het af is**: stopt een model terwijl de taak niet af is (het kondigt iets aan en stopt, of denkt alleen),
+dan laat de app het automatisch doorgaan en zie je dat in het gesprek. Een lange taak met één vraag wordt samengevat als
+de context volraakt.
 
 Gemeten op een MacBook Pro M3 Max (128 GB), 64K context, vision aan, standaard GPU-limiet van macOS. De Q4-modellen met
 de GPU-limiet verhoogd naar 120 GB (knop onder Modellen); van een koude start tot een warme (de expert-cache van de

@@ -43,28 +43,40 @@ struct MemoryPlan {
 enum MemoryPlanner {
     enum Fit { case fits, streams, tooBig }
 
-    /// Before a download: does the model fit in this Mac's memory, can it run with an expert cache and the SSD,
-    /// or is it too big? (After the download `plan` decides from the files themselves.)
+    /// Before a download: does the model fit in this Mac's memory, or does it stream from the SSD? Only when even the
+    /// dense weights and a small expert cache leave no room is it too big. (After the download `plan` decides from the files.)
     static func fit(_ model: ModelInfo, physical: UInt64) -> Fit {
         let memory = model.memory ?? model.totalSize
         if memory + minimumOverhead + osHeadroom <= physical { return .fits }
-        // streaming: the dense weights, the prompt buffers and a useful expert cache on the GPU, plus the staging reserve
+        // streaming: the dense weights, the prompt buffers and an expert cache on the GPU, plus the staging reserve
         let dense = model.dense ?? memory / 10
-        if dense + 6_000_000_000 + minimumCache + osHeadroom + stagingReserve <= physical { return .streams }
+        if dense + 6_000_000_000 + minimumCache + osHeadroom + stagingReserve(physical) <= physical { return .streams }
         return .tooBig
     }
 
     /// KV for a small context, the compute buffers and the server: the least a model needs next to its weights.
     static let minimumOverhead: UInt64 = 2_900_000_000
-    /// Below this an expert cache helps too little: nearly every token waits for the SSD.
-    static let minimumCache: UInt64 = 10_000_000_000
+    /// The smallest expert cache worth running with.
+    static let minimumCache: UInt64 = 4_000_000_000
+    /// Below this much memory a model that streams gives its room to the expert cache: a smaller context, no vision.
+    static let roomyMemory: UInt64 = 64 << 30
+    /// The context of a model that streams on a Mac with less than `roomyMemory`.
+    static let smallMacContext = 32_768
 
-    /// The largest context (a multiple of 4096) that still lets the whole model stay in memory, or nil when the model
-    /// does not fit anyway (then it streams from the SSD and the context does not decide that).
+    /// Does the whole model stay in memory on this Mac, with the smallest context?
+    static func fitsWhole(index: GGUFIndex, system: SystemInfo) -> Bool {
+        index.denseBytes + index.expertBytesPerLayer.values.reduce(0, +) + minimumOverhead + osHeadroom < system.physicalMemory
+    }
+
+    /// The largest context (a multiple of 4096) for this model on this Mac: what still lets a whole model stay in
+    /// memory, and on a small Mac what leaves a model that streams its expert cache. Nil: the setting decides.
     static func contextRoom(index: GGUFIndex, system: SystemInfo, vision: Bool) -> Int? {
+        guard fitsWhole(index: index, system: system) else {
+            return system.physicalMemory < roomyMemory ? smallMacContext : nil
+        }
         let weights = index.denseBytes + index.expertBytesPerLayer.values.reduce(0, +)
         let fixed = weights + minimumOverhead + osHeadroom + (vision ? 1_500_000_000 : 0)
-        guard fixed < system.physicalMemory, index.kvBytesPerToken > 0 else { return nil }
+        guard fixed < system.physicalMemory, index.kvBytesPerToken > 0 else { return 0 }
         let tokens = Int((system.physicalMemory - fixed) / index.kvBytesPerToken)
         return max(4096, tokens / 4096 * 4096)
     }
@@ -73,8 +85,10 @@ enum MemoryPlanner {
     static let osHeadroom: UInt64 = 8_000_000_000
     /// Larger than memory: page cache for the experts on their way from the SSD to the GPU cache, and macOS's own wired
     /// memory. Measured on a 128 GB M3 Max: 115 GB wired in all ran steadily, 123 GB made macOS swap until writing
-    /// dropped from 8 to 0.2 tokens/s.
-    static let stagingReserve: UInt64 = 18_000_000_000
+    /// dropped from 8 to 0.2 tokens/s. A smaller Mac reads fewer experts at a time, so this scales with its memory.
+    static func stagingReserve(_ physical: UInt64) -> UInt64 {
+        min(18_000_000_000, max(4_500_000_000, physical * 13 / 100))
+    }
 
     /// An upper limit for the expert cache (UserDefaults "expertCacheMaxGB"), for a Mac that runs more next to the model.
     static var expertCacheLimit: UInt64? {
@@ -142,7 +156,8 @@ enum MemoryPlanner {
             // DeepSeek Q4 (7.2 GB of experts per layer), 3.8 GB for GLM Q4 (4.4 GB per layer)
             let promptCopy = 1_500_000_000 + (local.map { perLayer[$0] ?? 0 }.max() ?? 0) * 2 / 3
             let busy = (inUse ?? 0) > othersAllowance ? inUse! - othersAllowance : 0
-            let wiredMax = min(gpuLimit, physical - osHeadroom - stagingReserve - min(busy, physical / 2))
+            let reserved = osHeadroom + stagingReserve(physical) + min(busy, physical / 2)
+            let wiredMax = min(gpuLimit, physical > reserved ? physical - reserved : 0)
             // instead of the generic 2.5 GB of compute buffers in `overhead`
             let buffers = Int64(overhead) - 2_500_000_000 + Int64(promptCopy)
             cache = min(UInt64(max(Int64(wiredMax) - Int64(dense) - buffers, 0)), expertCacheLimit ?? .max)
@@ -150,7 +165,8 @@ enum MemoryPlanner {
             onGPU = 0
             warnings.append(L("Dit model is groter dan het geheugen. De experts die het gesprek het meest gebruikt (\(cache.gb)) blijven op de GPU; de rest (\((experts - min(experts, cache)).gb)) komt van de SSD als een woord ze nodig heeft."))
             if helpers.isEmpty && gpuLimit + 4_000_000_000 < physical - osHeadroom {
-                warnings.append(L("Verhoog de GPU-limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder: dan krijgt de expert-cache \((min(physical - osHeadroom - stagingReserve, UInt64(suggestedMB) << 20) - min(physical - osHeadroom - stagingReserve, gpuLimit)).gb) meer."))
+                let room = physical - osHeadroom - stagingReserve(physical)
+                warnings.append(L("Verhoog de GPU-limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder: dan krijgt de expert-cache \((min(room, UInt64(suggestedMB) << 20) - min(room, gpuLimit)).gb) meer."))
             }
         }
         if Int64(dense) + Int64(overhead) > Int64(gpuLimit) {

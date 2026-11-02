@@ -240,3 +240,47 @@ final class CompactIntegrationTests: XCTestCase {
         XCTAssertNotNil(store.conversations.first?.contextTokens)
     }
 }
+
+/// A long task with one question goes on to the end, also in a small context (MACAIMAGIC_ENGINE_TEST=1, engine running,
+/// MACAIMAGIC_TEST_CONTEXT = the engine's --ctx-size).
+@MainActor
+final class LongTaskIntegrationTests: XCTestCase {
+    func testLongTaskFinishesInSmallContext() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["MACAIMAGIC_ENGINE_TEST"] == "1", let context = env["MACAIMAGIC_TEST_CONTEXT"].flatMap(Int.init) else { throw XCTSkip("no engine") }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-long-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        // long files, so that the task itself fills the context several times
+        for i in 1...6 {
+            let text = (1...900).map { "kamer \(i) regel \($0): een gang met oude stenen muren en een flakkerende fakkel." }.joined(separator: "\n")
+            try text.write(to: folder.appendingPathComponent("bron\(i).txt"), atomically: true, encoding: .utf8)
+        }
+        let saved = (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun)
+        defer { (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = saved }
+        Settings.shared.webSearch = false
+        Settings.shared.workspaceTools = true
+        (Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = ("allow", "allow", "allow")
+
+        let store = ConversationStore()
+        var c = Conversation(title: "Lange taak")
+        c.workspace = folder.path
+        store.conversations = [c]   // in memory only
+        let chat = ChatClient()
+        chat.contextLimit = context
+        chat.send(text: "Lees de bestanden bron1.txt tot en met bron6.txt een voor een, helemaal, met read_file. Schrijf na elk bestand een bestand samenvatting1.txt (enzovoort) met wat erin staat, in een zin. Schrijf als laatste klaar.txt met de tekst KLAAR.",
+                  attachments: [], in: c.id, store: store, baseURL: URL(string: "http://127.0.0.1:8080")!)
+        let t0 = Date()
+        while chat.busy && Date().timeIntervalSince(t0) < 1500 { try await Task.sleep(for: .seconds(1)) }
+        let after = try XCTUnwrap(store.conversations.first)
+        let nudges = after.messages.filter { $0.automatic == true }.count
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+        print("LONG TASK: \(Int(Date().timeIntervalSince(t0))) s, \(after.messages.count) messages, nudges \(nudges), summary \(after.summary != nil), error \(after.messages.last?.error ?? "none"), files \(files.sorted())")
+        print("LONG TASK last: \(after.messages.last?.text.prefix(300) ?? "")")
+        chat.stop()
+        XCTAssertNotNil(after.summary, "the small context must have been summarized")
+        XCTAssertTrue(files.contains("klaar.txt"), "the task ran to its end")
+        XCTAssertNil(after.messages.last?.error)
+    }
+}
+

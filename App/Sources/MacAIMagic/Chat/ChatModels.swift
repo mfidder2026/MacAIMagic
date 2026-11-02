@@ -45,6 +45,8 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     var promptTokensPerSecond: Double? = nil
     var error: String? = nil
     var date = Date()
+    /// Sent by the app, not the user: the model stopped before its work was done and is told to go on.
+    var automatic: Bool? = nil
 
     /// Assistant turns that only carry tool calls, and the tool results, are kept for the model but folded in the UI.
     var isHidden: Bool { role == .tool || role == .system || (role == .assistant && text.isEmpty && !toolCalls.isEmpty && activities.isEmpty) }

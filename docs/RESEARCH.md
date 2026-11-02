@@ -253,3 +253,27 @@ forth. GLM-5.3-Flash Compact (with MTP) against Qwen3.6-35B-A3B Q4, and Qwen wri
 - Checking only for an error message is not enough: two "working" results in a first version of the test were an empty
   answer and a screen full of garbage. The test now requires the title on screen and, for the sprite, pixels in the
   middle of the screen.
+
+## 7. Models larger than memory on a Mac with 32 GB
+
+Running a model that does not fit is the point of this app, also on a small Mac. Up to 1.7.1 the plan kept the reserves
+measured on 128 GB (8 + 18 GB), which on 32 GB left no expert cache, so a large model fell back to page faults. The
+staging reserve now scales with memory (13%, at least 4.5 GB), and below 64 GB a model that streams runs with a 32K
+context and no vision, to leave its room to the cache.
+
+Measured on the M3 Max with 103 GB of memory held wired by a small program, so that 32 GB is left for macOS, the page
+cache and the model, with 8 threads and the cache the plan gives. `tools/stream_bench.py`: three stories of 60 tokens
+starting from a cold cache, then a prompt of ~1,900 tokens.
+
+| Model | Expert cache | Writing (story 1 / 2 / 3) | Prompt reading | SSD per token |
+|---|---|---|---|---|
+| Qwen3.8-Flash-Next Q4 | 11.1 GB | 1.9 / 4.8 / 5.8 tok/s | 136 tok/s | 0.4–0.5 GB |
+| DeepSeek-V4.1-Flash Compact | 8.2 GB | 5.1 / 5.2 / 4.9 tok/s | 42 tok/s | 0.6 GB |
+| GLM-5.3-Flash Compact | 9.5 GB | 2.6 / 2.8 / 2.5 tok/s | 18 tok/s | 1.2–1.4 GB |
+| DeepSeek-V4.1-Flash Q4 | 5.4 GB | 1.6 / 1.5 / 1.6 tok/s | 47 tok/s | 2.5 GB |
+| GLM-5.3-Flash Q4 | 5.5 GB | ~0.1 tok/s (47 tokens in 8 minutes, stopped there) | not reached | |
+
+macOS swapped 1–2 GB during these runs without the speed falling over the rounds. This is an estimate for a real 32 GB
+Mac: the M3 Max computes faster than an M1, and its SSD differs. For comparison, Qwen3.6-35B-A3B, which fits whole, writes
+at 52 tok/s here with the 32 GB settings and at 43–45 tok/s on a Mac Studio M1 with 32 GB.
+

@@ -17,7 +17,10 @@ final class ChatClient: ObservableObject {
     var modelName = "DeepSeek-V4.1-Flash"
     private var task: Task<Void, Never>?
     /// Web questions need a few rounds; work in a folder (read, write, run, read the log, fix) needs many more.
-    private var maxToolRounds: Int { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil ? 40 : 8 }
+    private var maxToolRounds: Int { workspaceActive ? 200 : 20 }
+    private var workspaceActive: Bool { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil }
+    /// How many times in a row the model is told to go on without it doing anything in between.
+    private static let maxNudges = 3
 
     /// A change the model wants to make (write a file, run a command), waiting for the user's yes or no.
     struct Approval: Identifiable {
@@ -75,6 +78,7 @@ final class ChatClient: ObservableObject {
         WorkspaceTools.current = store.conversations.first { $0.id == id }?.workspace ?? ""
         var activities: [ToolActivity] = []
         var sources: [Source] = []
+        var nudges = 0
         for _ in 0..<maxToolRounds {
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
@@ -117,7 +121,20 @@ final class ChatClient: ObservableObject {
                 c.messages[i].tokensPerSecond = result.tokensPerSecond
                 c.messages[i].promptTokensPerSecond = result.promptTokensPerSecond
             }
-            guard !result.toolCalls.isEmpty, !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return }
+            if result.toolCalls.isEmpty {
+                let m = store.conversations.first { $0.id == id }?.messages.last { $0.id == reply.id }
+                let cutOff = result.finishReason == "length"
+                guard nudges < Self.maxNudges,
+                      Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
+                                           working: workspaceActive || !activities.isEmpty) else { return }
+                nudges += 1
+                let nudge = cutOff ? L("Je antwoord werd afgekapt omdat je context vol was. Ga verder waar je gebleven was.")
+                    : L("Je stopte zonder gereedschap te gebruiken. Is de taak nog niet af, roep dan nu meteen het volgende gereedschap aan, zonder het eerst aan te kondigen. Is de taak wel af, zeg dan kort wat het resultaat is.")
+                store.update(id) { $0.messages.append(ChatMessage(role: .user, text: nudge, automatic: true)) }
+                continue
+            }
+            nudges = 0
 
             // run the tools; the next round's message carries the activity list, this one folds away
             for call in result.toolCalls {
@@ -144,6 +161,11 @@ final class ChatClient: ObservableObject {
                     for s in out.sources where !sources.contains(where: { $0.url == s.url }) { sources.append(s) }
                 }
                 guard !Task.isCancelled else { return }
+                // one result must not fill a small context: the start and the end, which usually matter most
+                let room = max(8_000, contextLimit * 3 / 4)
+                if text.count > room {
+                    text = String(text.prefix(room * 3 / 4)) + "\n… (shortened, the output was \(text.count) characters) …\n" + String(text.suffix(room / 4))
+                }
                 activities[activities.count - 1].done = true
                 activities[activities.count - 1].output = String(text.prefix(4000))
                 store.update(id) { c in
@@ -155,6 +177,33 @@ final class ChatClient: ObservableObject {
                 }
             }
         }
+        // the steps ran out: say so, instead of just falling silent
+        store.update(id) { c in
+            if let i = c.messages.indices.last { c.messages[i].error = L("Het model heeft \(maxToolRounds) stappen gezet en pauzeert. Zeg \"ga door\" om verder te gaan.") }
+        }
+    }
+
+    /// A local model often ends its turn while the work is not done: it says what it will do and stops, thinks without
+    /// answering, or its tool call stays behind in the thinking. Then the turn has no tool calls, and without this the
+    /// conversation would just stop. `working`: tools are in use, so an announcement is meant to be followed by a step.
+    nonisolated static func looksUnfinished(text: String, reasoning: String, cutOff: Bool, working: Bool) -> Bool {
+        if cutOff { return true }
+        let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if answer.isEmpty { return true }
+        guard working else { return false }
+        let marks = ["<tool_call>", "</tool_call>", "<function=", "</function>", "</parameter>"]
+        if marks.contains(where: { answer.contains($0) || reasoning.suffix(300).contains($0) }) { return true }
+        if answer.hasSuffix("?") { return false }
+        if answer.hasSuffix(":") { return true }
+        // the last sentence: does it announce a next step?
+        let last = answer.replacingOccurrences(of: "[.!?]\\s+", with: "\n", options: .regularExpression)
+            .split(separator: "\n").last.map { " " + $0.lowercased() } ?? ""
+        if ["let me know", "laat me weten", "laat het me weten", "lass es mich wissen", "faites-moi savoir", "dites-moi"].contains(where: { last.contains($0) }) { return false }
+        let announces = [" laat me ", " laten we ", " ik ga ", " ik maak nu", " ik zal ", " nu ga ik", " nu maak ik", " ga ik nu", " ik probeer ",
+                         " let me ", " let's ", " i will ", " i'll ", " i am going to", " i'm going to", " now i ", " next, i ",
+                         " lass mich ", " lassen sie mich ", " ich werde ", " jetzt werde ", " ich versuche ",
+                         " je vais ", " laisse-moi ", " laissez-moi ", " je vais maintenant"]
+        return announces.contains { last.contains($0) }
     }
 
     // MARK: - compacting
@@ -164,9 +213,17 @@ final class ChatClient: ObservableObject {
     func compact(_ id: Conversation.ID, store: ConversationStore, baseURL: URL, excluding skip: UUID? = nil) async {
         guard let c = store.conversations.first(where: { $0.id == id }) else { return }
         let open = c.unsummarized.filter { $0.id != skip }
-        let users = open.indices.filter { open[$0].role == .user }
-        guard users.count > 2 else { return }
-        let cut = users[users.count - 2]   // keep the last two questions and what came after them
+        let users = open.indices.filter { open[$0].role == .user && open[$0].automatic != true }
+        var cut: Int
+        if users.count > 2 {
+            cut = users[users.count - 2]   // keep the last two questions and what came after them
+        } else {
+            // one long task: keep its latest steps, and the summary carries the question (a tool result stays with its call)
+            guard open.count > 8 else { return }
+            cut = open.count - 6
+            while cut < open.count && open[cut].role == .tool { cut += 1 }
+            guard cut < open.count else { return }
+        }
         let old = open[open.startIndex..<cut]
         guard let last = old.last else { return }
 
@@ -178,7 +235,9 @@ final class ChatClient: ObservableObject {
         if let previous = c.summary { lines.append(L("Eerdere samenvatting:") + "\n" + previous) }
         for m in old {
             switch m.role {
-            case .user: lines.append(L("Gebruiker:") + " " + m.text + (m.attachments.isEmpty ? "" : " [" + L("afbeelding") + "]"))
+            case .user:
+                if m.automatic == true { continue }
+                lines.append(L("Gebruiker:") + " " + m.text + (m.attachments.isEmpty ? "" : " [" + L("afbeelding") + "]"))
             case .assistant:
                 if !m.text.isEmpty { lines.append(L("Assistent:") + " " + m.text) }
                 for call in m.toolCalls { lines.append(L("Assistent gebruikt \(call.name):") + " " + String(call.arguments.prefix(600))) }
@@ -234,6 +293,9 @@ final class ChatClient: ObservableObject {
             system += "\n\n" + L("Algemene notities van de gebruiker (MACAIMAGIC.md), volg ze op:") + "\n" + String(text.prefix(8000))
         }
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
+            let keepGoing = L("Werk door tot de taak echt af is: roep na elke stap meteen het volgende gereedschap aan. Kondig een stap niet alleen aan, en stop pas als je het resultaat hebt gecontroleerd.")
+            let noTools = SystemCheck.hasDeveloperTools ? "" : " " + L("Op deze Mac staan de ontwikkeltools van Apple niet: python3, git, make, cc en clang werken hier niet. Gebruik zsh, of JavaScript met osascript -l JavaScript.")
+            defer { system += "\n\n" + keepGoing + noTools }
             system += "\n\n" + L("Je werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.")
             // the user's own notes for this folder, like CLAUDE.md for Claude Code
             // the notes file had the app's former name before 1.6; that name still works
@@ -263,7 +325,7 @@ final class ChatClient: ObservableObject {
                     out.append(["role": "user", "content": parts])
                 }
             case .assistant:
-                if m.error != nil && m.text.isEmpty { continue }
+                if m.text.isEmpty && m.toolCalls.isEmpty { continue }
                 var msg: [String: Any] = ["role": "assistant", "content": m.text]
                 if !m.toolCalls.isEmpty {
                     msg["tool_calls"] = m.toolCalls.map {
@@ -275,12 +337,18 @@ final class ChatClient: ObservableObject {
                 out.append(["role": "tool", "tool_call_id": m.toolCallId ?? "", "content": m.text])
             }
         }
+        // after summarizing one long task the rest starts with a step of the model; every template wants a question first
+        if out.count > 1, out[1]["role"] as? String != "user" {
+            out.insert(["role": "user", "content": L("Ga verder met de taak uit de samenvatting.")], at: 1)
+        }
         return out
     }
 
     struct Delta { var content = ""; var reasoning = "" }
     struct StreamResult {
         var toolCalls: [ToolCall] = []
+        /// "length": the context was full, the answer is cut off.
+        var finishReason: String?
         var tokensPerSecond: Double?
         var promptTokensPerSecond: Double?
         /// Prompt and answer together: what the conversation takes in the context now.
@@ -340,6 +408,7 @@ final class ChatClient: ObservableObject {
             }
             guard let choice = (json["choices"] as? [[String: Any]])?.first,
                   let delta = choice["delta"] as? [String: Any] else { continue }
+            if let reason = choice["finish_reason"] as? String { result.finishReason = reason }
             var d = Delta()
             d.content = delta["content"] as? String ?? ""
             d.reasoning = delta["reasoning_content"] as? String ?? ""
@@ -363,6 +432,8 @@ final class ChatClient: ObservableObject {
             if c.id.isEmpty { c.id = "call_\(k)_\(UUID().uuidString.prefix(8))" }
             return c
         }
+        // a tool call cut off halfway has broken arguments: the model writes it again after the context has room
+        if result.finishReason == "length" { result.toolCalls = [] }
         return result
     }
 }

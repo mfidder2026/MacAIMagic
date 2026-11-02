@@ -88,7 +88,9 @@ final class SystemCheck: ObservableObject {
         let downloading = models.downloading.contains(best.id)
         let model = Item(id: "model", title: L("Model"),
                          detail: downloading ? L("\(best.name) wordt gedownload.")
-                             : L("Nog geen model. Aanbevolen voor deze Mac met \(app.system.physicalMemory >> 30) GB: \(best.name) (\(best.totalSize.gbShort)), dat helemaal in het geheugen past."),
+                             : L("Nog geen model. Aanbevolen voor deze Mac met \(app.system.physicalMemory >> 30) GB: \(best.name) (\(best.totalSize.gbShort)), dat helemaal in het geheugen past.")
+                                + (models.catalog.models.contains { MemoryPlanner.fit($0, physical: app.system.physicalMemory) == .streams }
+                                   ? " " + L("De grotere modellen kun je ook gebruiken: die streamen van de SSD en zijn trager.") : ""),
                          state: .todo, action: downloading ? nil : (L("Naar Modellen"), .openModels))
         let enough = app.system.freeDisk > best.totalSize + (5 << 30)
         let disk = Item(id: "disk", title: L("Schijfruimte"),
@@ -135,6 +137,12 @@ final class SystemCheck: ObservableObject {
     }
 
     // MARK: - helpers
+
+    /// Are Apple's developer tools here? Without them python3, git and make only ask to install them.
+    nonisolated static var hasDeveloperTools: Bool {
+        FileManager.default.fileExists(atPath: "/Library/Developer/CommandLineTools/usr/bin/clang")
+            || FileManager.default.fileExists(atPath: "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild")
+    }
 
     /// The first model in the catalog (largest and best first) that fits whole in this Mac's memory.
     nonisolated static func recommended(_ models: [ModelInfo], physical: UInt64) -> ModelInfo? {

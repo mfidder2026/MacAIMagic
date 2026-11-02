@@ -40,8 +40,8 @@ final class AppState: ObservableObject {
                                   vision: useVision(index), helpers: cluster.helperBudgets)
     }
 
-    /// The chosen context, at most what the model was made for, and on a Mac with little memory at most what still
-    /// lets the whole model stay in memory (a cluster gives this Mac room, so there the setting decides).
+    /// The chosen context, at most what the model was made for, and on a Mac with little memory at most what leaves
+    /// the model its room in memory (a cluster gives this Mac room, so there the setting decides).
     func contextSize(_ index: GGUFIndex) -> Int {
         let chosen = index.contextLength > 0 ? min(Settings.shared.contextSize, index.contextLength) : Settings.shared.contextSize
         guard cluster.helperBudgets.isEmpty,
@@ -52,7 +52,8 @@ final class AppState: ObservableObject {
     /// Vision when it is on and downloaded, unless it would leave the model too little room: then the model goes first.
     func useVision(_ index: GGUFIndex) -> Bool {
         guard Settings.shared.vision, selectedModel.flatMap(models.visionURL) != nil else { return false }
-        guard cluster.helperBudgets.isEmpty, MemoryPlanner.contextRoom(index: index, system: system, vision: false) != nil else { return true }
+        guard cluster.helperBudgets.isEmpty else { return true }
+        guard MemoryPlanner.fitsWhole(index: index, system: system) else { return system.physicalMemory >= MemoryPlanner.roomyMemory }
         return (MemoryPlanner.contextRoom(index: index, system: system, vision: true) ?? 0) >= 16_384
     }
 

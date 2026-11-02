@@ -318,7 +318,10 @@ struct MessageRow: View {
     @State private var showThinking = false
 
     var body: some View {
-        if message.role == .user {
+        if message.automatic == true {
+            Label(L("Het model was nog niet klaar en gaat automatisch door"), systemImage: "arrow.triangle.2.circlepath")
+                .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+        } else if message.role == .user {
             HStack {
                 Spacer(minLength: 80)
                 VStack(alignment: .trailing, spacing: 8) {

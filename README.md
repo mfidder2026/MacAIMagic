@@ -67,8 +67,12 @@ comes from the internal SSD.
   download tools, the models, disk space, the GPU limit and Apple's developer tools; it lifts macOS's quarantine block
   on the engine by itself and offers the rest with one button. It recommends the best model that fits whole in this
   Mac's memory (128 GB: DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B), or the role of
-  cluster helper when none fits. On a Mac with little memory the app shrinks the context to what still fits and turns
-  vision off when it would push the model out of memory (on 32 GB: Qwen3.6 with a 32K context).
+  cluster helper when none fits. Larger models stay available and stream from the SSD, also on 32 GB (see
+  [the measurements](docs/RESEARCH.md#7-models-larger-than-memory-on-a-mac-with-32-gb)). On a Mac with little memory the
+  app shrinks the context to what still fits and turns vision off when it would push the model out of memory.
+- **Works until the task is done**: when a model ends its turn without finishing (it announces a step and stops, only
+  thinks, or leaves a tool call behind in its thinking), the app tells it to go on, and shows that in the chat. A cut-off
+  answer goes on too, and a long task with a single question is summarized when the context fills up.
 - **Compare**: measure every downloaded model the same way and see the results side by side
 - **Cluster**: link several Macs with Thunderbolt and use their memory together. A helper Mac lends its GPU (llama.cpp
   RPC) and announces itself with Bonjour; the main Mac finds it, and the model's layers are spread over all GPUs in
@@ -90,9 +94,9 @@ comes from the internal SSD.
 
 ## Requirements
 
-- Apple Silicon Mac (M1 or later). With **128 GB** every model runs (tested on M3 Max); with 96 GB Qwen3.8-Flash-Next
-  fits whole and the larger ones stream from the SSD; with 32 GB Qwen3.6-35B-A3B; any Mac can be a cluster helper.
-  The app works this out itself (see the system check above).
+- Apple Silicon Mac (M1 or later). Models that do not fit in memory stream from the SSD: with **128 GB** the compact
+  models fit whole (tested on M3 Max); with 96 GB Qwen3.8-Flash-Next fits whole; with 32 GB Qwen3.6-35B-A3B fits whole
+  and the others stream. Any Mac can be a cluster helper. The app works this out itself (see the system check above).
 - macOS 14 or later
 - Disk space: 23–502 GB per model (see the table above)
 - No developer tools, Python or Homebrew needed to run the app

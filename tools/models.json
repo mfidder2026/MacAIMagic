@@ -40,7 +40,8 @@
       ],
       "mtp": "none",
       "memory": 115335661568,
-      "dense": 9167341568
+      "dense": 9167341568,
+      "speedOn32GB": "~5"
     },
     {
       "id": "deepseek-v4.1-flash-q4",
@@ -110,7 +111,8 @@
       ],
       "mtp": "none",
       "memory": 297943697408,
-      "dense": 9165867008
+      "dense": 9165867008,
+      "speedOn32GB": "~1,5"
     },
     {
       "id": "glm-5.3-flash-compact",
@@ -146,7 +148,8 @@
       ],
       "mtp": "builtin",
       "memory": 108710552704,
-      "dense": 7053206656
+      "dense": 7053206656,
+      "speedOn32GB": "~2,6"
     },
     {
       "id": "glm-5.3-flash-q4",
@@ -194,7 +197,8 @@
       ],
       "mtp": "builtin",
       "memory": 199697802368,
-      "dense": 9840534656
+      "dense": 9840534656,
+      "speedOn32GB": "~0,1"
     },
     {
       "id": "qwen3.8-flash-next-q4",
@@ -236,7 +240,8 @@
       ],
       "mtp": "file",
       "memory": 82523491840,
-      "dense": 5505584640
+      "dense": 5505584640,
+      "speedOn32GB": "2–6"
     },
     {
       "id": "qwen3.6-35b-a3b-q4",

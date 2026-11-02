@@ -126,7 +126,7 @@ final class StreamingPlanTests: XCTestCase {
         XCTAssertGreaterThan(p.streamedExperts, 150_000_000_000)
         // the GPU holds the dense weights, buffers and the cache, and macOS keeps its headroom and staging page cache
         XCTAssertLessThanOrEqual(p.dense + p.overhead + p.expertCache, p.gpuLimit)
-        XCTAssertLessThanOrEqual(p.dense + p.overhead + p.expertCache + MemoryPlanner.osHeadroom + MemoryPlanner.stagingReserve, p.physical)
+        XCTAssertLessThanOrEqual(p.dense + p.overhead + p.expertCache + MemoryPlanner.osHeadroom + MemoryPlanner.stagingReserve(p.physical), p.physical)
     }
 
     /// With the macOS default GPU limit the cache is smaller, and the plan suggests raising the limit.
@@ -390,7 +390,11 @@ final class MachineFitTests: XCTestCase {
         let byID = Dictionary(uniqueKeysWithValues: ModelCatalog.shared.models.map { ($0.id, $0) })
         let small = mac(32).physicalMemory, big = mac(128).physicalMemory
         XCTAssertEqual(MemoryPlanner.fit(byID["qwen3.6-35b-a3b-q4"]!, physical: small), .fits)
-        XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-compact"]!, physical: small), .tooBig)
+        // larger than memory is what the app is for: everything streams on 32 GB, nothing is too big
+        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" {
+            XCTAssertEqual(MemoryPlanner.fit(m, physical: small), .streams, m.id)
+        }
+        XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-q4"]!, physical: mac(16).physicalMemory), .tooBig)
         XCTAssertEqual(MemoryPlanner.fit(byID["deepseek-v4.1-flash-compact"]!, physical: big), .fits)
         XCTAssertEqual(MemoryPlanner.fit(byID["deepseek-v4.1-flash-q4"]!, physical: big), .streams)
         XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-compact"]!, physical: mac(96).physicalMemory), .streams)
@@ -416,4 +420,56 @@ final class MachineFitTests: XCTestCase {
         print("32 GB with raised limit: experts on CPU in \(raised.cpuMoELayers) layers")
         XCTAssertLessThanOrEqual(raised.cpuMoELayers, plan.cpuMoELayers)
     }
+
+    /// Every model that does not fit starts on 32 GB with a real expert cache, not with page faults.
+    @MainActor func testStreamingPlansOn32GB() throws {
+        let store = ModelStore()
+        let m1 = mac(32, gpuShare: 0.67)
+        var checked = 0
+        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" && store.status(m.id).isComplete {
+            let index = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))
+            XCTAssertFalse(MemoryPlanner.fitsWhole(index: index, system: m1), m.id)
+            let context = try XCTUnwrap(MemoryPlanner.contextRoom(index: index, system: m1, vision: false))
+            let plan = MemoryPlanner.plan(index: index, system: m1, contextSize: context, vision: false)
+            print("PLAN32 \(m.id) cache-mib=\(plan.expertCache >> 20) context=\(plan.contextSize) dense=\(plan.dense.gb) warnings=\(plan.warnings.count)")
+            XCTAssertGreaterThanOrEqual(plan.expertCache, MemoryPlanner.minimumCache, m.id)
+            XCTAssertLessThanOrEqual(plan.dense + plan.expertCache, plan.gpuLimit, m.id)
+            checked += 1
+        }
+        if checked == 0 { throw XCTSkip("no large model downloaded") }
+    }
+
+    /// A Mac with little memory never underflows when the reserves are larger than what it has.
+    func testVerySmallMacDoesNotCrash() {
+        var idx = GGUFIndex()
+        idx.tensors.append(.init(name: "token_embd.weight", bytes: 9_000_000_000))
+        idx.tensors.append(.init(name: "blk.0.ffn_up_exps.weight", bytes: 100_000_000_000))
+        let plan = MemoryPlanner.plan(index: idx, system: mac(8), contextSize: 4096, vision: false, inUse: 7 << 30)
+        XCTAssertEqual(plan.expertCache, 0)
+    }
 }
+
+/// The model must not fall silent while its work is not done (the sentences come from a real conversation on the Mac Studio).
+final class UnfinishedTurnTests: XCTestCase {
+    private func check(_ text: String, reasoning: String = "", cutOff: Bool = false, working: Bool = true) -> Bool {
+        ChatClient.looksUnfinished(text: text, reasoning: reasoning, cutOff: cutOff, working: working)
+    }
+
+    func testStopsThatAreNotTheEnd() {
+        XCTAssertTrue(check("Sorry, ik ben gewoon doorgegaan! Ik maak nu een werkend .d64 disk image met het spel en start de emulator."))
+        XCTAssertTrue(check("Mijn script is mislukt door een error. Laat me het debuggen en een alternatieve aanpak proberen:"))
+        XCTAssertTrue(check("", reasoning: "Python3 werkt niet.\nLaten we kijken of c1541 beschikbaar is.\n</parameter>\n</function>\n</tool_call>"), "only thinking")
+        XCTAssertTrue(check("Ik kijk even.", reasoning: "c1541 zoeken\n</parameter>\n</function>\n</tool_call>"), "a tool call left in the thinking")
+        XCTAssertTrue(check("Let me try another way."))
+        XCTAssertTrue(check("half antwoord", cutOff: true, working: false), "the context was full")
+    }
+
+    func testRealEndings() {
+        XCTAssertFalse(check("Het spel staat in avontuur.prg en draait in VICE."))
+        XCTAssertFalse(check("Klaar! Wil je dat ik nog een kamer toevoeg?"))
+        XCTAssertFalse(check("Dat is alles. Laat me weten als je nog iets wilt veranderen."))
+        XCTAssertFalse(check("Let me know if you want more rooms."))
+        XCTAssertFalse(check("Ik zal het doen.", working: false), "a plain chat without tools just ends")
+    }
+}
+
