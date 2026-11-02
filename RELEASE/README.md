@@ -3,9 +3,14 @@
 `MacAIMagic-1.6.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
-1. Unzip and move `MacAIMagic.app` to `/Applications`.
-2. The build is ad-hoc signed, not notarized. Right-click → **Open** the first time, or run
-   `xattr -dr com.apple.quarantine /Applications/MacAIMagic.app`.
+1. Simplest: install from Terminal. A download with `curl` is not quarantined, so macOS does not block the app:
+   ```sh
+   curl -L https://github.com/mfidder2026/MacAIMagic/releases/latest/download/MacAIMagic-macOS-arm64.zip -o /tmp/MacAIMagic.zip && ditto -x -k /tmp/MacAIMagic.zip /Applications && open /Applications/MacAIMagic.app
+   ```
+2. Or unzip a browser download and move `MacAIMagic.app` to `/Applications`. The build is ad-hoc signed, not notarized by
+   Apple, so macOS says it "cannot verify that MacAIMagic is free of malware". Run once
+   `xattr -dr com.apple.quarantine /Applications/MacAIMagic.app`, or open the app once and then click **Open Anyway** in
+   System Settings → Privacy & Security (since macOS 15, right-click → Open no longer does this).
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
 Check the download: `shasum -a 256 -c MacAIMagic-1.6.1-macOS-arm64.zip.sha256`
