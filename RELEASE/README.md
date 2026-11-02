@@ -1,21 +1,19 @@
-# MacAIMagic 1.7 (macOS, Apple Silicon)
+# MacAIMagic 1.7.1 (macOS, Apple Silicon)
 
-`MacAIMagic-1.7-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.7.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
-1. Simplest: install from Terminal. A download with `curl` is not quarantined, so macOS does not block the app:
+1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
    ```sh
    curl -L https://github.com/mfidder2026/MacAIMagic/releases/latest/download/MacAIMagic-macOS-arm64.zip -o /tmp/MacAIMagic.zip && ditto -x -k /tmp/MacAIMagic.zip /Applications && open /Applications/MacAIMagic.app
    ```
-2. Or unzip a browser download and move `MacAIMagic.app` to `/Applications`. The build is ad-hoc signed, not notarized by
-   Apple, so macOS says it "cannot verify that MacAIMagic is free of malware". Run once
-   `xattr -dr com.apple.quarantine /Applications/MacAIMagic.app`, or open the app once and then click **Open Anyway** in
-   System Settings → Privacy & Security (since macOS 15, right-click → Open no longer does this).
-3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
+2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.7-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.7.1-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. The app picks the model that fits: 128 GB runs every model, 32 GB runs Qwen3.6-35B-A3B; as a cluster helper any amount of memory helps.
+
+New in 1.7.1: the app is signed with a Developer ID and notarized by Apple, so macOS no longer blocks a browser download.
 
 New in 1.7: MacAIMagic works out the Mac it runs on. A system check at every start (sidebar → Systeem) checks the engine, the download tools, the models, disk space, the GPU limit and Apple's developer tools, fixes what it can and offers the rest with one button. It recommends the best model that fits in this Mac's memory, and on a Mac with little memory it shrinks the context and turns vision off when needed. New model: Qwen3.6-35B-A3B Q4 (22 GB), which fits a Mac with 32 GB. Model downloads no longer need Python (a clean Mac asked for the developer tools).
 

@@ -102,23 +102,15 @@ comes from the internal SSD.
 
 ### 1. Get the app
 
-The release build is ad-hoc signed, not notarized by Apple, so macOS blocks it when it was downloaded with a browser
-("Apple cannot verify that MacAIMagic is free of malware"). The simplest way is to install it from Terminal: a download
-with `curl` is not marked as quarantined, so the app just opens:
+The release build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Download the zip
+from the [Releases page](https://github.com/mfidder2026/MacAIMagic/releases) or [`RELEASE/`](RELEASE/), unzip it and move
+`MacAIMagic.app` to `/Applications`. Or install it from Terminal:
 
 ```sh
 curl -L https://github.com/mfidder2026/MacAIMagic/releases/latest/download/MacAIMagic-macOS-arm64.zip -o /tmp/MacAIMagic.zip && ditto -x -k /tmp/MacAIMagic.zip /Applications && open /Applications/MacAIMagic.app
 ```
 
-Downloaded the zip from the [Releases page](https://github.com/mfidder2026/MacAIMagic/releases) or [`RELEASE/`](RELEASE/)
-with a browser? Move the app to `/Applications` and run once:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/MacAIMagic.app
-```
-
-Or without Terminal: open the app once, then go to System Settings → Privacy & Security, scroll down and click
-**Open Anyway** (since macOS 15, right-click → Open no longer does this). Or build the app yourself (see below).
+Or build the app yourself (see below).
 
 ### 2. Download one or more models
 

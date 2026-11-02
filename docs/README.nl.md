@@ -62,17 +62,13 @@ brew install cmake
 open dist/MacAIMagic.app
 ```
 
-Of gebruik de kant-en-klare build. Die is niet door Apple genotariseerd, dus macOS blokkeert hem na een download met de
-browser ("Apple kan niet verifiëren dat MacAIMagic vrij is van malware"). Installeer hem daarom het makkelijkst vanuit
-Terminal; een download met `curl` krijgt geen quarantaine-label:
+Of gebruik de kant-en-klare build. Die is ondertekend met een Developer ID en door Apple genotariseerd, dus hij opent
+zonder waarschuwing. Download de zip, pak hem uit en zet `MacAIMagic.app` in `/Applications`. Of installeer hem vanuit
+Terminal:
 
 ```sh
 curl -L https://github.com/mfidder2026/MacAIMagic/releases/latest/download/MacAIMagic-macOS-arm64.zip -o /tmp/MacAIMagic.zip && ditto -x -k /tmp/MacAIMagic.zip /Applications && open /Applications/MacAIMagic.app
 ```
-
-Heb je hem met de browser gedownload: zet de app in `/Applications` en voer eenmalig
-`xattr -dr com.apple.quarantine /Applications/MacAIMagic.app` uit, of open de app één keer en klik dan in
-Systeeminstellingen → Privacy en beveiliging op **Toch openen** (rechtsklik → Open werkt sinds macOS 15 niet meer).
 
 Download modellen in de app (Modellen → **Download**), met `tools/download_model.sh <model-id>`, of met de hand via de
 links in [`tools/models.json`](../tools/models.json). Elk model staat in een eigen map met zijn id als naam; de
