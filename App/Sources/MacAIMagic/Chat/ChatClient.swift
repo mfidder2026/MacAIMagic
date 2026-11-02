@@ -134,15 +134,23 @@ final class ChatClient: ObservableObject {
             if result.toolCalls.isEmpty {
                 let m = store.conversations.first { $0.id == id }?.messages.last { $0.id == reply.id }
                 let cutOff = result.finishReason == "length"
-                guard nudges < Self.maxNudges,
-                      Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
-                                           working: workspaceActive || !activities.isEmpty) else { return }
+                guard Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
+                                           working: workspaceActive || !activities.isEmpty, tookSteps: !activities.isEmpty) else { return }
+                guard nudges < Self.maxNudges else {
+                    // it keeps stopping: say so, instead of just falling silent
+                    store.update(id) { c in
+                        if let i = c.messages.lastIndex(where: { $0.id == reply.id }) {
+                            c.messages[i].error = L("Het model stopte \(Self.maxNudges) keer zonder verder te werken of te zeggen dat de taak af is. Zeg \"ga door\", of geef het een aanwijzing.")
+                        }
+                    }
+                    return
+                }
                 nudges += 1
                 store.update(id) { c in
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = [] }
                 }
                 let nudge = cutOff ? L("Je antwoord werd afgekapt omdat je context vol was. Ga verder waar je gebleven was.")
-                    : L("Je stopte zonder gereedschap te gebruiken. Is de taak nog niet af, roep dan nu meteen het volgende gereedschap aan, zonder het eerst aan te kondigen. Is de taak wel af, zeg dan kort wat het resultaat is.")
+                    : L("Je stopte zonder gereedschap te gebruiken. Is de taak nog niet af, roep dan nu meteen het volgende gereedschap aan, zonder het eerst aan te kondigen; werkt iets niet, probeer dan een andere aanpak. Is de taak wel af en gecontroleerd, begin je bericht dan met het woord KLAAR en zeg kort wat het resultaat is.")
                 store.update(id) { $0.messages.append(ChatMessage(role: .user, text: nudge, automatic: true)) }
                 continue
             }
@@ -258,7 +266,9 @@ final class ChatClient: ObservableObject {
     /// A local model often ends its turn while the work is not done: it says what it will do and stops, thinks without
     /// answering, or its tool call stays behind in the thinking. Then the turn has no tool calls, and without this the
     /// conversation would just stop. `working`: tools are in use, so an announcement is meant to be followed by a step.
-    nonisolated static func looksUnfinished(text: String, reasoning: String, cutOff: Bool, working: Bool) -> Bool {
+    /// `tookSteps`: this task used tools, and then only the model's own word ends it (KLAAR, or a question to the user):
+    /// a remark like "dit werkt niet lekker" is no ending.
+    nonisolated static func looksUnfinished(text: String, reasoning: String, cutOff: Bool, working: Bool, tookSteps: Bool = false) -> Bool {
         if cutOff { return true }
         let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if answer.isEmpty { return true }
@@ -267,6 +277,11 @@ final class ChatClient: ObservableObject {
         if marks.contains(where: { answer.contains($0) || reasoning.suffix(300).contains($0) }) { return true }
         if answer.hasSuffix("?") { return false }
         if answer.hasSuffix(":") { return true }
+        if tookSteps {
+            let first = answer.prefix { !$0.isLetter }.count
+            let word = answer.dropFirst(first).prefix { $0.isLetter }.lowercased()
+            return !["klaar", "done", "fertig", "terminé", "termine"].contains(word)
+        }
         // the last sentence: does it announce a next step?
         let last = answer.replacingOccurrences(of: "[.!?]\\s+", with: "\n", options: .regularExpression)
             .split(separator: "\n").last.map { " " + $0.lowercased() } ?? ""
@@ -372,7 +387,7 @@ final class ChatClient: ObservableObject {
             system += "\n\n" + L("Algemene notities van de gebruiker (MACAIMAGIC.md), volg ze op:") + "\n" + String(text.prefix(8000))
         }
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
-            let keepGoing = L("Werk door tot de taak echt af is: roep na elke stap meteen het volgende gereedschap aan. Kondig een stap niet alleen aan, en stop pas als je het resultaat hebt gecontroleerd.")
+            let keepGoing = L("Werk door tot de taak echt af is: roep na elke stap meteen het volgende gereedschap aan. Kondig een stap niet alleen aan, en stop pas als je het resultaat hebt gecontroleerd. Werkt iets niet of geeft een commando geen uitvoer, probeer dan een andere aanpak. Is de taak af, begin je laatste bericht dan met het woord KLAAR. Commando's kunnen hier geen wachtwoord vragen: sudo en programma's die root nodig hebben, zoals dtruss, werken niet.")
             let noTools = SystemCheck.hasDeveloperTools ? "" : " " + L("Op deze Mac staan de ontwikkeltools van Apple niet: python3, git, make, cc en clang werken hier niet. Gebruik zsh, of JavaScript met osascript -l JavaScript.")
             defer { system += "\n\n" + keepGoing + noTools }
             system += "\n\n" + L("Je werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.")

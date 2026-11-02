@@ -326,3 +326,39 @@ final class LearningIntegrationTests: XCTestCase {
     }
 }
 
+/// Commands without output and one that fails must not end a task (engine at MACAIMAGIC_TEST_URL); the model stops at
+/// such a step at times, so three runs.
+@MainActor
+final class QuietStepsIntegrationTests: XCTestCase {
+    func testQuietStepsDoNotEndTheTask() async throws {
+        guard let address = ProcessInfo.processInfo.environment["MACAIMAGIC_TEST_URL"], let base = URL(string: address) else { throw XCTSkip("no engine") }
+        let saved = (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun)
+        defer { (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = saved }
+        Settings.shared.webSearch = false
+        Settings.shared.workspaceTools = true
+        (Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = ("allow", "allow", "allow")
+        for run in 1...3 {
+            let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-quiet-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: folder) }
+            let store = ConversationStore()
+            var c = Conversation(title: "Stille stappen")
+            c.workspace = folder.path
+            store.conversations = [c]   // in memory only
+            let chat = ChatClient()
+            chat.contextLimit = 32_768
+            chat.send(text: "Voer met run_command een voor een uit: true, daarna false, daarna true, daarna touch een.txt, daarna true, daarna touch twee.txt, daarna ls. Schrijf daarna met write_file eind.txt met de uitvoer van ls.",
+                      attachments: [], in: c.id, store: store, baseURL: base)
+            let t0 = Date()
+            while chat.busy && Date().timeIntervalSince(t0) < 400 { try await Task.sleep(for: .milliseconds(300)) }
+            let after = try XCTUnwrap(store.conversations.first)
+            let files = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
+            let nudges = after.messages.filter { $0.automatic == true }.count
+            let calls = after.messages.flatMap(\.toolCalls).map(\.name).count
+            print("QUIET \(run): \(Int(Date().timeIntervalSince(t0))) s, \(calls) calls, nudges \(nudges), error \(after.messages.last?.error ?? "none"), files \(files.sorted())")
+            print("QUIET \(run) last: \(after.messages.last?.text.prefix(200) ?? "")")
+            XCTAssertTrue(files.contains("eind.txt"), "run \(run) ran to its end")
+        }
+    }
+}
+

@@ -26,7 +26,7 @@ final class SystemCheck: ObservableObject {
         running = true
         app.refreshSystem()
         app.models.refresh()
-        var list = [macItem(app.system), await engineItem(), downloadItem()]
+        var list = [appItem(), macItem(app.system), await engineItem(), downloadItem()]
         list += modelItems(app)
         if let gpu = gpuItem(app) { list.append(gpu) }
         list.append(await developerToolsItem())
@@ -35,6 +35,12 @@ final class SystemCheck: ObservableObject {
     }
 
     // MARK: - the checks
+
+    /// Which copy runs: an older one elsewhere on the Mac is easily started by accident.
+    private func appItem() -> Item {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        return Item(id: "app", title: "MacAIMagic", detail: L("Versie \(version)") + " · " + Bundle.main.bundlePath, state: .ok)
+    }
 
     private func macItem(_ s: SystemInfo) -> Item {
         let v = ProcessInfo.processInfo.operatingSystemVersion
@@ -102,6 +108,8 @@ final class SystemCheck: ObservableObject {
 
     private func gpuItem(_ app: AppState) -> Item? {
         guard let plan = app.plan, app.system.wiredLimitMB < plan.suggestedWiredLimitMB - 1024 else { return nil }
+        // a model that streams is held back by the reserves, not by the limit: then raising it gains nothing
+        if !plan.fitsInMemory && plan.gpuLimit + MemoryPlanner.osHeadroom + MemoryPlanner.stagingReserve(plan.physical) >= plan.physical { return nil }
         let target = (UInt64(plan.suggestedWiredLimitMB) << 20).gb
         return Item(id: "gpu", title: L("GPU-limiet"),
                     detail: L("Met een limiet van \(target) houdt de GPU meer van het model in het snelle geheugen. Vraagt je wachtwoord; geldt tot de Mac herstart."),

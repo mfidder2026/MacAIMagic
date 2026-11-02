@@ -1,6 +1,6 @@
-# MacAIMagic 1.8.1 (macOS, Apple Silicon)
+# MacAIMagic 1.8.2 (macOS, Apple Silicon)
 
-`MacAIMagic-1.8.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.8.2-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,13 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.8.1-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.8.2-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B). As a cluster helper any amount of memory helps.
+
+New in 1.8.2:
+- **A task ends only when the model says so.** After steps, a remark like "this does not work well" no longer ends the task: the model goes on until it starts its message with DONE or asks you something. If it keeps stopping, the app says so. It also knows that `sudo` and `dtruss` do not work here, and that a command without output calls for another approach.
+- **The system check shows the version and the place of the running app**, because an older copy on the Mac is easily started by accident.
 
 New in 1.8.1:
 - **The model learns from its mistakes.** A work folder gets a `MACAIMAGIC.md` when it has none. After a task of a few steps the model says what it established (commands and paths that worked, what failed and why), and the app puts that under *Geleerd*; every next message in that folder reads it. You can edit the file yourself, and turn this off in Settings. It is skipped after a task that read the web, and when writing is denied in the rights matrix.

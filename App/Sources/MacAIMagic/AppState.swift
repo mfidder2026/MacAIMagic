@@ -18,6 +18,8 @@ final class AppState: ObservableObject {
         didSet { loadIndex(); objectWillChange.send() }
     }
     @Published private(set) var system = SystemInfo.current()
+    /// For the tests: the app as another Mac sees it.
+    var simulatedSystem: SystemInfo? { didSet { refreshSystem() } }
     @Published private(set) var index: GGUFIndex?
     @Published private(set) var indexError: String?
 
@@ -74,7 +76,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    func refreshSystem() { system = SystemInfo.current() }
+    func refreshSystem() { system = simulatedSystem ?? SystemInfo.current() }
 
     func startEngine() {
         if index == nil { loadIndex() }

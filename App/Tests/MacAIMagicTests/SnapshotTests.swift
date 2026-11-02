@@ -65,6 +65,17 @@ final class SnapshotTests: XCTestCase {
         app.store.selection = long.id
         try shot(withBackground(ChatView(conversationID: long.id, scrollToEnd: false), app: app), app: app, name: "chat-steps", dark: true)
 
+        // the models as the Mac Studio M1 sees them
+        app.simulatedSystem = SystemInfo(chip: "Apple M1 Max", physicalMemory: 32 << 30, performanceCores: 8,
+                                         gpuWorkingSet: 23_000_000_000, wiredLimitMB: 0, freeDisk: 900_000_000_000)
+        try shot(withBackground(ModelsView(), app: app), app: app, name: "models-32gb", dark: true)
+        app.selectedModelID = "qwen3.8-flash-next-q4"
+        try shot(withBackground(ModelsView(), app: app), app: app, name: "models-32gb-qwen38", dark: true)
+        await app.check.run(app: app)
+        try shot(withBackground(SystemView { _ in }, app: app), app: app, name: "system-32gb", dark: true)
+        app.selectedModelID = ModelCatalog.shared.models.first?.id ?? app.selectedModelID
+        app.simulatedSystem = nil
+
         // the system check on this Mac, and as a clean Mac sees it: an empty models folder
         await app.check.run(app: app)
         try shot(withBackground(SystemView { _ in }, app: app), app: app, name: "system", dark: true)

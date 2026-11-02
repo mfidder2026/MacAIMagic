@@ -464,6 +464,16 @@ final class UnfinishedTurnTests: XCTestCase {
         XCTAssertTrue(check("half antwoord", cutOff: true, working: false), "the context was full")
     }
 
+    /// After steps only the model's own word ends a task; the remark below ended a real conversation on the Mac Studio.
+    func testARemarkIsNoEnding() {
+        XCTAssertTrue(ChatClient.looksUnfinished(text: "dtruss levert geen uitvoer, exit code 0. Dit werkt niet lekker.", reasoning: "", cutOff: false, working: true, tookSteps: true))
+        XCTAssertFalse(ChatClient.looksUnfinished(text: "KLAAR: het spel draait in VICE.", reasoning: "", cutOff: false, working: true, tookSteps: true))
+        XCTAssertFalse(ChatClient.looksUnfinished(text: "**Klaar!** Het staat in uit.txt.", reasoning: "", cutOff: false, working: true, tookSteps: true))
+        XCTAssertFalse(ChatClient.looksUnfinished(text: "DONE. The file is written.", reasoning: "", cutOff: false, working: true, tookSteps: true))
+        XCTAssertFalse(ChatClient.looksUnfinished(text: "Welke map bedoel je?", reasoning: "", cutOff: false, working: true, tookSteps: true), "a question to the user")
+        XCTAssertFalse(ChatClient.looksUnfinished(text: "2 + 2 is 4.", reasoning: "", cutOff: false, working: true, tookSteps: false), "no steps taken: a plain answer")
+    }
+
     func testRealEndings() {
         XCTAssertFalse(check("Het spel staat in avontuur.prg en draait in VICE."))
         XCTAssertFalse(check("Klaar! Wil je dat ik nog een kamer toevoeg?"))
