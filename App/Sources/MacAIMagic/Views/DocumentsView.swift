@@ -128,7 +128,7 @@ struct DocumentsView: View {
                     Spacer()
                     Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
                 }
-                Text(engine.state.statusText(idle: L("Start vanzelf als er geschreven wordt."))).font(.caption).foregroundStyle(.secondary).padding(.leading, 24)
+                Text(engine.state.statusText(idle: L("Start vanzelf als er geschreven wordt."))).font(.caption).foregroundStyle(.secondary).lineLimit(2).padding(.leading, 24)
             }
             if let fast = app.documentEngines.fastChoice {
                 FastModelRow(engines: app.documentEngines, engine: app.documentEngines.fast, name: fast.shortName)
@@ -370,7 +370,8 @@ private struct DraftPage: View {
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(L("Op \(studio.scopeTitle):")).font(.callout.weight(.semibold))
+                Text(L("Op \(studio.scopeTitle):")).font(.callout.weight(.semibold)).lineLimit(1).truncationMode(.middle)
+                    .layoutPriority(-1)
                 ForEach(DocumentStudio.QuickAction.allCases, id: \.self) { a in
                     Button { studio.apply(a) } label: { Label(a.title, systemImage: "bolt.fill") }
                         .buttonStyle(DocumentActionStyle(prominent: false, small: true))
@@ -437,6 +438,17 @@ private struct DocumentStatus: View {
                     .onChange(of: studio.steps.count) { _, _ in if let last = studio.steps.last { proxy.scrollTo(last.id) } }
                 }
             }
+            // what there is to report scrolls: it must never push the window off the screen and the buttons with it
+            ViewThatFits(in: .vertical) {
+                messages
+                ScrollView { messages }
+            }
+            .frame(maxHeight: 110)
+        }
+    }
+
+    private var messages: some View {
+        VStack(alignment: .leading, spacing: 4) {
             if let p = studio.problem {
                 Label(p, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(Theme.amber).fixedSize(horizontal: false, vertical: true)
             }
@@ -445,6 +457,7 @@ private struct DocumentStatus: View {
             }
             if let r = studio.report { result(r) }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func result(_ r: DocxCompose.Report) -> some View {
@@ -534,9 +547,9 @@ private struct FastModelRow: View {
             }
             if let problem = engines.fastProblem {
                 Text(L("Start niet; het zware model doet dit werk nu. \(problem)")).font(.caption).foregroundStyle(Theme.amber)
-                    .fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
+                    .lineLimit(4).padding(.leading, 24)
             } else {
-                Text(engine.state.statusText(idle: L("Start vanzelf bij de eerste snelle actie."))).font(.caption).foregroundStyle(.secondary).padding(.leading, 24)
+                Text(engine.state.statusText(idle: L("Start vanzelf bij de eerste snelle actie."))).font(.caption).foregroundStyle(.secondary).lineLimit(2).padding(.leading, 24)
             }
             HStack {
                 if engine.state.isRunning || loading {
