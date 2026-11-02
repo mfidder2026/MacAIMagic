@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 import AppKit
 @testable import MacAIMagic
 
@@ -240,6 +241,51 @@ final class DocumentStudioTests: XCTestCase {
         try await waitUntilDone()
         XCTAssertNotNil(studio.problem)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasSuffix(".md") }, [])
+    }
+
+    func testTheTextOnlyChangesOnTheMainThread() async throws {
+        var offMain = 0, changes = 0
+        let watch = studio.objectWillChange.sink {
+            changes += 1
+            if !Thread.isMainThread { offMain += 1 }
+        }
+        defer { watch.cancel() }
+        answer(plan: Self.plan)
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: true)
+        try await waitUntilDone()
+        XCTAssertGreaterThan(changes, 5)
+        XCTAssertEqual(offMain, 0, "a screen changed from another thread locked up the whole app in 1.9.3")
+    }
+
+    func testTheScreenKeepsWorkingWhileTheModelWrites() async throws {
+        let app = AppState()
+        let project = app.documents
+        project.choose(folder: folder)
+        project.endpoint = { role in (URL(string: "http://heavy.model.test")!, "zwaar") }
+        project.searchWeb = { _ in [] }
+        let chunk = String(repeating: "Een zin met woorden. ", count: 400)
+        FakeModel.answer = { system, _ in system.contains("hoe een document eruit moet zien") ? Self.plan : chunk }
+        let root = DocumentsView()
+            .environmentObject(app).environmentObject(app.engine).environmentObject(app.models).environmentObject(app.store)
+            .environmentObject(app.chat).environmentObject(Settings.shared).environmentObject(app.metrics).environmentObject(app.bench)
+            .environmentObject(app.cluster).environmentObject(app.check).environmentObject(project)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = NSHostingView(rootView: root)
+        project.page = .newDocument
+        project.make(request: "Maak een AQS", useWeb: false)
+        let start = Date()
+        var ticks = 0
+        while project.busy && Date().timeIntervalSince(start) < 30 {
+            window.contentView?.layoutSubtreeIfNeeded()
+            ticks += 1
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertFalse(project.busy)
+        XCTAssertGreaterThan(ticks, 1)
+        XCTAssertTrue(project.text.contains("Een zin met woorden."))
+        project.choose(folder: FileManager.default.temporaryDirectory)
+        Settings.shared.documentFolder = ""
     }
 
     func testNothingFoundWithAttachmentsStillWritesAndSaysSo() async throws {
@@ -539,6 +585,91 @@ final class DocumentStudioTests: XCTestCase {
     }
 }
 
+/// Which search engine is asked, without the internet.
+final class SearchRouteTests: XCTestCase {
+    private actor Log {
+        var calls: [String] = []
+        func add(_ s: String) { calls.append(s) }
+    }
+
+    private func hit(_ s: String) -> [WebTools.Hit] { [WebTools.Hit(title: s, url: "https://\(s)", snippet: "")] }
+
+    func testARefusalGoesToTheOtherEngineAndStaysThereForAWhile() async throws {
+        let route = SearchRoute(spacing: 0, pause: 600), log = Log()
+        let primary: @Sendable (String) async throws -> [WebTools.Hit] = { _ in
+            await log.add("duck")
+            throw WebTools.Blocked()
+        }
+        let hits = [WebTools.Hit(title: "bing", url: "https://bing", snippet: "")]
+        let fallback: @Sendable (String) async throws -> [WebTools.Hit] = { _ in
+            await log.add("bing")
+            return hits
+        }
+        let first = try await route.search("a", primary: primary, fallback: fallback)
+        let second = try await route.search("b", primary: primary, fallback: fallback)
+        XCTAssertEqual(first.first?.title, "bing")
+        XCTAssertEqual(second.first?.title, "bing")
+        let calls = await log.calls
+        XCTAssertEqual(calls, ["duck", "bing", "bing"], "refused engines are left alone")
+    }
+
+    func testAnEmptyAnswerAsksTheOtherEngineToo() async throws {
+        let route = SearchRoute(spacing: 0)
+        let hits = hit("bing")
+        let found = try await route.search("a", primary: { _ in [] }, fallback: { _ in hits })
+        XCTAssertEqual(found.first?.title, "bing")
+    }
+
+    func testAGoodAnswerIsEnough() async throws {
+        let route = SearchRoute(spacing: 0), log = Log()
+        let hits = hit("duck")
+        _ = try await route.search("a", primary: { _ in hits }, fallback: { _ in
+            await log.add("bing")
+            return []
+        })
+        let calls = await log.calls
+        XCTAssertEqual(calls, [])
+    }
+
+    func testSearchesAreSpacedOut() async throws {
+        let route = SearchRoute(spacing: 0.3)
+        let hits = hit("duck")
+        let t = Date()
+        _ = try await route.search("a", primary: { _ in hits }, fallback: { _ in [] })
+        _ = try await route.search("b", primary: { _ in hits }, fallback: { _ in [] })
+        XCTAssertGreaterThan(Date().timeIntervalSince(t), 0.25)
+    }
+
+    func testBlockPageIsRecognized() {
+        XCTAssertTrue(WebTools.isBlocked(status: 202, html: ""))
+        XCTAssertTrue(WebTools.isBlocked(status: 200, html: "<div class=\"anomaly-modal__title\">"))
+        XCTAssertFalse(WebTools.isBlocked(status: 200, html: "<a class=\"result__a\">"))
+    }
+
+    func testBingResults() {
+        let target = Data("https://www.example.org/pagina?a=1".utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+        let html = "<ol><li class=\"b_algo\" data-x=\"1\"><div>k</div><h2 class=\"t\"><a target=\"_blank\" href=\"https://www.bing.com/ck/a?!&amp;&amp;p=abc&amp;u=a1\(target)&amp;ntb=1\" h=\"ID\">Een <strong>titel</strong></a></h2><p>x</p></li><li class=\"b_algo\"><h2><a href=\"https://direct.example/b\">Direct</a></h2></li><li class=\"b_ad\"><h2><a href=\"https://reclame.example\">Reclame</a></h2></li></ol>"
+        let hits = WebTools.parseBing(html)
+        XCTAssertEqual(hits.map(\.url), ["https://www.example.org/pagina?a=1", "https://direct.example/b"])
+        XCTAssertEqual(hits.first?.title, "Een titel")
+        XCTAssertNil(WebTools.bingTarget("https://www.bing.com/ck/a?u=zonder"))
+    }
+}
+
+/// Engines left behind by a forced quit.
+final class EngineOrphanTests: XCTestCase {
+    func testOnlyEnginesWithoutAnAppAreStopped() {
+        let list = """
+          100     1 /Users/x/RELEASE/MacAIMagic.app/Contents/Resources/engine/llama-server --model a --port 8080
+          200   376 /Users/x/RELEASE/MacAIMagic.app/Contents/Resources/engine/llama-server --model b --port 8081
+          300     1 /Users/x/engine/bin/llama-server --model c
+          400     1 /usr/sbin/cfprefsd
+        """
+        XCTAssertEqual(EngineOrphans.pids(inProcessList: list), [100])
+    }
+}
+
 /// The two models, the plan, the sources and the search questions, without a model.
 final class DocumentPartsTests: XCTestCase {
     private func model(_ id: String) throws -> ModelInfo { try XCTUnwrap(ModelCatalog.shared.model(id)) }
@@ -580,6 +711,8 @@ final class DocumentPartsTests: XCTestCase {
         XCTAssertEqual(plan.sections.map(\.level), [1, 2, 1])
         // several chapters at the top stay chapters
         XCTAssertEqual(DocumentPlan(answer: "# Een\n## Sub\n# Twee\n", fallbackTitle: "x").sections.map(\.title), ["Een", "Sub", "Twee"])
+        // with an instruction and a few chapters below it, it is the title too
+        XCTAssertEqual(DocumentPlan(answer: "TITEL: T\n# Titel\n> Uitleg.\n## A\n## B\n## C\n", fallbackTitle: "x").sections.map(\.title), ["A", "B", "C"])
         // one section stays a section
         XCTAssertEqual(DocumentPlan(answer: "# Samenvatting\n", fallbackTitle: "x").sections.map(\.title), ["Samenvatting"])
         XCTAssertEqual(DocumentPlan(answer: "TITEL: T\n# Een\n# Twee\n# Half", fallbackTitle: "x", cutOff: true).sections.map(\.title), ["Een", "Twee"])

@@ -548,7 +548,8 @@ final class DocumentStudio: ObservableObject {
             } catch let failure as Zip.Failure {
                 // what the attachments say can still be written; say what was not found
                 guard !material.isEmpty else { throw failure }
-                remarks.append(failure.errorDescription ?? "")
+                // now, not at the end: the writing takes a while, and it goes on without the web
+                notes.append(L("Niets van internet gebruikt: \(failure.errorDescription ?? "")"))
             }
         }
         if material.isEmpty && found.isEmpty {
@@ -875,8 +876,9 @@ struct DocumentPlan {
         }
         if cutOff, !sections.isEmpty { sections.removeLast() }
         sections.removeAll { Self.onlyNumber.test($0.title) }
-        // a bare heading above all others is the document's title, not its first chapter
-        if sections.count > 1, sections[0].instruction.isEmpty, sections.dropFirst().allSatisfy({ $0.level > sections[0].level }) {
+        // a heading above all others is the document's title, not its first chapter
+        if sections.dropFirst().allSatisfy({ $0.level > sections[0].level }),
+           sections.count > 3 || (sections.count > 1 && sections[0].instruction.isEmpty) {
             if title.isEmpty { title = sections[0].title }
             sections.removeFirst()
         }

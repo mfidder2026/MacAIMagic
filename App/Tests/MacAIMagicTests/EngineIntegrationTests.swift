@@ -1,4 +1,6 @@
 import XCTest
+import AppKit
+import SwiftUI
 @testable import MacAIMagic
 
 /// Runs the app's own chat loop (streaming, tool calls, web search) against a running engine.
@@ -421,10 +423,23 @@ final class DocumentsIntegrationTests: XCTestCase {
         }
         func wait(_ what: String) async throws {
             let t0 = Date()
-            while studio.busy && Date().timeIntervalSince(t0) < 1800 { try await Task.sleep(for: .milliseconds(300)) }
+            while studio.busy && Date().timeIntervalSince(t0) < 1800 {
+                window.contentView?.layoutSubtreeIfNeeded()
+                try await Task.sleep(for: .milliseconds(100))
+            }
+            print("DOC gauge counted \(app.metrics.samples.map(\.tokensPerSec).max() ?? 0) tok/s at most")
             for s in studio.steps { print("  [\(s.state)] \(s.text.prefix(240))") }
             print("DOC \(what): \(Int(Date().timeIntervalSince(t0))) s, problem \(studio.problem ?? "none"), notes \(studio.notes)")
         }
+
+        // the real screen follows along: that is where a model's text locked up the app in 1.9.3
+        let root = DocumentsView()
+            .environmentObject(app).environmentObject(app.engine).environmentObject(app.models).environmentObject(app.store)
+            .environmentObject(app.chat).environmentObject(Settings.shared).environmentObject(app.metrics).environmentObject(app.bench)
+            .environmentObject(app.cluster).environmentObject(app.check).environmentObject(studio)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 800), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = NSHostingView(rootView: root)
+        defer { window.contentView = nil }
 
         // the attachment says what the document consists of; the house style is only the layout
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sjabloon.docx")

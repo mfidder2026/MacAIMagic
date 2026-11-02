@@ -52,6 +52,10 @@ struct MacAIMagicApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     weak var app: AppState?
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        EngineOrphans.stop()
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         MainActor.assumeIsolated {
             app?.store.save()

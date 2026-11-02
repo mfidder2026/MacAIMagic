@@ -220,3 +220,31 @@ final class EngineController: ObservableObject {
         }
     }
 }
+
+/// Engines left behind by an app that was forced to quit: they hold their port and over 100 GB of memory, and a new
+/// engine would fail on that. Engines of an app that still runs have that app as parent, and are left alone.
+enum EngineOrphans {
+    static func pids(inProcessList list: String) -> [Int32] {
+        list.split(separator: "\n").compactMap { line in
+            let parts = line.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
+            guard parts.count == 3, parts[1] == "1", parts[2].contains("/Contents/Resources/engine/llama-server") else { return nil }
+            return Int32(parts[0])
+        }
+    }
+
+    static func stop() {
+        let ps = Process()
+        ps.executableURL = URL(fileURLWithPath: "/bin/ps")
+        ps.arguments = ["-axo", "pid=,ppid=,command="]
+        let pipe = Pipe()
+        ps.standardOutput = pipe
+        guard (try? ps.run()) != nil else { return }
+        let list = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        ps.waitUntilExit()
+        let orphans = pids(inProcessList: list)
+        for pid in orphans { kill(pid, SIGINT) }    // as the app stops them: the expert cache gets saved
+        for _ in 0..<40 where orphans.contains(where: { kill($0, 0) == 0 }) { usleep(250_000) }
+        for pid in orphans where kill(pid, 0) == 0 { kill(pid, SIGTERM) }
+    }
+}
+

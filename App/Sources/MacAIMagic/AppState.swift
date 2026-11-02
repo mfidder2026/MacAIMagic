@@ -27,6 +27,7 @@ final class AppState: ObservableObject {
 
     init() {
         chat.metrics = metrics
+        LocalModel.metrics = metrics
         engine.onStateChange = { [weak metrics] state in
             switch state {
             case .running, .starting: metrics?.fast = true

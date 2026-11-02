@@ -72,7 +72,16 @@ enum WebTools {
 
     static func search(_ query: String) async throws -> [Hit] {
         let key = Settings.shared.braveKey
-        return key.isEmpty ? try await duckDuckGo(query) : try await brave(query, key: key)
+        return key.isEmpty ? try await SearchRoute.shared.search(query, primary: duckDuckGo, fallback: bing) : try await brave(query, key: key)
+    }
+
+    /// DuckDuckGo answers with a page for bots after a few quick searches; that is no empty result.
+    struct Blocked: LocalizedError {
+        var errorDescription: String? { L("De zoekmachines weigeren nu; probeer het straks opnieuw of vul onder Instellingen een Brave-sleutel in.") }
+    }
+
+    static func isBlocked(status: Int, html: String) -> Bool {
+        status == 202 || status == 403 || status == 429 || html.contains("anomaly-modal") || html.contains("bots use DuckDuckGo")
     }
 
     /// Brave Search API, when the user has a key (more reliable than scraping).
@@ -99,9 +108,43 @@ enum WebTools {
         req.setValue(HTML.userAgent, forHTTPHeaderField: "User-Agent")
         let q = query.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? query
         req.httpBody = Data("q=\(q)&kl=nl-nl".utf8)
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await URLSession.shared.data(for: req)
         let html = String(decoding: data, as: UTF8.self)
+        if isBlocked(status: (response as? HTTPURLResponse)?.statusCode ?? 200, html: html) { throw Blocked() }
         return parseDuckDuckGo(html)
+    }
+
+    /// Bing, for when DuckDuckGo refuses.
+    private static func bing(_ query: String) async throws -> [Hit] {
+        var c = URLComponents(string: "https://www.bing.com/search")!
+        c.queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "setlang", value: "nl"), URLQueryItem(name: "cc", value: "NL")]
+        var req = URLRequest(url: c.url!)
+        req.setValue(HTML.userAgent, forHTTPHeaderField: "User-Agent")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        if isBlocked(status: (response as? HTTPURLResponse)?.statusCode ?? 200, html: "") { throw Blocked() }
+        return parseBing(String(decoding: data, as: UTF8.self))
+    }
+
+    private static let bingResult = Rx("<li class=\"b_algo\".*?<h2[^>]*>\\s*<a[^>]*href=\"([^\"]+)\"[^>]*>(.*?)</a>", .dotMatchesLineSeparators)
+
+    static func parseBing(_ html: String) -> [Hit] {
+        bingResult.matches(html).prefix(8).compactMap { m in
+            guard let href = m.groups[0], let title = m.groups[1], let url = bingTarget(HTML.decodeEntities(href)) else { return nil }
+            let name = HTML.text(from: title)
+            return Hit(title: name.isEmpty ? url : name, url: url, snippet: "")
+        }
+    }
+
+    /// Result links go through a redirect, with the target in base64 after "a1" in the parameter u.
+    static func bingTarget(_ link: String) -> String? {
+        guard let c = URLComponents(string: link), c.host?.hasSuffix("bing.com") == true else {
+            return link.hasPrefix("http") ? link : nil
+        }
+        guard var coded = c.queryItems?.first(where: { $0.name == "u" })?.value, coded.hasPrefix("a1") else { return nil }
+        coded = String(coded.dropFirst(2)).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        coded += String(repeating: "=", count: (4 - coded.count % 4) % 4)
+        guard let data = Data(base64Encoded: coded), let target = String(data: data, encoding: .utf8), target.hasPrefix("http") else { return nil }
+        return target
     }
 
     static func parseDuckDuckGo(_ html: String) -> [Hit] {
@@ -151,6 +194,38 @@ enum WebTools {
         let title = HTML.title(raw) ?? url.host ?? urlString
         // keep the context small: the model's prompt reading is the slow part on a Mac
         return (title, String(HTML.text(from: HTML.mainContent(raw)).prefix(12_000)))
+    }
+}
+
+/// Which search engine to ask: not too quickly after each other, and after a refusal the other one for a while.
+actor SearchRoute {
+    static let shared = SearchRoute()
+    private let spacing: TimeInterval
+    private let pause: TimeInterval
+    private var last = Date.distantPast
+    private var refusedUntil = Date.distantPast
+
+    init(spacing: TimeInterval = 2, pause: TimeInterval = 600) {
+        self.spacing = spacing
+        self.pause = pause
+    }
+
+    func search(_ query: String, primary: @Sendable (String) async throws -> [WebTools.Hit],
+                fallback: @Sendable (String) async throws -> [WebTools.Hit]) async throws -> [WebTools.Hit] {
+        if Date() < refusedUntil { return try await fallback(query) }
+        let wait = last.addingTimeInterval(spacing).timeIntervalSinceNow
+        if wait > 0 { try await Task.sleep(for: .seconds(wait)) }
+        last = Date()
+        do {
+            let hits = try await primary(query)
+            return hits.isEmpty ? try await fallback(query) : hits
+        } catch is WebTools.Blocked {
+            refusedUntil = Date().addingTimeInterval(pause)
+            return try await fallback(query)
+        } catch {
+            if error is CancellationError { throw error }
+            return try await fallback(query)
+        }
     }
 }
 

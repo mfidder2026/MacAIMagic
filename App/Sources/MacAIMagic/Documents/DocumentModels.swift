@@ -144,10 +144,16 @@ enum LocalModel {
         var tokensPerSecond: Double?
     }
 
+    /// The speed gauge counts this writing too.
+    @MainActor static weak var metrics: LiveMetrics?
+
     /// `thinking`: how many tokens the model may think first; 0 is none. Thinking takes most of the time of a piece of
     /// writing (measured on Qwen3.8: 1,400 tokens for an answer of 150), so only what needs weighing gets it.
+    ///
+    /// `onText` runs on the main thread, and at most ten times a second. This function does not: a screen changed from
+    /// another thread locks up the whole app (measured in 1.9.3: the main thread and SwiftUI's layout waiting on each other).
     static func complete(url: URL, model: String, system: String, user: String, thinking: Int = 0, maxTokens: Int = 4096,
-                         temperature: Double = 0.3, onText: (String) -> Void = { _ in }) async throws -> Result {
+                         temperature: Double = 0.3, onText: @MainActor (String) -> Void = { _ in }) async throws -> Result {
         let s = Settings.shared
         var body: [String: Any] = [
             "model": model,
@@ -177,6 +183,8 @@ enum LocalModel {
             throw Zip.Failure(L("Engine gaf \(http.statusCode): \(String(message.prefix(300)))"))
         }
         var result = Result()
+        var shown = Date.distantPast
+        var unseenTokens = 0
         for try await line in bytes.lines {
             try Task.checkCancellation()
             guard line.hasPrefix("data: ") else { continue }
@@ -186,11 +194,20 @@ enum LocalModel {
             if let t = json["timings"] as? [String: Any] { result.tokensPerSecond = t["predicted_per_second"] as? Double }
             guard let choice = (json["choices"] as? [[String: Any]])?.first else { continue }
             if choice["finish_reason"] as? String == "length" { result.cutOff = true }
-            if let piece = (choice["delta"] as? [String: Any])?["content"] as? String, !piece.isEmpty {
-                result.text += piece
-                onText(result.text)
+            let delta = choice["delta"] as? [String: Any]
+            if let piece = delta?["content"] as? String, !piece.isEmpty { result.text += piece }
+            if delta?["content"] != nil || delta?["reasoning_content"] != nil { unseenTokens += 1 }
+            if Date().timeIntervalSince(shown) >= 0.1 {
+                shown = Date()
+                let (text, tokens) = (result.text, unseenTokens)
+                unseenTokens = 0
+                await MainActor.run { metrics?.addTokens(tokens) }
+                if !text.isEmpty { await onText(text) }
             }
         }
+        let (text, tokens) = (result.text, unseenTokens)
+        await MainActor.run { metrics?.addTokens(tokens) }
+        if !text.isEmpty { await onText(text) }
         return result
     }
 }

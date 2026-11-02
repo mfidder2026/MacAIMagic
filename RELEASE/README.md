@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.3 (macOS, Apple Silicon)
+# MacAIMagic 1.9.4 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.3-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.4-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,14 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.3-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.4-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B). As a cluster helper any amount of memory helps.
+
+New in 1.9.4:
+- **The app no longer locks up while a document is written.** The text reached the screen from another thread, and the two waited for each other. The speed gauge now counts this writing too.
+- **Searching keeps working.** DuckDuckGo refuses after a few quick searches, and the app took that for "no results". It now searches more calmly, goes to Bing when refused, and says at once when nothing from the web is used.
+- **Engines left behind by a forced quit are stopped** at the next start.
 
 New in 1.9.3: the documents module shows what the fast model is doing (starts by itself, loading, running), has a button to start or stop it, and says why when it does not start. A model that failed is no longer tried again for every page. The number in the speed gauge stands in the middle of its ring.
 
