@@ -645,3 +645,143 @@ final class WindowLayoutTests: XCTestCase {
     }
 }
 
+/// When the fast model does not start, the work goes on and the user can see why.
+@MainActor
+final class FastModelTests: XCTestCase {
+    private var app: AppState!
+    private var engines: DocumentEngines!
+    private var launches = 0
+    private var failure: Error?
+
+    override func setUp() async throws {
+        app = AppState()
+        engines = DocumentEngines(app: app)
+        let small = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-q4"))
+        engines.choose = { small }
+        engines.launch = { [unowned self] _ in
+            launches += 1
+            if let failure { throw failure }
+        }
+        // never the real one: a test must not load a model next to the user's
+        engines.heavyEngine = { (URL(string: "http://heavy.model.test")!, "zwaar") }
+    }
+
+    private func fastEndpoint() async -> String? { try? await engines.endpoint(.fast).model }
+
+    func testAFailureIsKeptAndNotTriedForEveryPage() async {
+        failure = Zip.Failure("poort bezet")
+        _ = await fastEndpoint()
+        _ = await fastEndpoint()
+        _ = await fastEndpoint()
+        XCTAssertEqual(launches, 1)
+        XCTAssertEqual(engines.fastProblem, "poort bezet")
+    }
+
+    func testTheButtonTriesAgainAndClearsTheProblem() async throws {
+        failure = Zip.Failure("poort bezet")
+        _ = await fastEndpoint()
+        failure = nil
+        engines.startFastNow()
+        XCTAssertNil(engines.fastProblem)
+        for _ in 0..<100 where launches < 2 { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(launches, 2)
+        XCTAssertNil(engines.fastProblem)
+        let model = await fastEndpoint()
+        XCTAssertEqual(model, "qwen3.6-35b-a3b-q4")
+    }
+
+    func testAWorkingModelIsUsed() async {
+        let model = await fastEndpoint()
+        XCTAssertEqual(model, "qwen3.6-35b-a3b-q4")
+        XCTAssertNil(engines.fastProblem)
+    }
+
+    func testAFailureFallsBackToTheHeavyModel() async {
+        failure = Zip.Failure("poort bezet")
+        let model = await fastEndpoint()
+        XCTAssertEqual(model, "zwaar")
+    }
+
+    func testAnotherChoiceIsTriedAfterAFailure() async throws {
+        failure = Zip.Failure("poort bezet")
+        _ = await fastEndpoint()
+        let other = try XCTUnwrap(ModelCatalog.shared.model("glm-5.3-flash-compact"))
+        engines.choose = { other }
+        _ = await fastEndpoint()
+        XCTAssertEqual(launches, 2)
+    }
+
+    func testStoppingTheWorkIsNoFailureOfTheModel() async {
+        failure = CancellationError()
+        _ = await fastEndpoint()
+        XCTAssertNil(engines.fastProblem)
+        _ = await fastEndpoint()
+        XCTAssertEqual(launches, 2)
+    }
+
+    func testStoppingItYourselfIsNoFailure() async {
+        engines.launch = { [unowned self] _ in
+            engines.stopFast()
+            throw Zip.Failure("De engine is gestopt.")
+        }
+        _ = await fastEndpoint()
+        XCTAssertNil(engines.fastProblem)
+    }
+
+    func testAPortInUseIsSaidInPlainWords() {
+        Settings.shared.language = "nl"
+        XCTAssertEqual(DocumentEngines.readable("Engine gestopt (code 1): 0.00.048 E srv exiting due to HTTP server error", port: 8081), "Poort 8081 is al in gebruik door een ander programma.")
+        XCTAssertEqual(DocumentEngines.readable("Geen geheugen", port: 8081), "Geen geheugen")
+    }
+
+    func testStatusSaysWhatTheModelIsDoing() {
+        XCTAssertEqual(EngineController.State.stopped.statusText(idle: "vanzelf"), "vanzelf")
+        XCTAssertEqual(EngineController.State.starting("Laden").statusText(idle: "x"), "Laden")
+        XCTAssertEqual(EngineController.State.failed("kapot").statusText(idle: "x"), "kapot")
+    }
+
+    /// The real engine: a port in use, then free. MACAIMAGIC_FAST_TEST=1.
+    func testRealEngineFailsVisiblyAndThenStarts() async throws {
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_FAST_TEST"] == "1" else { throw XCTSkip("no real engine") }
+        let saved = Settings.shared.port
+        defer { Settings.shared.port = saved }
+        Settings.shared.port = 8094     // the fast engine takes the next one
+        let app = AppState()
+        app.selectedModelID = "qwen3.8-flash-next-q4"
+        let real = DocumentEngines(app: app)
+        real.heavyEngine = { (URL(string: "http://heavy.model.test")!, "zwaar") }
+        XCTAssertEqual(real.fastChoice?.id, "qwen3.6-35b-a3b-q4")
+
+        // whatever goes wrong below: no engine stays behind next to the user's
+        defer { real.stopFast() }
+        let blocker = socket(AF_INET, SOCK_STREAM, 0)
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = in_port_t(8095).bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let bound = withUnsafePointer(to: &address) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.bind(blocker, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+        XCTAssertEqual(bound, 0)
+        XCTAssertEqual(Darwin.listen(blocker, 1), 0)
+        let t = Date()
+        _ = try? await real.endpoint(.fast)
+        print("FAST blocked after \(Int(Date().timeIntervalSince(t))) s:", real.fastProblem ?? "no problem", "| state", real.fast.state)
+        XCTAssertNotNil(real.fastProblem)
+        Darwin.close(blocker)
+        // loading it takes the memory next to the user's model: only when asked
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_FAST_LOAD"] == "1" else { return }
+
+        real.startFastNow()
+        XCTAssertNil(real.fastProblem)
+        let t0 = Date()
+        while !real.fast.state.isRunning && real.fastProblem == nil && Date().timeIntervalSince(t0) < 240 { try await Task.sleep(for: .milliseconds(500)) }
+        print("FAST started in \(Int(Date().timeIntervalSince(t0))) s:", real.fast.state, real.fastProblem ?? "")
+        XCTAssertTrue(real.fast.state.isRunning)
+        let answer = try await LocalModel.complete(url: real.fast.baseURL, model: "m", system: "Antwoord kort.", user: "Zeg alleen: klaar", maxTokens: 20)
+        print("FAST answer:", answer.text, answer.tokensPerSecond ?? 0)
+        real.stopFast()
+        for _ in 0..<60 where real.fast.state != .stopped { try await Task.sleep(for: .milliseconds(500)) }
+        XCTAssertEqual(real.fast.state, .stopped)
+        XCTAssertNil(real.fastProblem)
+    }
+}
+

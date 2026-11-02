@@ -25,11 +25,22 @@ enum DocumentModels {
 final class DocumentEngines: ObservableObject {
     /// The second engine, on the port after the app's own and only reachable from this Mac.
     let fast = EngineController(port: Settings.shared.port + 1, logFile: Paths.appSupport.appendingPathComponent("engine-fast.log"))
+    /// Why the fast model did not start. The heavy model does its work then; the user must be able to see that.
+    @Published private(set) var fastProblem: String?
     private unowned let app: AppState
+    /// The model that failed: it is not tried again for every page, only when the user asks or another model is the choice.
+    private var failedModel: String?
+    private var stoppedByUser = false
+
+    /// What decides and what starts; tests give their own.
+    var choose: (() -> ModelInfo?)?
+    var launch: ((ModelInfo) async throws -> Void)?
+    var heavyEngine: (() async throws -> (url: URL, model: String))?
 
     init(app: AppState) { self.app = app }
 
     var fastChoice: ModelInfo? {
+        if let choose { return choose() }
         let m = app.models
         return DocumentModels.fastModel(heavy: app.selectedModel, heavyPlan: app.plan,
                                         downloaded: m.catalog.models.filter { m.status($0.id).isComplete },
@@ -37,19 +48,53 @@ final class DocumentEngines: ObservableObject {
     }
 
     func endpoint(_ role: ModelRole) async throws -> (url: URL, model: String) {
-        if role == .fast, let small = fastChoice {
-            do {
-                try await startFast(small)
-                return (fast.baseURL, small.id)
-            } catch {
-                // a fast model that does not start must not stop the work: the heavy one can do it too
-                fast.stop()
-            }
+        if role == .fast, let small = fastChoice, failedModel != small.id {
+            if try await startingFast(small) { return (fast.baseURL, small.id) }
         }
         return try await heavy()
     }
 
+    /// True when it runs. Stopping the work is not a failure of the model; anything else is, and is kept for the user.
+    private func startingFast(_ small: ModelInfo) async throws -> Bool {
+        stoppedByUser = false
+        do {
+            try await (launch ?? startFast)(small)
+            failedModel = nil
+            fastProblem = nil
+            return true
+        } catch {
+            if error is CancellationError { throw error }
+            fast.stop()
+            // stopped with the button: it starts again by itself at the next quick action
+            guard !stoppedByUser else { return false }
+            failedModel = small.id
+            fastProblem = Self.readable(error.localizedDescription, port: fast.baseURL.port ?? 0)
+            return false
+        }
+    }
+
+    /// The engine's own words, unless the cause is known.
+    static func readable(_ problem: String, port: Int) -> String {
+        problem.contains("HTTP server error") || problem.contains("bind") ? L("Poort \(port) is al in gebruik door een ander programma.") : problem
+    }
+
+    /// The button: also after a failure.
+    func startFastNow() {
+        guard let small = fastChoice else { return }
+        failedModel = nil
+        fastProblem = nil
+        Task { _ = try? await startingFast(small) }
+    }
+
+    func stopFast() {
+        stoppedByUser = true
+        failedModel = nil
+        fastProblem = nil
+        fast.stop()
+    }
+
     private func heavy() async throws -> (url: URL, model: String) {
+        if let heavyEngine { return try await heavyEngine() }
         if !app.engine.state.isRunning {
             if case .starting = app.engine.state {} else {
                 guard app.canStart else { throw Zip.Failure(L("Download eerst een model onder Modellen.")) }

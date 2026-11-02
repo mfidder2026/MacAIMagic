@@ -118,17 +118,20 @@ struct DocumentsView: View {
     }
 
     private var modelsCard: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(L("Modellen")).font(.caption).foregroundStyle(.secondary)
-            HStack(spacing: 6) {
-                Image(systemName: "brain").frame(width: 18).foregroundStyle(Theme.cyan)
-                Text(L("Zwaar")).font(.callout)
-                Text(app.selectedModel?.shortName ?? L("Geen model")).font(.callout.weight(.medium)).lineLimit(1)
-                Spacer()
-                Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain").frame(width: 18).foregroundStyle(Theme.cyan)
+                    Text(L("Zwaar")).font(.callout)
+                    Text(app.selectedModel?.shortName ?? L("Geen model")).font(.callout.weight(.medium)).lineLimit(1)
+                    Spacer()
+                    Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
+                }
+                Text(engine.state.statusText(idle: L("Start vanzelf als er geschreven wordt."))).font(.caption).foregroundStyle(.secondary).padding(.leading, 24)
             }
             if let fast = app.documentEngines.fastChoice {
-                FastModelRow(engine: app.documentEngines.fast, name: fast.shortName)
+                FastModelRow(engines: app.documentEngines, engine: app.documentEngines.fast, name: fast.shortName)
             } else {
                 Text(L("Eén model voor alles: er past geen tweede model naast op deze Mac, of er is er geen gedownload."))
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -507,20 +510,56 @@ private struct DocumentActionStyle: ButtonStyle {
     }
 }
 
-/// Follows the second engine, which the view above does not observe.
+/// Follows the second engine, which the view above does not observe: what it is doing, why it does not run, and
+/// the button to start or stop it. It also starts by itself when there is small work.
 private struct FastModelRow: View {
+    @EnvironmentObject var studio: DocumentStudio
+    @ObservedObject var engines: DocumentEngines
     @ObservedObject var engine: EngineController
     let name: String
 
+    private var loading: Bool {
+        if case .starting = engine.state { return true }
+        return false
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "bolt.fill").frame(width: 18).foregroundStyle(Theme.cyan)
-            Text(L("Snel")).font(.callout)
-            Text(name).font(.callout.weight(.medium)).lineLimit(1)
-            Spacer()
-            Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: "bolt.fill").frame(width: 18).foregroundStyle(Theme.cyan)
+                Text(L("Snel")).font(.callout)
+                Text(name).font(.callout.weight(.medium)).lineLimit(1)
+                Spacer()
+                Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
+            }
+            if let problem = engines.fastProblem {
+                Text(L("Start niet; het zware model doet dit werk nu. \(problem)")).font(.caption).foregroundStyle(Theme.amber)
+                    .fixedSize(horizontal: false, vertical: true).padding(.leading, 24)
+            } else {
+                Text(engine.state.statusText(idle: L("Start vanzelf bij de eerste snelle actie."))).font(.caption).foregroundStyle(.secondary).padding(.leading, 24)
+            }
+            HStack {
+                if engine.state.isRunning || loading {
+                    Button(L("Stop")) { engines.stopFast() }.disabled(studio.busy)
+                } else {
+                    Button(engines.fastProblem == nil ? L("Start nu") : L("Probeer opnieuw")) { engines.startFastNow() }
+                }
+            }
+            .buttonStyle(DocumentActionStyle(prominent: false, small: true))
+            .padding(.leading, 24)
         }
-        .help(L("Start vanzelf bij de eerste snelle actie."))
+    }
+}
+
+extension EngineController.State {
+    /// What the state means, in the words of the documents module.
+    func statusText(idle: String) -> String {
+        switch self {
+        case .running: return L("Draait")
+        case .starting(let what): return what
+        case .failed(let why): return why
+        case .stopped: return idle
+        }
     }
 }
 

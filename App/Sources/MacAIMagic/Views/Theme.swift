@@ -113,15 +113,26 @@ struct GaugeRing: View {
                 .rotationEffect(.degrees(-90))
                 .shadow(color: Theme.accent.opacity(0.8), radius: 10)
                 .animation(.spring(response: 0.6, dampingFraction: 0.8), value: fraction)
-            VStack(spacing: 2) {
-                Text(value, format: .number.precision(.fractionLength(1)))
-                    .font(.system(size: size * 0.26, weight: .bold, design: .rounded))
-                    .contentTransition(.numericText(value: value))
-                    .animation(.snappy, value: value)
-                    .foregroundStyle(Theme.cool)
-                Text(unit).font(.system(size: size * 0.07, weight: .medium, design: .rounded)).foregroundStyle(.secondary)
-                Text(label).font(.system(size: size * 0.065, weight: .semibold, design: .rounded)).foregroundStyle(.tertiary)
-            }
+            // the number in the very middle of the ring, what belongs to it below that
+            Text(value, format: .number.precision(.fractionLength(1)))
+                .font(.system(size: size * 0.26, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(maxWidth: size * 0.72)
+                .contentTransition(.numericText(value: value))
+                .animation(.snappy, value: value)
+                .foregroundStyle(Theme.cool)
+                .overlay(alignment: .bottom) {
+                    VStack(spacing: 2) {
+                        Text(unit).font(.system(size: size * 0.07, weight: .medium, design: .rounded)).foregroundStyle(.secondary)
+                        if !label.isEmpty {
+                            Text(label).font(.system(size: size * 0.065, weight: .semibold, design: .rounded)).foregroundStyle(.tertiary)
+                        }
+                    }
+                    .fixedSize()
+                    .alignmentGuide(.bottom) { $0[.top] }
+                }
         }
         .frame(width: size, height: size)
     }
