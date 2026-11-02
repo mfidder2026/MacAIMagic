@@ -573,7 +573,7 @@ final class DocumentStudio: ObservableObject {
             save()
             remarks += sourceRemarks(body: body, done: done, skipped: skipped)
         }
-        notes = remarks
+        notes += remarks
     }
 
     /// Asks what the document must consist of: in the attachments first, else the headings of the house style, else
@@ -589,8 +589,10 @@ final class DocumentStudio: ObservableObject {
             + (useWeb ? L("ZOEK staat op een eigen regel per zoekvraag, hooguit 5, voor wat de bijlagen niet zeggen maar het document wel nodig heeft, zoals achtergrond van het onderwerp en regelgeving. Maak elke zoekvraag kort en concreet over de inhoud, zoals 'BIO eisen multi-factor authenticatie', en nooit algemeen als 'wet- en regelgeving'. Zoek niet naar gegevens van dit project zelf, zoals een datum of versie. Geen namen van personen, klanten of vertrouwelijke details. Staat alles in de bijlagen, dan geen ZOEK.") : L("Gebruik geen ZOEK."))
         let user = knownFields + L("Opdracht: \(request)") + "\n\n" + (material.isEmpty ? L("Er zijn geen bijlagen.") + "\n\n" : material + "\n\n") + layout
         let (url, model) = try await endpoint(.heavy)
-        let answer = try await LocalModel.complete(url: url, model: model, system: system, user: user, thinking: 1500, maxTokens: 1200, temperature: 0.2)
-        var plan = DocumentPlan(answer: answer.text, fallbackTitle: request)
+        let answer = try await LocalModel.complete(url: url, model: model, system: system, user: user, thinking: 1000, maxTokens: 6000, temperature: 0.2)
+        // a structure cut off in the middle: its last heading is not to be trusted
+        var plan = DocumentPlan(answer: answer.text, fallbackTitle: request, cutOff: answer.cutOff)
+        if answer.cutOff { notes.append(L("De opbouw is afgebroken omdat die te lang werd; controleer of er onderdelen ontbreken.")) }
         if plan.sections.isEmpty {
             // the model kept to no form: the house style's headings, or one section
             plan.origin = L("eigen keuze")
@@ -649,14 +651,22 @@ final class DocumentStudio: ObservableObject {
             prompt += " " + L("Geef alleen de inhoud in Markdown (alinea's, opsommingen, tabellen), zonder de kop van de sectie en zonder nieuwe koppen.")
             let before = text as NSString
             let range = section.bodyRange
-            let answer = try await LocalModel.complete(url: url, model: model, system: system, user: prompt,
-                                                       maxTokens: section.hasChildren ? 400 : 3000, temperature: 0.5) { [weak self] live in
-                self?.text = before.replacingCharacters(in: range, with: "\n\n" + DraftSections.withoutHeadings(DraftSections.cleaned(live, removingHeading: section.title)) + "\n\n")
+            func show(_ live: String) { text = before.replacingCharacters(in: range, with: "\n\n" + DraftSections.withoutHeadings(DraftSections.cleaned(live, removingHeading: section.title)) + "\n\n") }
+            let limit = section.hasChildren ? 800 : 3000
+            var answer = try await LocalModel.complete(url: url, model: model, system: system, user: prompt, maxTokens: limit, temperature: 0.5) { show($0) }
+            var body = DraftSections.withoutHeadings(DraftSections.cleaned(answer.text, removingHeading: section.title))
+            if body.isEmpty {
+                // once more with room to think, before giving up on this section
+                answer = try await LocalModel.complete(url: url, model: model, system: system, user: prompt, thinking: 1500, maxTokens: limit, temperature: 0.5) { show($0) }
+                body = DraftSections.withoutHeadings(DraftSections.cleaned(answer.text, removingHeading: section.title))
             }
-            let body = DraftSections.withoutHeadings(DraftSections.cleaned(answer.text, removingHeading: section.title))
+            if answer.cutOff { notes.append(L("Sectie '\(section.title)' is afgebroken omdat die te lang werd; controleer het einde.")) }
             guard !body.isEmpty else {
+                // one silent section is no reason to throw away the others: it stays as it was, for the user to see
                 text = before as String
-                throw Zip.Failure(L("Het model gaf geen tekst voor '\(section.title)'."))
+                notes.append(L("Het model gaf geen tekst voor '\(section.title)'; de instructie staat er nog. Zet de cursor erin en gebruik Pas aan."))
+                finish(id, .failed)
+                continue
             }
             text = before.replacingCharacters(in: range, with: "\n\n" + body + "\n\n")
             save()
@@ -840,7 +850,7 @@ struct DocumentPlan {
     var searches: [String] = []
 
     /// A local model keeps to a form mostly, so what does not fit is left out rather than refused.
-    init(answer: String, fallbackTitle: String) {
+    init(answer: String, fallbackTitle: String, cutOff: Bool = false) {
         title = ""
         let heading = Rx("^(#{1,6})[ \\t]+(.+?)[ \\t]*$")
         let bullet = CharacterSet(charactersIn: "-*•\"' \t")
@@ -863,9 +873,21 @@ struct DocumentPlan {
                 sections[last].instruction += (sections[last].instruction.isEmpty ? "" : " ") + t
             }
         }
+        if cutOff, !sections.isEmpty { sections.removeLast() }
+        sections.removeAll { Self.onlyNumber.test($0.title) }
+        // a bare heading above all others is the document's title, not its first chapter
+        if sections.count > 1, sections[0].instruction.isEmpty, sections.dropFirst().allSatisfy({ $0.level > sections[0].level }) {
+            if title.isEmpty { title = sections[0].title }
+            sections.removeFirst()
+        }
+        if let top = sections.map(\.level).min(), top > 1 {
+            sections = sections.map { .init(level: $0.level - top + 1, title: $0.title, instruction: $0.instruction) }
+        }
         if title.isEmpty { title = String(fallbackTitle.prefix(60)) }
         if origin.isEmpty { origin = L("eigen keuze") }
     }
+
+    private static let onlyNumber = Rx("^[\\d.\\s]*$")
 
     /// The headings with what must go under them, as comments that stay out of the document.
     var outline: String {

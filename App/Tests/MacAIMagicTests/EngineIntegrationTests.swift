@@ -411,7 +411,9 @@ final class DocumentsIntegrationTests: XCTestCase {
         app.selectedModelID = env["MACAIMAGIC_DOC_HEAVY"] ?? "qwen3.8-flash-next-q4"
         let studio = DocumentStudio(folder: folder)
         studio.endpoint = { role in try await app.documentEngines.endpoint(role) }
-        studio.contextLimit = { app.chat.contextLimit }
+        // MACAIMAGIC_DOC_URL: an engine that runs already, for one model doing everything
+        if let running = env["MACAIMAGIC_DOC_URL"].flatMap(URL.init(string:)) { studio.endpoint = { _ in (running, "model") } }
+        studio.contextLimit = { env["MACAIMAGIC_DOC_URL"] == nil ? app.chat.contextLimit : 65_536 }
         print("DOC plan: fast \(app.documentEngines.fastChoice?.id ?? "none"), heavy fits \(app.plan?.fitsInMemory ?? false)")
         defer {
             app.engine.stop()

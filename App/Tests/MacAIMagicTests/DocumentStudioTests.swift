@@ -283,6 +283,58 @@ final class DocumentStudioTests: XCTestCase {
         XCTAssertTrue(DraftSections.list(studio.text).map(\.title).contains("Inleiding"))
     }
 
+    func testThinkingOffIsAlsoAskedOfTemplatesThatIgnoreIt() async throws {
+        answer(plan: Self.planWithoutSearch, section: "Tekst.")
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: false)
+        try await waitUntilDone()
+        let writing = FakeModel.requests.dropFirst()
+        XCTAssertFalse(writing.isEmpty)
+        for r in writing {
+            XCTAssertEqual(r.body["thinking_budget_tokens"] as? Int, 0, "GLM always opens with <think>")
+            XCTAssertEqual((r.body["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
+        }
+        XCTAssertGreaterThan(FakeModel.requests.first?.body["max_tokens"] as? Int ?? 0, 6000, "a long structure must fit, next to the thinking")
+    }
+
+    func testOneSilentSectionDoesNotStopTheOthers() async throws {
+        var calls: [String: Int] = [:]
+        FakeModel.answer = { system, user in
+            if system.contains("hoe een document eruit moet zien") { return Self.plan }
+            if system.contains("voorblad") { return "" }
+            if user.contains("sectie 'Bevindingen'") {
+                calls["Bevindingen", default: 0] += 1
+                return ""
+            }
+            return "Tekst."
+        }
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: false)
+        try await waitUntilDone()
+        XCTAssertNil(studio.problem)
+        XCTAssertEqual(calls["Bevindingen"], 2, "once more before giving up")
+        XCTAssertTrue(studio.notes.contains { $0.contains("Bevindingen") }, "\(studio.notes)")
+        XCTAssertTrue(studio.text.contains("Per thema."), "its instruction stays")
+        let sections = DraftSections.list(studio.text)
+        XCTAssertEqual(sections.map(\.title), ["Inleiding", "Bevindingen", "Beveiliging"])
+        XCTAssertTrue((studio.text as NSString).substring(with: sections[2].range).contains("Tekst."), "the section after it is written")
+    }
+
+    func testASilentRetryCanStillAnswer() async throws {
+        var calls = 0
+        FakeModel.answer = { system, user in
+            if system.contains("hoe een document eruit moet zien") { return Self.planWithoutSearch }
+            if system.contains("voorblad") { return "" }
+            calls += 1
+            return calls == 1 ? "" : "Tweede poging."
+        }
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: false)
+        try await waitUntilDone()
+        XCTAssertTrue(studio.text.contains("Tweede poging."))
+        XCTAssertEqual(studio.notes, [])
+    }
+
     func testWritingKeepsThePlannedSections() async throws {
         FakeModel.answer = { system, user in
             if system.contains("hoe een document eruit moet zien") { return Self.plan }
@@ -521,6 +573,18 @@ final class DocumentPartsTests: XCTestCase {
         XCTAssertEqual(DocumentPlan(answer: (1...9).map { "ZOEK: q\($0)" }.joined(separator: "\n"), fallbackTitle: "x").searches.count, 5)
     }
 
+    func testTheTopHeadingIsTheTitleNotAChapter() {
+        let plan = DocumentPlan(answer: "OPBOUW: t.md\n# Architectuur Quick Scan\n## 1 Inleiding\n> Doel.\n### 1.1 Scope\n## 2 Advies\n### 4.2\n", fallbackTitle: "Maak een AQS")
+        XCTAssertEqual(plan.title, "Architectuur Quick Scan")
+        XCTAssertEqual(plan.sections.map(\.title), ["1 Inleiding", "1.1 Scope", "2 Advies"], "a heading of only a number is no heading")
+        XCTAssertEqual(plan.sections.map(\.level), [1, 2, 1])
+        // several chapters at the top stay chapters
+        XCTAssertEqual(DocumentPlan(answer: "# Een\n## Sub\n# Twee\n", fallbackTitle: "x").sections.map(\.title), ["Een", "Sub", "Twee"])
+        // one section stays a section
+        XCTAssertEqual(DocumentPlan(answer: "# Samenvatting\n", fallbackTitle: "x").sections.map(\.title), ["Samenvatting"])
+        XCTAssertEqual(DocumentPlan(answer: "TITEL: T\n# Een\n# Twee\n# Half", fallbackTitle: "x", cutOff: true).sections.map(\.title), ["Een", "Twee"])
+    }
+
     func testCitations() {
         let sources = [Citations.Source(title: "A", url: "https://a"), Citations.Source(title: "B", url: "https://b"), Citations.Source(title: "C [x]", url: "https://c")]
         let done = Citations.finish("Eerst [3], dan [1, 3] en [7]. Geen [link](https://x) of [tekst].", sources: sources, heading: "Bronnen", consulted: "vandaag")
@@ -563,3 +627,21 @@ final class DocumentPartsTests: XCTestCase {
         XCTAssertEqual(DocumentDraft(markdown: "Geen velden\n---\nmeer").fields.count, 0)
     }
 }
+
+/// The name at the top of the sidebar stays clear of the window's buttons.
+@MainActor
+final class WindowLayoutTests: XCTestCase {
+    func testTheSidebarLeavesRoomForTheWindowButtons() throws {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 680),
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+        window.toolbar = NSToolbar(identifier: "test")
+        window.toolbarStyle = .unified
+        window.layoutIfNeeded()
+        for kind in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            let button = try XCTUnwrap(window.standardWindowButton(kind))
+            let rect = button.convert(button.bounds, to: nil)
+            XCTAssertLessThan(window.frame.height - rect.minY, Sidebar.windowButtonsHeight, "\(kind)")
+        }
+    }
+}
+

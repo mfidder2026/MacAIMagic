@@ -65,19 +65,29 @@ struct Sidebar: View {
     @EnvironmentObject var metrics: LiveMetrics
     @Binding var pane: Pane?
 
+    /// Room for the window's close, minimize and zoom buttons. The sidebar reaches the top of the window, and macOS does
+    /// not always keep a list clear of them, so the name stands outside the list at a fixed place.
+    static let windowButtonsHeight: CGFloat = 46
+
     var body: some View {
-        List(selection: $pane) {
-            Section {
-                HStack(spacing: 10) {
-                    BrandMark(size: 30, active: (metrics.current?.tokensPerSec ?? 0) > 0)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(L("MacAIMagic")).font(.system(.headline, design: .rounded).weight(.bold))
-                        Text(app.selectedModel?.name ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                BrandMark(size: 30, active: (metrics.current?.tokensPerSec ?? 0) > 0)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(L("MacAIMagic")).font(.system(.headline, design: .rounded).weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(app.selectedModel?.name ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
-                .padding(.vertical, 6)
-                .selectionDisabled()
             }
+            .padding(.top, Self.windowButtonsHeight)
+            .padding(.horizontal, 18)
+            .padding(.bottom, 6)
+            list
+        }
+        .ignoresSafeArea(.container, edges: .top)
+    }
+
+    private var list: some View {
+        List(selection: $pane) {
             Section {
                 Label(L("Live"), systemImage: "waveform.path.ecg").tag(Pane.live)
                 Label(L("Modellen"), systemImage: "square.stack.3d.up").tag(Pane.models)

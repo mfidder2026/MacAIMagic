@@ -113,8 +113,9 @@ enum LocalModel {
             "max_tokens": maxTokens + thinking,
             "chat_template_kwargs": ["enable_thinking": thinking > 0],
         ]
+        // the budget too when it is off: GLM's template ignores enable_thinking and always opens with <think>
+        body["thinking_budget_tokens"] = thinking
         if thinking > 0 {
-            body["thinking_budget_tokens"] = thinking
             body["reasoning_budget_message"] = "\n\n" + L("Genoeg nagedacht; nu schrijf ik het antwoord.") + "\n"
         }
         var req = URLRequest(url: url.appendingPathComponent("v1/chat/completions"))

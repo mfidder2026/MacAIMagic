@@ -231,6 +231,7 @@ final class ChatClient: ObservableObject {
             "temperature": 0.2,
             "max_tokens": 400,
             "chat_template_kwargs": ["enable_thinking": false, "reasoning_effort": Settings.shared.reasoningEffort],
+            "thinking_budget_tokens": 0,    // GLM's template ignores enable_thinking and always opens with <think>
         ]
         // the same tools as the conversation, so its start stays the same for the engine; it must only write here
         let tools = currentTools
@@ -345,6 +346,7 @@ final class ChatClient: ObservableObject {
             "temperature": 0.3,
             "max_tokens": 2000,
             "chat_template_kwargs": ["enable_thinking": false],
+            "thinking_budget_tokens": 0,    // GLM's template ignores enable_thinking and always opens with <think>
         ]
         var req = URLRequest(url: baseURL.appendingPathComponent("v1/chat/completions"))
         req.httpMethod = "POST"
@@ -460,6 +462,8 @@ final class ChatClient: ObservableObject {
             "chat_template_kwargs": ["enable_thinking": s.thinking, "reasoning_effort": s.reasoningEffort],
         ]
         // without a limit a model can keep doubting on a hard question and never get to its answer
+        // off means off: GLM's template ignores enable_thinking and always opens with <think>
+        if !s.thinking { body["thinking_budget_tokens"] = 0 }
         if s.thinking && s.thinkingBudget > 0 {
             body["thinking_budget_tokens"] = s.thinkingBudget
             body["reasoning_budget_message"] = "\n\n" + L("Genoeg nagedacht; nu schrijf ik het antwoord.") + "\n"
