@@ -110,8 +110,8 @@ private struct ContextMeter: View {
         let color = share > 0.9 ? Color.red : share > ChatClient.compactAt * 0.85 ? Theme.amber : Theme.mint
         Button { open.toggle() } label: {
             HStack(spacing: 6) {
-                if chat.compacting { ProgressView().controlSize(.mini) }
-                Text(chat.compacting ? L("Samenvatten…") : "\(Self.short(used)) / \(Self.short(limit))")
+                if chat.compacting || chat.learning { ProgressView().controlSize(.mini) }
+                Text(chat.compacting ? L("Samenvatten…") : chat.learning ? L("Noteert wat het geleerd heeft…") : "\(Self.short(used)) / \(Self.short(limit))")
                     .font(.caption.monospacedDigit().weight(.semibold))
                 Capsule().fill(.white.opacity(0.12)).frame(width: 46, height: 5)
                     .overlay(alignment: .leading) { Capsule().fill(color).frame(width: 46 * share, height: 5) }
@@ -365,9 +365,7 @@ struct MessageRow: View {
                         }
                     }
                     if !message.activities.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(message.activities) { a in ActivityRow(activity: a) }
-                        }
+                        ActivityList(activities: message.activities, streaming: streaming)
                     }
                     if message.text.isEmpty && message.reasoning.isEmpty && streaming && message.error == nil {
                         ProgressView().controlSize(.small)
@@ -391,6 +389,37 @@ struct MessageRow: View {
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(streaming ? AnyShapeStyle(Theme.brand.opacity(0.6)) : AnyShapeStyle(.white.opacity(0.07))))
                 Spacer(minLength: 0)
             }
+        }
+    }
+}
+
+/// The steps of an answer, folded: a long task takes dozens of them, and the chat is about the answer.
+struct ActivityList: View {
+    let activities: [ToolActivity]
+    let streaming: Bool
+    @State private var open = false
+    /// Up to this many steps are simply shown.
+    private static let foldAbove = 3
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if activities.count > Self.foldAbove {
+                DisclosureGroup(isExpanded: $open) {
+                    rows(activities).padding(.top, 4)
+                } label: {
+                    Label(L("\(activities.count) stappen"), systemImage: "list.bullet").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                }
+                // while it works, what it is doing now
+                if streaming && !open { rows(Array(activities.suffix(2))) }
+            } else {
+                rows(activities)
+            }
+        }
+    }
+
+    private func rows(_ list: [ToolActivity]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(list) { a in ActivityRow(activity: a) }
         }
     }
 }

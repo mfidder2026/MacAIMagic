@@ -43,6 +43,7 @@ struct SettingsView: View {
                 }
                 Section(L("Werkmap")) {
                     Toggle(L("Bestanden en commando's in de werkmap"), isOn: $settings.workspaceTools)
+                    Toggle(L("Bewaar wat het model leert in MACAIMAGIC.md, zodat het fouten niet twee keer maakt"), isOn: $settings.learnFromChats)
                     Picker(L("Lezen (mappen en bestanden)"), selection: $settings.rightRead) { rightOptions }
                     Picker(L("Schrijven (bestanden maken en aanpassen)"), selection: $settings.rightWrite) { rightOptions }
                     Picker(L("Uitvoeren (commando's, scripts, apps)"), selection: $settings.rightRun) { rightOptions }

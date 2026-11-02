@@ -473,3 +473,48 @@ final class UnfinishedTurnTests: XCTestCase {
     }
 }
 
+/// MACAIMAGIC.md: made when it is missing, keeps the user's text, and what was learned does not pile up without end.
+final class WorkspaceNotesTests: XCTestCase {
+    private func folder() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("notes-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url
+    }
+
+    func testMadeWhenMissingAndLessonsAdded() throws {
+        let f = try folder()
+        WorkspaceNotes.createIfNeeded(in: f)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: f.appendingPathComponent("MACAIMAGIC.md").path))
+        XCTAssertEqual(WorkspaceNotes.add(lessons: ["- python3 werkt hier niet", "- VICE staat in /Applications"], in: f).count, 2)
+        XCTAssertEqual(WorkspaceNotes.add(lessons: ["- PYTHON3 werkt hier niet"], in: f).count, 0, "known already")
+        XCTAssertTrue(WorkspaceNotes.forPrompt(in: f)?.contains("- VICE staat in /Applications") == true)
+    }
+
+    func testUsersFileStaysAndFormerNameWorks() throws {
+        let f = try folder()
+        let former = f.appendingPathComponent("MAC" + "DEEPSEEK.md")
+        try "Start VICE met open.".write(to: former, atomically: true, encoding: .utf8)
+        WorkspaceNotes.createIfNeeded(in: f)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: f.appendingPathComponent("MACAIMAGIC.md").path), "the former file is the notes file")
+        WorkspaceNotes.add(lessons: ["- iets geleerd"], in: f)
+        let text = try String(contentsOf: former, encoding: .utf8)
+        XCTAssertTrue(text.hasPrefix("Start VICE met open."))
+        XCTAssertTrue(text.contains("- iets geleerd"))
+    }
+
+    func testOldestLessonsGoFirst() throws {
+        let f = try folder()
+        for i in 1...(WorkspaceNotes.maxLessons + 5) { WorkspaceNotes.add(lessons: ["- les nummer \(i) van de reeks"], in: f) }
+        let text = try XCTUnwrap(WorkspaceNotes.forPrompt(in: f))
+        XCTAssertFalse(text.contains("- les nummer 1 van de reeks"))
+        XCTAssertTrue(text.contains("- les nummer \(WorkspaceNotes.maxLessons + 5) van de reeks"))
+    }
+
+    func testOnlyLessonLinesCount() {
+        XCTAssertEqual(WorkspaceNotes.lessons(from: "GEEN"), [])
+        let answer = "Dit heb ik geleerd:\n- python3 ontbreekt op deze Mac\n- python3 ontbreekt op deze Mac\nTot slot iets anders."
+        XCTAssertEqual(WorkspaceNotes.lessons(from: answer), ["- python3 ontbreekt op deze Mac"])
+    }
+}
+

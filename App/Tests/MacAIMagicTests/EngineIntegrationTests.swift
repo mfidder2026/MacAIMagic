@@ -284,3 +284,45 @@ final class LongTaskIntegrationTests: XCTestCase {
     }
 }
 
+/// What a task teaches ends up in MACAIMAGIC.md, and the next conversation in that folder knows it (engine at MACAIMAGIC_TEST_URL).
+@MainActor
+final class LearningIntegrationTests: XCTestCase {
+    func testLessonReachesNextConversation() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let address = env["MACAIMAGIC_TEST_URL"], let base = URL(string: address) else { throw XCTSkip("no engine") }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-learn-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let saved = (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun, Settings.shared.learnFromChats)
+        defer { (Settings.shared.webSearch, Settings.shared.workspaceTools, Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun, Settings.shared.learnFromChats) = saved }
+        Settings.shared.webSearch = false
+        Settings.shared.workspaceTools = true
+        Settings.shared.learnFromChats = true
+        (Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = ("allow", "allow", "allow")
+
+        let store = ConversationStore()
+        var first = Conversation(title: "Leren")
+        first.workspace = folder.path
+        var second = Conversation(title: "Volgende")
+        second.workspace = folder.path
+        store.conversations = [first, second]   // in memory only
+        let chat = ChatClient()
+        func ask(_ text: String, _ id: Conversation.ID) async throws {
+            chat.send(text: text, attachments: [], in: id, store: store, baseURL: base)
+            let t0 = Date()
+            while chat.busy && Date().timeIntervalSince(t0) < 600 { try await Task.sleep(for: .milliseconds(300)) }
+        }
+        try await ask("Voer run_command uit met: vicex128 --version. Dat programma bestaat hier niet. Voer daarna run_command uit met: which zsh. Schrijf met write_file het resultaat naar uit.txt en controleer het met read_file.", first.id)
+        let notes = try String(contentsOf: folder.appendingPathComponent("MACAIMAGIC.md"), encoding: .utf8)
+        print("NOTES:\n\(notes)")
+        let last = try XCTUnwrap(store.conversations.first { $0.id == first.id }?.messages.last)
+        print("STEPS: \(last.activities.map(\.label))")
+        XCTAssertTrue(notes.contains("- "), "something was learned")
+        XCTAssertTrue(notes.lowercased().contains("vicex128"), "the mistake is in the notes")
+        try await ask("Bestaat het programma vicex128 op deze Mac volgens je notities? Antwoord met ja of nee en gebruik geen gereedschap.", second.id)
+        let answer = store.conversations.first { $0.id == second.id }?.messages.last?.text ?? ""
+        print("NEXT: \(answer)")
+        XCTAssertTrue(answer.lowercased().contains("nee"), answer)
+    }
+}
+

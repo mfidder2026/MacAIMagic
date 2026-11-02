@@ -1,6 +1,6 @@
-# MacAIMagic 1.8 (macOS, Apple Silicon)
+# MacAIMagic 1.8.1 (macOS, Apple Silicon)
 
-`MacAIMagic-1.8-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.8.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,13 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.8-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.8.1-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B). As a cluster helper any amount of memory helps.
+
+New in 1.8.1:
+- **The model learns from its mistakes.** A work folder gets a `MACAIMAGIC.md` when it has none. After a task of a few steps the model says what it established (commands and paths that worked, what failed and why), and the app puts that under *Geleerd*; every next message in that folder reads it. You can edit the file yourself, and turn this off in Settings. It is skipped after a task that read the web, and when writing is denied in the rights matrix.
+- **Long tasks stay readable.** The steps of an answer are folded ("37 steps"), with the latest two visible while it works. An automatic follow-up no longer repeats the whole list.
 
 New in 1.8:
 - **The model works until the task is done.** When it ends its turn without finishing (it announces a step and stops, only thinks, or leaves a tool call behind in its thinking), the app tells it to go on, and shows that in the chat. A cut-off answer goes on too, a long task with a single question is summarized when the context fills up, and the model is told when Python and git are not on the Mac.

@@ -70,6 +70,10 @@ comes from the internal SSD.
   cluster helper when none fits. Larger models stay available and stream from the SSD, also on 32 GB (see
   [the measurements](docs/RESEARCH.md#7-models-larger-than-memory-on-a-mac-with-32-gb)). On a Mac with little memory the
   app shrinks the context to what still fits and turns vision off when it would push the model out of memory.
+- **Learns from its mistakes**: a work folder gets a `MACAIMAGIC.md` when it has none. After a task of a few steps the
+  model says what it established (commands and paths that worked, what failed and why) and the app adds that under
+  *Geleerd*, so a next conversation in that folder knows it. Skipped after a task that read the web; you can edit the
+  file, and turn this off in Settings.
 - **Works until the task is done**: when a model ends its turn without finishing (it announces a step and stops, only
   thinks, or leaves a tool call behind in its thinking), the app tells it to go on, and shows that in the chat. A cut-off
   answer goes on too, and a long task with a single question is summarized when the context fills up.

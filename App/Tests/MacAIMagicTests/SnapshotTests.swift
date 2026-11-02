@@ -54,6 +54,17 @@ final class SnapshotTests: XCTestCase {
         try shot(withBackground(ClusterView(), app: app), app: app, name: "cluster", dark: true)
         try shot(SettingsView(), app: app, name: "settings", dark: true)
 
+        // a long task: its steps are folded, and only the last answer carries them
+        var long = Conversation(title: "Lange taak")
+        long.messages = [ChatMessage(role: .user, text: "Maak een text adventure voor de Commodore 64."),
+                         ChatMessage(role: .assistant, text: "Ik maak eerst het spel.", activities: []),
+                         ChatMessage(role: .user, text: "x", automatic: true),
+                         ChatMessage(role: .assistant, text: "Het spel staat in **adventure.prg** en draait in VICE.",
+                                     activities: (1...37).map { ToolActivity(label: "Uitvoeren: stap \($0)", done: true, output: "ok") })]
+        app.store.conversations = [long]
+        app.store.selection = long.id
+        try shot(withBackground(ChatView(conversationID: long.id, scrollToEnd: false), app: app), app: app, name: "chat-steps", dark: true)
+
         // the system check on this Mac, and as a clean Mac sees it: an empty models folder
         await app.check.run(app: app)
         try shot(withBackground(SystemView { _ in }, app: app), app: app, name: "system", dark: true)

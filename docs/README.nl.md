@@ -27,6 +27,11 @@ Op een Mac met weinig geheugen verkleint de app de context tot wat nog past en z
 Qwen3.6 met 32K context). Grotere modellen blijven beschikbaar en streamen van de SSD, ook op 32 GB (gemeten: DeepSeek
 Compact ~5 tok/s, zie [RESEARCH](RESEARCH.md)). Er zijn geen ontwikkeltools, Python of Homebrew nodig om de app te gebruiken.
 
+**Leert van fouten**: een werkmap krijgt een `MACAIMAGIC.md` als die er nog niet is. Na een taak van een paar stappen
+zegt het model wat het heeft vastgesteld (wat werkte, wat mislukte en waarom) en zet de app dat onder *Geleerd*, zodat een
+volgend gesprek in die map het weet. Niet na een taak die het web las; je kunt het bestand aanpassen, en dit uitzetten in
+de instellingen.
+
 **Werkt door tot het af is**: stopt een model terwijl de taak niet af is (het kondigt iets aan en stopt, of denkt alleen),
 dan laat de app het automatisch doorgaan en zie je dat in het gesprek. Een lange taak met één vraag wordt samengevat als
 de context volraakt.
