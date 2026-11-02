@@ -36,8 +36,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>MacAIMagic</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.9</string>
-  <key>CFBundleVersion</key><string>25</string>
+  <key>CFBundleShortVersionString</key><string>1.9.1</string>
+  <key>CFBundleVersion</key><string>26</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>

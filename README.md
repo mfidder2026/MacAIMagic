@@ -63,12 +63,13 @@ comes from the internal SSD.
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
 - **Six models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
   says for this Mac whether the model fits in memory, streams from the SSD, or is too big.
-- **Documents**: edit Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with its house
-  style in `huisstijl.docx`. All text is changed in a Markdown draft, and the `.docx` comes last, in exactly that house
-  style: cover, headers and footers, numbered headings, table look and table of contents come from your own template.
-  Ask a question and the app searches the web first, reads the pages, and writes a draft with numbered sources; the
-  Word file follows when you approve it. A fast model does the small work (search questions, notes, spelling), a heavy
-  one the writing; on a Mac where two do not fit, one model does everything.
+- **Documents**: make Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with attachments
+  (context and information), a house style (only the layout) and its documents. Say "make an AQS": the model looks in the
+  attachments for what the document must consist of, searches the web for what they do not say, such as the subject and
+  regulations, and writes a Markdown draft with numbered sources, where you change all text. The `.docx` comes last, in
+  your house style: cover, headers and footers, numbered headings, table look and table of contents. What the cover needs
+  is entered once per project. A fast model does the small work (notes per page, spelling), a heavy one the writing; on a
+  Mac where two do not fit, one model does everything.
 - **Works out the Mac it runs on**: the system check at every start (sidebar → **Systeem**) checks the engine, the
   download tools, the models, disk space, the GPU limit and Apple's developer tools; it lifts macOS's quarantine block
   on the engine by itself and offers the rest with one button. It recommends the best model that fits whole in this

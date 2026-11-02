@@ -82,8 +82,15 @@ final class SnapshotTests: XCTestCase {
         try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: projects) }
         app.documents.choose(folder: projects)
-        app.documents.useTemplate(URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sjabloon.docx"))
-        app.documents.newDraft(name: "Quick scan")
+        let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sjabloon.docx")
+        app.documents.useHouseStyle(fixture)
+        app.documents.addAttachment(fixture)
+        app.documents.page = .project
+        try shot(withBackground(DocumentsView(), app: app), app: app, name: "documents-project", dark: true)
+        app.documents.page = .newDocument
+        try shot(withBackground(DocumentsView(), app: app), app: app, name: "documents-new", dark: true)
+        app.documents.newDocument(name: "Quick scan")
+        app.documents.text = "---\ntitel: Quick scan\nKlant: Gemeente Voorbeeld\n---\n\n# Inleiding\n\nTekst van het concept.\n"
         try shot(withBackground(DocumentsView(), app: app), app: app, name: "documents", dark: true)
 
         // the models as the Mac Studio M1 sees them

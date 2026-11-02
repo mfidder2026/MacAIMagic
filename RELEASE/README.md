@@ -1,6 +1,6 @@
-# MacAIMagic 1.9 (macOS, Apple Silicon)
+# MacAIMagic 1.9.1 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,15 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.1-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B). As a cluster helper any amount of memory helps.
+
+New in 1.9.1:
+- **Projects.** A project holds attachments, one house style and its documents. What the cover needs is entered once, and a value found in one document is known for the next.
+- **Attachments first, house style last.** Say "make an AQS": the model looks in the attachments for what the document must consist of, searches the web only for what they do not say, and the house style is applied to the finished draft as layout only. A single question gets a short structure of its own.
+- **The house style keeps its own name**, and the input field and buttons are larger and easier to read.
+- The client's details stay off the search engine, and each page is judged against the search question that found it.
 
 New in 1.9:
 - **Documents without cloud AI** (sidebar → Documenten). A project is a folder with its house style in `huisstijl.docx`. All text is changed in a Markdown draft, and the Word file comes last, in that house style: cover, headers and footers, numbered headings, table look and table of contents come from your own template.

@@ -161,10 +161,16 @@ enum SearchQuery {
         Rx("\\b\\d[\\d.,]{5,}\\d\\b"),                                                             // other long numbers
     ]
 
-    /// The question without e-mail addresses, bank and phone numbers, amounts and long numbers. Years and article numbers stay.
-    static func clean(_ query: String) -> String {
+    /// The question without e-mail addresses, bank and phone numbers, amounts, long numbers and the `sensitive` terms
+    /// (the client, the author). Years and article numbers stay.
+    static func clean(_ query: String, sensitive: [String] = []) -> String {
         var out = query
         for p in patterns { out = p.replace(out) { _ in " " } }
+        for term in sensitive.sorted(by: { $0.count > $1.count }) {
+            let escaped = NSRegularExpression.escapedPattern(for: term.trimmingCharacters(in: .whitespacesAndNewlines))
+            guard !escaped.isEmpty else { continue }
+            out = Rx("(?<!\\w)" + escaped + "(?!\\w)", .caseInsensitive).replace(out) { _ in " " }
+        }
         out = Rx("\\s+([,.;:])").replace(out) { $0.first ?? "" }
         return Rx("\\s{2,}").replace(out) { _ in " " }.trimmingCharacters(in: CharacterSet(charactersIn: " ,;:-\n\t"))
     }

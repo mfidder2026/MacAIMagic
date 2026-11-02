@@ -119,20 +119,18 @@ final class DocumentEngineTests: XCTestCase {
         XCTAssertEqual(table?.rows, [["A", "B"], ["1", "2"]])
     }
 
-    func testTemplateBecomesADraftAndBack() throws {
-        let draft = try DocxCompose.draft(template: try template())
-        let parsed = DocumentDraft(markdown: draft)
-        let keys = Set(parsed.fields.map { DocxFields.normalized($0.key) })
-        XCTAssertTrue(keys.isSuperset(of: ["klant", "versie"]), "\(keys)")
-        XCTAssertTrue(parsed.body.contains("# Inleiding"))
-        XCTAssertTrue(parsed.body.contains("<!-- "), "the template's instructions stay for the model")
-        XCTAssertEqual(DocumentDraft(markdown: draft), parsed)
+    func testATemplateIsReadWhole() throws {
+        let text = try DocxCompose.templateText(template: try template())
+        XCTAssertTrue(text.contains("Architecture Quick Scan"), "what stands before the first heading too")
+        XCTAssertTrue(text.contains("# Inleiding"))
+        XCTAssertTrue(text.contains("<!-- "), "its instructions, marked as such")
+    }
 
-        let out = output("terug")
-        let report = try DocxCompose.build(template: try template(), markdown: draft, to: out)
+    func testCommentsStayOutOfTheDocument() throws {
+        let out = output("commentaar")
+        let report = try DocxCompose.build(template: try template(), markdown: "# Kop\n\n<!-- instructie: niet tonen -->\n\nTekst.\n", to: out)
         XCTAssertEqual(report.problems, [])
-        let text = DocModel(try DocxPackage(url: out)).blocks.map(\.text).joined(separator: "\n")
-        XCTAssertFalse(text.contains("instructie:"), "comments stay out of the document")
+        XCTAssertFalse(DocModel(try DocxPackage(url: out)).blocks.map(\.text).joined().contains("niet tonen"))
     }
 
     func testEmptyFieldsAreReported() throws {

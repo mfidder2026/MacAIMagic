@@ -96,7 +96,7 @@ enum DocxCompose {
         }
         report.blocks = elements.count
 
-        var values = Dictionary(draft.fields.map { ($0.key, $0.value) }, uniquingKeysWith: { a, _ in a })
+        var values = Dictionary(draft.fields.filter { !DocumentDraft.isEmptyField($0.value) }.map { ($0.key, $0.value) }, uniquingKeysWith: { a, _ in a })
         // the title goes on the cover under either name, unless the draft says otherwise
         if let title = draft.title {
             let given = Set(values.keys.map(DocxFields.normalized))
@@ -118,24 +118,14 @@ enum DocxCompose {
         return report
     }
 
-    /// A template as a draft: its fields on top, its body as Markdown, and its instructions as comments for the model.
-    /// They stay out of the document.
-    static func draft(template: Data) throws -> String {
-        let pkg = try DocxPackage(data: template)
-        let model = DocModel(pkg)
-        let start = model.bodyStart
-        let front = start < model.blocks.count ? model.blocks[start].element : nil
-        var parts: [String] = []
-        for b in model.blocks[start...] {
-            if HouseStyle.isGuidance(b) {
-                let t = b.text.trimmingCharacters(in: CharacterSet(charactersIn: "[]<>{} \n\t"))
-                if !t.isEmpty { parts.append("<!-- " + L("instructie") + ": " + t.replacingOccurrences(of: "--", with: "–") + " -->") }
-            } else if let md = DocxMarkdown.block(b) {
-                parts.append(md)
-            }
-        }
-        let fields = DocxFields.placeholders(pkg, frontUntil: front).filter { $0.source != "coreproperty" }.map { (key: $0.label, value: $0.current) }
-        return DocumentDraft(fields: fields, body: parts.joined(separator: "\n\n") + "\n").markdown
+    /// All text of a template for the model to read, also what stands before the first heading.
+    static func templateText(template: Data) throws -> String {
+        let model = DocModel(try DocxPackage(data: template))
+        return model.blocks.compactMap { b -> String? in
+            if b.kind == .toc { return nil }
+            if HouseStyle.isGuidance(b) { return "<!-- " + b.text.trimmingCharacters(in: .whitespacesAndNewlines) + " -->" }
+            return DocxMarkdown.block(b)
+        }.joined(separator: "\n\n")
     }
 
     /// The images inside the template, which its draft refers to by their name in the package.

@@ -398,7 +398,7 @@ final class OutsideFolderIntegrationTests: XCTestCase {
 /// MACAIMAGIC_DOC_TEST=<dir> with no engine running. Uses other ports than the app's. MACAIMAGIC_DOC_HEAVY: the heavy model.
 @MainActor
 final class DocumentsIntegrationTests: XCTestCase {
-    func testResearchTemplateAndDelivery() async throws {
+    func testAttachmentsWebAndHouseStyle() async throws {
         let env = ProcessInfo.processInfo.environment
         guard let out = env["MACAIMAGIC_DOC_TEST"] else { throw XCTSkip("no folder") }
         let folder = URL(fileURLWithPath: out, isDirectory: true)
@@ -412,7 +412,7 @@ final class DocumentsIntegrationTests: XCTestCase {
         let studio = DocumentStudio(folder: folder)
         studio.endpoint = { role in try await app.documentEngines.endpoint(role) }
         studio.contextLimit = { app.chat.contextLimit }
-        print("DOC plan: fast \(app.documentEngines.fastChoice?.id ?? "none"), heavy fits \(app.plan?.fitsInMemory ?? false), resident \(app.plan?.resident ?? 0)")
+        print("DOC plan: fast \(app.documentEngines.fastChoice?.id ?? "none"), heavy fits \(app.plan?.fitsInMemory ?? false)")
         defer {
             app.engine.stop()
             app.documentEngines.fast.stop()
@@ -420,42 +420,40 @@ final class DocumentsIntegrationTests: XCTestCase {
         func wait(_ what: String) async throws {
             let t0 = Date()
             while studio.busy && Date().timeIntervalSince(t0) < 1800 { try await Task.sleep(for: .milliseconds(300)) }
-            for s in studio.steps { print("  [\(s.state)] \(s.text.prefix(120))") }
+            for s in studio.steps { print("  [\(s.state)] \(s.text.prefix(240))") }
             print("DOC \(what): \(Int(Date().timeIntervalSince(t0))) s, problem \(studio.problem ?? "none"), notes \(studio.notes)")
         }
 
-        studio.research(question: env["MACAIMAGIC_DOC_QUESTION"] ?? "Hoeveel geheugen kan de Mac Studio met M3 Ultra maximaal hebben, en hoe snel is de Thunderbolt-aansluiting ervan?")
-        try await wait("research")
-        XCTAssertNil(studio.problem)
-        XCTAssertTrue(studio.text.contains("http"), "the draft has its sources")
-        print(studio.text)
-        studio.deliver()
-        print("DOC plain docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
-        XCTAssertEqual(studio.report?.problems, [])
-
-        // the same draft in a house style, then a quick action
+        // the attachment says what the document consists of; the house style is only the layout
         let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sjabloon.docx")
-        studio.useTemplate(fixture)
-        studio.selection = NSRange(location: (studio.text as NSString).range(of: "Samenvatting").location, length: 0)
+        studio.useHouseStyle(fixture)
+        let requirements = folder.appendingPathComponent("eisen-aqs-bron.txt")
+        try "Een AQS (Architecture Quick Scan) bestaat altijd uit precies deze onderdelen: 1. Aanleiding, 2. Huidige situatie, 3. Risico's, 4. Wettelijk kader, 5. Advies. Klant: Gemeente Voorbeeld, versie 0.2, auteur M. Fidder. De gemeente draait een verouderde zaaksysteem-koppeling; er is geen MFA op beheeraccounts en de back-up is niet getest. Advies: eerst MFA, dan back-uptest, dan vervanging van de koppeling.".write(to: requirements, atomically: true, encoding: .utf8)
+        studio.addAttachment(requirements)
+        try FileManager.default.removeItem(at: requirements)
+
+        studio.make(request: "Maak een AQS", useWeb: true)
+        try await wait("aqs")
+        XCTAssertNil(studio.problem)
+        print(studio.text)
+        print("DOC sections:", DraftSections.list(studio.text).map(\.title))
+        studio.selection = NSRange(location: (studio.text as NSString).range(of: "# ").location, length: 0)
         let quick = Date()
         studio.apply(.shorter)
         try await wait("quick action")
         print("DOC quick action took", Date().timeIntervalSince(quick))
-        print(DraftSections.list(studio.text).first.map { (studio.text as NSString).substring(with: $0.range) } ?? "")
         studio.deliver()
-        print("DOC house style docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
+        print("DOC docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
         XCTAssertEqual(studio.report?.problems, [])
 
-        // from the template: the sections written from a brief
-        studio.newDraft(name: "Quick scan")
-        studio.writeDraft(brief: "Architectuur quick scan voor klant Gemeente Voorbeeld, versie 0.2, auteur M. Fidder. De gemeente draait een verouderde zaaksysteem-koppeling; er is geen MFA op beheeraccounts en de back-up is niet getest. Advies: eerst MFA, dan back-uptest, dan vervanging van de koppeling.")
-        try await wait("template")
+        // a question without anything about it in the attachments goes to the web
+        studio.make(request: "Hoeveel geheugen kan de Mac Studio met M3 Ultra maximaal hebben?", useWeb: true)
+        try await wait("question")
         XCTAssertNil(studio.problem)
         print(studio.text)
         studio.deliver()
-        print("DOC template docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
+        print("DOC second docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
         XCTAssertEqual(studio.report?.problems, [])
         print("DOC engines: heavy \(app.engine.state) fast \(app.documentEngines.fast.state)")
     }
 }
-

@@ -44,6 +44,8 @@ final class Settings: ObservableObject {
     @AppStorage("workspaceTools") var workspaceTools = true
     /// The project open in the documents module.
     @AppStorage("documentFolder") var documentFolder = ""
+    /// The folders of the projects, one per line.
+    @AppStorage("documentProjects") var documentProjects = ""
     /// MACAIMAGIC.md in the work folder keeps what the model learned, so it does not make a mistake twice.
     @AppStorage("learnFromChats") var learnFromChats = true
     /// What the model may do in the work folder, per kind of action: "allow", "ask" or "deny".

@@ -55,13 +55,17 @@ vorige keer).
 
 ## Documenten
 
-Bewerk Word-documenten zonder cloud-AI (zijbalk → **Documenten**). Een project is een map met de huisstijl in
-`huisstijl.docx`. Alle tekst pas je aan in een concept in Markdown; het `.docx`-bestand komt als laatste, precies in die
-huisstijl: voorblad, kop- en voettekst, genummerde koppen, tabelopmaak en inhoudsopgave komen uit je eigen sjabloon.
+Maak Word-documenten zonder cloud-AI (zijbalk → **Documenten**). Een project is een map met:
 
-Stel je een vraag, dan zoekt de app eerst online, leest de pagina's en schrijft een concept met genummerde bronnen. Het
-Word-bestand volgt als jij het goedkeurt. Een snel model doet het kleine werk (zoekvragen, notities, spelling), een
-zwaar model het schrijven; op een Mac waar er geen twee passen, doet één model alles.
+- **Bijlagen**: de context en informatie, bijvoorbeeld waar een AQS uit moet bestaan.
+- **Huisstijl**: alleen de opmaak. Die komt als laatste: voorblad, kop- en voettekst, genummerde koppen, tabelopmaak en inhoudsopgave.
+- **Gegevens voor het voorblad**: die vul je per project één keer in.
+
+Zeg je "maak een AQS", dan kijkt het model eerst in de bijlagen waaruit het document moet bestaan. Wat daar niet staat, zoals
+het onderwerp en regelgeving, zoekt het op internet. Klantgegevens gaan niet mee naar de zoekmachine. Daarna schrijft het
+een concept in Markdown met genummerde bronnen, waarin je alle tekst aanpast. Het `.docx`-bestand komt pas als jij het
+goedkeurt. Een snel model doet het kleine werk (notities per pagina, spelling), een zwaar model het schrijven; op een Mac
+waar er geen twee passen, doet één model alles.
 
 Nog niet in deze versie: vertalen en corrigeren in het Word-bestand zelf met bijgehouden wijzigingen, en opmerkingen.
 
