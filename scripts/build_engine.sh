@@ -28,10 +28,19 @@ done
 
 # GGML_NATIVE=OFF: portable, Apple clang targets the M1 baseline, so the engine runs on every Apple Silicon Mac
 # GGML_RPC=ON: several Macs as one (the helper Mac runs ggml-rpc-server, the main Mac uses --rpc)
+# LLAMA_OPENSSL=OFF: otherwise the binaries link Homebrew's OpenSSL and do not start on a Mac without it;
+# the engine needs no HTTPS (the app downloads models with curl)
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
   -DGGML_METAL=ON -DGGML_METAL_EMBED_LIBRARY=ON -DGGML_NATIVE=OFF -DGGML_RPC=ON \
-  -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DLLAMA_BUILD_TESTS=OFF
+  -DBUILD_SHARED_LIBS=OFF -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_TESTS=OFF
 cmake --build build -j "$(sysctl -n hw.ncpu)" --target llama-server llama-bench llama-cli llama-perplexity ggml-rpc-server
+
+# every binary may only use libraries that come with macOS, or it fails on another Mac
+for b in build/bin/llama-server build/bin/llama-bench build/bin/llama-cli build/bin/llama-perplexity build/bin/ggml-rpc-server; do
+  if otool -L "$b" | tail -n +2 | awk '{print $1}' | grep -v -E '^/(System|usr/lib)/'; then
+    echo "fout: $(basename "$b") gebruikt een bibliotheek die niet bij macOS hoort (zie hierboven)"; exit 1
+  fi
+done
 
 mkdir -p "$ROOT/engine/bin"
 cp build/bin/llama-server build/bin/llama-bench build/bin/llama-cli build/bin/llama-perplexity build/bin/ggml-rpc-server "$ROOT/engine/bin/"

@@ -36,8 +36,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>MacAIMagic</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.6.1</string>
-  <key>CFBundleVersion</key><string>17</string>
+  <key>CFBundleShortVersionString</key><string>1.6.2</string>
+  <key>CFBundleVersion</key><string>18</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
@@ -47,5 +47,26 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$APP"
+# Signing: with a Developer ID certificate when this Mac has one (or SIGN_ID names it), otherwise ad hoc.
+# Hardened runtime on every binary, as notarization requires; inner binaries first, the app last.
+SIGN_ID="${SIGN_ID:-$(security find-identity -v -p codesigning | grep -o '"Developer ID Application[^"]*"' | head -1 | tr -d '"' || true)}"
+if [ -n "$SIGN_ID" ]; then SIGN=(--sign "$SIGN_ID" --timestamp); else SIGN=(--sign -); fi
+for b in "$APP"/Contents/Resources/engine/*; do codesign --force --options runtime "${SIGN[@]}" "$b"; done
+codesign --force --options runtime --entitlements "$ROOT/scripts/MacAIMagic.entitlements" "${SIGN[@]}" "$APP"
+codesign --verify --strict --deep "$APP"
+echo "ondertekend: ${SIGN_ID:-ad hoc}"
+
+# Notarization by Apple, when signed with Developer ID and the credentials are stored
+# (once: xcrun notarytool store-credentials macaimagic --apple-id … --team-id … --password <app-specific password>)
+NOTARY_PROFILE="${NOTARY_PROFILE:-macaimagic}"
+if [ -n "$SIGN_ID" ] && xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+  ZIP="$ROOT/dist/MacAIMagic-notarize.zip"
+  ditto -c -k --keepParent "$APP" "$ZIP"
+  xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
+  xcrun stapler staple "$APP"
+  rm -f "$ZIP"
+  spctl --assess --type execute -vv "$APP"
+elif [ -n "$SIGN_ID" ]; then
+  echo "let op: niet genotariseerd, er zijn geen notarytool-gegevens onder '$NOTARY_PROFILE'"
+fi
 echo "klaar: $APP"
