@@ -66,7 +66,8 @@ comes from the internal SSD.
   RPC) and announces itself with Bonjour; the main Mac finds it, and the model's layers are spread over all GPUs in
   proportion to their memory. See [Cluster](#cluster).
 - Streaming chat with markdown and code blocks (with a copy button)
-- **Thinking** on/off, with a collapsible chain of thought and a reasoning-effort setting
+- **Thinking** on/off, with a collapsible chain of thought, a reasoning-effort setting and a limit on thinking
+  (16,000 tokens by default), after which the model writes its answer
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
   what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACAIMAGIC.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.

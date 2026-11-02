@@ -52,6 +52,7 @@ final class SnapshotTests: XCTestCase {
         try shot(live, app: app, name: "live", dark: true)
         try shot(withBackground(CompareView(), app: app), app: app, name: "compare", dark: true)
         try shot(withBackground(ClusterView(), app: app), app: app, name: "cluster", dark: true)
+        try shot(SettingsView(), app: app, name: "settings", dark: true)
     }
 
     private func withBackground(_ v: some View, app: AppState) -> some View {

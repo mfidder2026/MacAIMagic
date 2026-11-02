@@ -1,6 +1,6 @@
-# MacAIMagic 1.6 (macOS, Apple Silicon)
+# MacAIMagic 1.6.1 (macOS, Apple Silicon)
 
-`MacAIMagic-1.6-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.6.1-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip and move `MacAIMagic.app` to `/Applications`.
@@ -8,9 +8,11 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    `xattr -dr com.apple.quarantine /Applications/MacAIMagic.app`.
 3. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.6-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.6.1-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. As the main Mac it needs 128 GB for the models in this app; as a cluster helper any amount of memory helps.
+
+New in 1.6.1: a limit on thinking (Settings → Maximaal nadenken, 16,000 tokens by default). Without it a model can keep doubting on a hard question and never answer: in a test, GLM-5.3 thought for 32,000 tokens five times over a C64 sprite program without writing a line; with the limit it wrote a working program on its second try.
 
 New in 1.6: the app is called MacAIMagic (formerly MacDeepSeek), because it runs more models than DeepSeek alone. On first start it moves its folder in `~/Library/Application Support` (models, conversations, measurements) and its settings over from the former name; a work folder's notes file under the former name still works.
 

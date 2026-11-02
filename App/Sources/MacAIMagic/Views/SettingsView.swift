@@ -18,6 +18,12 @@ struct SettingsView: View {
                         Text(L("Laag")).tag("low"); Text(L("Gemiddeld")).tag("medium")
                         Text(L("Hoog")).tag("high"); Text(L("Maximaal")).tag("max")
                     }
+                    Picker(L("Maximaal nadenken"), selection: $settings.thinkingBudget) {
+                        ForEach([4_000, 8_000, 16_000, 32_000], id: \.self) { Text(L("\($0.formatted()) tokens")).tag($0) }
+                        Text(L("Onbeperkt")).tag(0)
+                    }
+                    Text(L("Daarna schrijft het model zijn antwoord. Zonder grens kan een model bij een lastige vraag blijven twijfelen en nooit antwoorden."))
+                        .font(.caption).foregroundStyle(.secondary)
                     Slider(value: $settings.temperature, in: 0...1.5, step: 0.1) {
                         Text(L("Temperatuur \(settings.temperature, specifier: "%.1f")"))
                     }

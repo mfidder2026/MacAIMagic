@@ -299,6 +299,11 @@ final class ChatClient: ObservableObject {
             // enable_thinking is understood by both templates (DeepSeek maps it to thinking_mode)
             "chat_template_kwargs": ["enable_thinking": s.thinking, "reasoning_effort": s.reasoningEffort],
         ]
+        // without a limit a model can keep doubting on a hard question and never get to its answer
+        if s.thinking && s.thinkingBudget > 0 {
+            body["thinking_budget_tokens"] = s.thinkingBudget
+            body["reasoning_budget_message"] = "\n\n" + L("Genoeg nagedacht; nu schrijf ik het antwoord.") + "\n"
+        }
         var tools: [[String: Any]] = s.webSearch ? WebTools.definitions : []
         if s.workspaceTools && WorkspaceTools.workspace != nil { tools += WorkspaceTools.definitions }
         if !tools.isEmpty { body["tools"] = tools }
