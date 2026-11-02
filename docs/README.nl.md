@@ -53,6 +53,18 @@ vorige keer).
 - **Werkmap per chat**: het model kan in een map die jij per gesprek kiest bestanden lezen, maken en aanpassen, scripts starten en logs
   lezen. Wat het mag, stel je in met het knopje **L S U** (lezen, schrijven, uitvoeren) naast de werkmap: per soort Toestaan, Eerst vragen of Weigeren (standaard mag lezen en vraagt de rest eerst). Een bestand `MACAIMAGIC.md` in de werkmap geeft het model vaste instructies voor die map, bijvoorbeeld hoe het een emulator start. Algemene instructies voor elk gesprek zet je in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Instellingen → Chat → Open bestand). Beide worden bij elk bericht opnieuw gelezen.
 
+## Documenten
+
+Bewerk Word-documenten zonder cloud-AI (zijbalk → **Documenten**). Een project is een map met de huisstijl in
+`huisstijl.docx`. Alle tekst pas je aan in een concept in Markdown; het `.docx`-bestand komt als laatste, precies in die
+huisstijl: voorblad, kop- en voettekst, genummerde koppen, tabelopmaak en inhoudsopgave komen uit je eigen sjabloon.
+
+Stel je een vraag, dan zoekt de app eerst online, leest de pagina's en schrijft een concept met genummerde bronnen. Het
+Word-bestand volgt als jij het goedkeurt. Een snel model doet het kleine werk (zoekvragen, notities, spelling), een
+zwaar model het schrijven; op een Mac waar er geen twee passen, doet één model alles.
+
+Nog niet in deze versie: vertalen en corrigeren in het Word-bestand zelf met bijgehouden wijzigingen, en opmerkingen.
+
 ## Cluster
 
 Verbind meerdere Macs met Thunderbolt en gebruik hun geheugen samen. Op de extra Macs kies je in MacAIMagic onder

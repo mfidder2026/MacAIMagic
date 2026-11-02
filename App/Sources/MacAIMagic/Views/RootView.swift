@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Pane: Hashable { case live, models, compare, cluster, system, chat(Conversation.ID) }
+enum Pane: Hashable { case live, models, documents, compare, cluster, system, chat(Conversation.ID) }
 
 struct RootView: View {
     @EnvironmentObject var app: AppState
@@ -20,6 +20,7 @@ struct RootView: View {
                     switch pane {
                     case .live?: LiveView()
                     case .models?, nil: ModelsView()
+                    case .documents?: DocumentsView()
                     case .compare?: CompareView()
                     case .cluster?: ClusterView()
                     case .system?: SystemView { pane = $0 }
@@ -80,6 +81,7 @@ struct Sidebar: View {
             Section {
                 Label(L("Live"), systemImage: "waveform.path.ecg").tag(Pane.live)
                 Label(L("Modellen"), systemImage: "square.stack.3d.up").tag(Pane.models)
+                Label(L("Documenten"), systemImage: "doc.richtext").tag(Pane.documents)
                 Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
                 Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
                 Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)

@@ -16,6 +16,11 @@ enum WorkspaceNotes {
         return !FileManager.default.fileExists(atPath: current.path) && FileManager.default.fileExists(atPath: former.path) ? former : current
     }
 
+    /// Is this file the notes of a folder, not a draft next to them?
+    static func isNotes(_ file: URL) -> Bool {
+        ["MACAIMAGIC.md", "MAC" + "DEEPSEEK.md"].contains(file.lastPathComponent)
+    }
+
     /// The notes for the system prompt: when they are long, the start (the user's instructions) and the end (the newest lessons).
     static func forPrompt(in folder: URL) -> String? {
         guard let text = try? String(contentsOf: url(in: folder), encoding: .utf8), !text.isEmpty else { return nil }

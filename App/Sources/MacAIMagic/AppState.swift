@@ -13,6 +13,8 @@ final class AppState: ObservableObject {
     let bench = BenchmarkRunner()
     let cluster = ClusterController()
     let check = SystemCheck()
+    let documents = DocumentStudio()
+    private(set) lazy var documentEngines = DocumentEngines(app: self)
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
         didSet { loadIndex(); objectWillChange.send() }
@@ -32,6 +34,11 @@ final class AppState: ObservableObject {
             }
         }
         loadIndex()
+        documents.endpoint = { [weak self] role in
+            guard let self else { throw CancellationError() }
+            return try await self.documentEngines.endpoint(role)
+        }
+        documents.contextLimit = { [weak self] in self?.chat.contextLimit ?? 32_768 }
     }
 
     var selectedModel: ModelInfo? { models.catalog.model(selectedModelID) ?? models.catalog.models.first }
@@ -101,7 +108,10 @@ final class AppState: ObservableObject {
         case .running, .starting: wasActive = true
         default: wasActive = false
         }
-        if wasActive && engine.model?.id != id { await engine.stopAndWait() }
+        if wasActive && engine.model?.id != id {
+            await engine.stopAndWait()
+            await documentEngines.fast.stopAndWait()     // what fits next to the new model is worked out again
+        }
         selectedModelID = id
         if wasActive && engine.model?.id != id && canStart { startEngine() }
     }

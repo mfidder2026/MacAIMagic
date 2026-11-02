@@ -22,7 +22,18 @@ final class EngineController: ObservableObject {
     private var logHandle: FileHandle?
     private var healthTask: Task<Void, Never>?
 
-    var baseURL: URL { URL(string: "http://\(Settings.shared.host):\(Settings.shared.port)")! }
+    /// A second engine next to the app's own: its own port, only reachable from this Mac, and its own log.
+    private let fixedPort: Int?
+    private let logFile: URL
+
+    init(port: Int? = nil, logFile: URL = Paths.engineLog) {
+        fixedPort = port
+        self.logFile = logFile
+    }
+
+    private var host: String { fixedPort == nil ? Settings.shared.host : "127.0.0.1" }
+    private var port: Int { fixedPort ?? Settings.shared.port }
+    var baseURL: URL { URL(string: "http://\(host):\(port)")! }
 
     /// The model the engine runs (or last ran).
     @Published private(set) var model: ModelInfo?
@@ -31,7 +42,7 @@ final class EngineController: ObservableObject {
         let s = Settings.shared
         var args = [
             "--model", shards[0].path,
-            "--host", s.host, "--port", String(s.port),
+            "--host", host, "--port", String(port),
             "--ctx-size", String(plan.contextSize),
             "--n-gpu-layers", "999",
             "--flash-attn", "on",
@@ -103,8 +114,8 @@ final class EngineController: ObservableObject {
         }
         p.environment = env
 
-        FileManager.default.createFile(atPath: Paths.engineLog.path, contents: nil)
-        logHandle = try? FileHandle(forWritingTo: Paths.engineLog)
+        FileManager.default.createFile(atPath: logFile.path, contents: nil)
+        logHandle = try? FileHandle(forWritingTo: logFile)
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = pipe

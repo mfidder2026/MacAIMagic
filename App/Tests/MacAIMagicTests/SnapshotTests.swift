@@ -77,6 +77,15 @@ final class SnapshotTests: XCTestCase {
             try shot(withBackground(ChatView(conversationID: c.id, scrollToEnd: false), app: app), app: app, name: name, dark: true)
         }
 
+        // the documents module with a real draft in it
+        let projects = dir.appendingPathComponent("project-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: projects) }
+        app.documents.choose(folder: projects)
+        app.documents.useTemplate(URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sjabloon.docx"))
+        app.documents.newDraft(name: "Quick scan")
+        try shot(withBackground(DocumentsView(), app: app), app: app, name: "documents", dark: true)
+
         // the models as the Mac Studio M1 sees them
         app.simulatedSystem = SystemInfo(chip: "Apple M1 Max", physicalMemory: 32 << 30, performanceCores: 8,
                                          gpuWorkingSet: 23_000_000_000, wiredLimitMB: 0, freeDisk: 900_000_000_000)
@@ -124,7 +133,7 @@ final class SnapshotTests: XCTestCase {
         let root = view
             .environmentObject(app).environmentObject(app.engine).environmentObject(app.models)
             .environmentObject(app.store).environmentObject(app.chat).environmentObject(Settings.shared)
-            .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster).environmentObject(app.check)
+            .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster).environmentObject(app.check).environmentObject(app.documents)
             .tint(Theme.accent)
             .frame(width: size.width, height: size.height)
             .background(Color(nsColor: .windowBackgroundColor))

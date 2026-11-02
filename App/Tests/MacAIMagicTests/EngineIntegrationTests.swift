@@ -393,3 +393,69 @@ final class OutsideFolderIntegrationTests: XCTestCase {
         XCTAssertTrue(after.messages.last?.text.contains(find) == true)
     }
 }
+
+/// The documents module with real models and the real web, the way the app runs them.
+/// MACAIMAGIC_DOC_TEST=<dir> with no engine running. Uses other ports than the app's. MACAIMAGIC_DOC_HEAVY: the heavy model.
+@MainActor
+final class DocumentsIntegrationTests: XCTestCase {
+    func testResearchTemplateAndDelivery() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let out = env["MACAIMAGIC_DOC_TEST"] else { throw XCTSkip("no folder") }
+        let folder = URL(fileURLWithPath: out, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let saved = (Settings.shared.port, Settings.shared.host, Settings.shared.vision)
+        defer { (Settings.shared.port, Settings.shared.host, Settings.shared.vision) = saved }
+        (Settings.shared.port, Settings.shared.host, Settings.shared.vision) = (8092, "127.0.0.1", false)
+
+        let app = AppState()
+        app.selectedModelID = env["MACAIMAGIC_DOC_HEAVY"] ?? "qwen3.8-flash-next-q4"
+        let studio = DocumentStudio(folder: folder)
+        studio.endpoint = { role in try await app.documentEngines.endpoint(role) }
+        studio.contextLimit = { app.chat.contextLimit }
+        print("DOC plan: fast \(app.documentEngines.fastChoice?.id ?? "none"), heavy fits \(app.plan?.fitsInMemory ?? false), resident \(app.plan?.resident ?? 0)")
+        defer {
+            app.engine.stop()
+            app.documentEngines.fast.stop()
+        }
+        func wait(_ what: String) async throws {
+            let t0 = Date()
+            while studio.busy && Date().timeIntervalSince(t0) < 1800 { try await Task.sleep(for: .milliseconds(300)) }
+            for s in studio.steps { print("  [\(s.state)] \(s.text.prefix(120))") }
+            print("DOC \(what): \(Int(Date().timeIntervalSince(t0))) s, problem \(studio.problem ?? "none"), notes \(studio.notes)")
+        }
+
+        studio.research(question: env["MACAIMAGIC_DOC_QUESTION"] ?? "Hoeveel geheugen kan de Mac Studio met M3 Ultra maximaal hebben, en hoe snel is de Thunderbolt-aansluiting ervan?")
+        try await wait("research")
+        XCTAssertNil(studio.problem)
+        XCTAssertTrue(studio.text.contains("http"), "the draft has its sources")
+        print(studio.text)
+        studio.deliver()
+        print("DOC plain docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
+        XCTAssertEqual(studio.report?.problems, [])
+
+        // the same draft in a house style, then a quick action
+        let fixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/sjabloon.docx")
+        studio.useTemplate(fixture)
+        studio.selection = NSRange(location: (studio.text as NSString).range(of: "Samenvatting").location, length: 0)
+        let quick = Date()
+        studio.apply(.shorter)
+        try await wait("quick action")
+        print("DOC quick action took", Date().timeIntervalSince(quick))
+        print(DraftSections.list(studio.text).first.map { (studio.text as NSString).substring(with: $0.range) } ?? "")
+        studio.deliver()
+        print("DOC house style docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
+        XCTAssertEqual(studio.report?.problems, [])
+
+        // from the template: the sections written from a brief
+        studio.newDraft(name: "Quick scan")
+        studio.writeDraft(brief: "Architectuur quick scan voor klant Gemeente Voorbeeld, versie 0.2, auteur M. Fidder. De gemeente draait een verouderde zaaksysteem-koppeling; er is geen MFA op beheeraccounts en de back-up is niet getest. Advies: eerst MFA, dan back-uptest, dan vervanging van de koppeling.")
+        try await wait("template")
+        XCTAssertNil(studio.problem)
+        print(studio.text)
+        studio.deliver()
+        print("DOC template docx:", studio.report?.url?.path ?? "none", studio.report?.problems ?? [], studio.report?.warnings ?? [])
+        XCTAssertEqual(studio.report?.problems, [])
+        print("DOC engines: heavy \(app.engine.state) fast \(app.documentEngines.fast.state)")
+    }
+}
+

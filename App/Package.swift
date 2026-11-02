@@ -12,7 +12,8 @@ let package = Package(
         .testTarget(
             name: "MacAIMagicTests",
             dependencies: ["MacAIMagic"],
-            path: "Tests/MacAIMagicTests"
+            path: "Tests/MacAIMagicTests",
+            exclude: ["Fixtures"]
         ),
     ]
 )

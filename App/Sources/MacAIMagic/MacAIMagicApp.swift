@@ -21,6 +21,7 @@ struct MacAIMagicApp: App {
                 .environmentObject(app.bench)
                 .environmentObject(app.cluster)
                 .environmentObject(app.check)
+                .environmentObject(app.documents)
                 .environmentObject(Settings.shared)
                 .frame(minWidth: 1000, minHeight: 680)
                 .tint(Theme.accent)
@@ -55,6 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainActor.assumeIsolated {
             app?.store.save()
             app?.engine.stop()
+            app?.documentEngines.fast.stop()
+            app?.documents.save()
         }
     }
 

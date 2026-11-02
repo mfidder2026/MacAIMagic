@@ -36,11 +36,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>MacAIMagic</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.8.3</string>
-  <key>CFBundleVersion</key><string>24</string>
+  <key>CFBundleShortVersionString</key><string>1.9</string>
+  <key>CFBundleVersion</key><string>25</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSDocumentsFolderUsageDescription</key><string>MacAIMagic bewaart de concepten en documenten van een project in de map die je kiest.</string>
   <key>NSAppleEventsUsageDescription</key><string>MacAIMagic vraagt je wachtwoord om de GPU-geheugenlimiet te verhogen.</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>

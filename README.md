@@ -63,6 +63,12 @@ comes from the internal SSD.
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
 - **Six models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
   says for this Mac whether the model fits in memory, streams from the SSD, or is too big.
+- **Documents**: edit Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with its house
+  style in `huisstijl.docx`. All text is changed in a Markdown draft, and the `.docx` comes last, in exactly that house
+  style: cover, headers and footers, numbered headings, table look and table of contents come from your own template.
+  Ask a question and the app searches the web first, reads the pages, and writes a draft with numbered sources; the
+  Word file follows when you approve it. A fast model does the small work (search questions, notes, spelling), a heavy
+  one the writing; on a Mac where two do not fit, one model does everything.
 - **Works out the Mac it runs on**: the system check at every start (sidebar → **Systeem**) checks the engine, the
   download tools, the models, disk space, the GPU limit and Apple's developer tools; it lifts macOS's quarantine block
   on the engine by itself and offers the rest with one button. It recommends the best model that fits whole in this
@@ -258,7 +264,7 @@ without pushing the conversation's experts out of it.
 ## Project layout
 
 ```
-App/          SwiftUI app (Swift package) and tests
+App/          SwiftUI app (Swift package) and tests; App/Sources/MacAIMagic/Documents holds the Word engine
 patches/      llama.cpp patches and pinned commit
 scripts/      build_engine.sh, make_app.sh, run_engine.sh, stop_engine.sh, make_icon.swift
 tools/        models.json, download_model.sh, bench.py, speed_mix.py, stream_bench.py, stream_tune.sh, quality.sh, gguf_peek.py
