@@ -94,9 +94,11 @@ final class SystemCheck: ObservableObject {
         let downloading = models.downloading.contains(best.id)
         let model = Item(id: "model", title: L("Model"),
                          detail: downloading ? L("\(best.name) wordt gedownload.")
-                             : L("Nog geen model. Aanbevolen voor deze Mac met \(app.system.physicalMemory >> 30) GB: \(best.name) (\(best.totalSize.gbShort)), dat helemaal in het geheugen past.")
-                                + (models.catalog.models.contains { MemoryPlanner.fit($0, physical: app.system.physicalMemory) == .streams }
-                                   ? " " + L("De grotere modellen kun je ook gebruiken: die streamen van de SSD en zijn trager.") : ""),
+                             : MemoryPlanner.fit(best, physical: app.system.physicalMemory) == .streams
+                                ? L("Nog geen model. Aanbevolen voor deze Mac met \(app.system.physicalMemory >> 30) GB: \(best.name) (\(best.totalSize.gbShort)). Het streamt van de SSD; op zo weinig geheugen is dat nog niet gemeten en het kan traag zijn.")
+                                : L("Nog geen model. Aanbevolen voor deze Mac met \(app.system.physicalMemory >> 30) GB: \(best.name) (\(best.totalSize.gbShort)), dat helemaal in het geheugen past.")
+                                    + (models.catalog.models.contains { MemoryPlanner.fit($0, physical: app.system.physicalMemory) == .streams }
+                                       ? " " + L("De grotere modellen kun je ook gebruiken: die streamen van de SSD en zijn trager.") : ""),
                          state: .todo, action: downloading ? nil : (L("Naar Modellen"), .openModels))
         let enough = app.system.freeDisk > best.totalSize + (5 << 30)
         let disk = Item(id: "disk", title: L("Schijfruimte"),
@@ -109,7 +111,7 @@ final class SystemCheck: ObservableObject {
     private func gpuItem(_ app: AppState) -> Item? {
         guard let plan = app.plan, app.system.wiredLimitMB < plan.suggestedWiredLimitMB - 1024 else { return nil }
         // a model that streams is held back by the reserves, not by the limit: then raising it gains nothing
-        if !plan.fitsInMemory && plan.gpuLimit + MemoryPlanner.osHeadroom + MemoryPlanner.stagingReserve(plan.physical) >= plan.physical { return nil }
+        if !plan.fitsInMemory && plan.gpuLimit + MemoryPlanner.streamingHeadroom(plan.physical) + MemoryPlanner.stagingReserve(plan.physical) >= plan.physical { return nil }
         let target = (UInt64(plan.suggestedWiredLimitMB) << 20).gb
         return Item(id: "gpu", title: L("GPU-limiet"),
                     detail: L("Met een limiet van \(target) houdt de GPU meer van het model in het snelle geheugen. Vraagt je wachtwoord; geldt tot de Mac herstart."),
@@ -152,9 +154,11 @@ final class SystemCheck: ObservableObject {
             || FileManager.default.fileExists(atPath: "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild")
     }
 
-    /// The first model in the catalog (largest and best first) that fits whole in this Mac's memory.
+    /// The first model in the catalog (largest and best first) that fits whole in this Mac's memory; if none does, the
+    /// smallest that streams from the SSD.
     nonisolated static func recommended(_ models: [ModelInfo], physical: UInt64) -> ModelInfo? {
         models.first { MemoryPlanner.fit($0, physical: physical) == .fits }
+            ?? models.filter { MemoryPlanner.fit($0, physical: physical) == .streams }.min { $0.totalSize < $1.totalSize }
     }
 
     /// "llama.cpp <version>" when the engine runs, nil when it does not start.

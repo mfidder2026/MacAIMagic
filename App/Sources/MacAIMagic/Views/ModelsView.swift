@@ -77,10 +77,12 @@ private struct ModelCard: View {
                 case .fits: Badge(text: L("Past in geheugen"), icon: "memorychip", color: Theme.mint)
                 case .streams:
                     Badge(text: L("Streamt van SSD"), icon: "bolt.horizontal", color: Theme.amber)
-                    if let speed = model.speedOn32GB, app.system.physicalMemory < MemoryPlanner.roomyMemory {
+                    if MemoryPlanner.isSmallMac(app.system.physicalMemory) {
+                        Badge(text: L("Op \(app.system.physicalMemory >> 30) GB niet gemeten, kan traag zijn"), icon: "speedometer", color: Theme.amber)
+                    } else if let speed = model.speedOn32GB, app.system.physicalMemory < MemoryPlanner.roomyMemory {
                         Badge(text: L("\(speed) tok/s op 32 GB"), icon: "speedometer", color: Theme.amber)
                     }
-                case .tooBig: Badge(text: L("Te groot voor deze Mac"), icon: "xmark.octagon", color: Theme.pink)
+                case .tooBig: Badge(text: L("Waarschijnlijk te krap voor deze Mac, niet gemeten"), icon: "exclamationmark.triangle", color: Theme.amber)
                 }
                 if status.vision?.complete == true { Badge(text: L("Vision"), icon: "eye") }
                 if model.hasMTP { Badge(text: "MTP", icon: "forward.fill", color: Theme.violet) }

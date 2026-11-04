@@ -383,7 +383,7 @@ final class MachineFitTests: XCTestCase {
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(32).physicalMemory)?.id, "qwen3.6-35b-a3b-q4")
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(96).physicalMemory)?.id, "qwen3.8-flash-next-q4")
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(128).physicalMemory)?.id, "deepseek-v4.1-flash-compact")
-        XCTAssertNil(SystemCheck.recommended(models, physical: mac(16).physicalMemory), "16 GB: a helper, no model")
+        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(16).physicalMemory)?.id, "qwen3.6-35b-a3b-q4", "16 GB: it streams")
     }
 
     func testFitPerMac() {
@@ -582,3 +582,47 @@ final class ChatFolderTests: XCTestCase {
         XCTAssertTrue(WorkspaceTools.ToolError.outside("/Applications").localizedDescription.contains("run_command"))
     }
 }
+
+/// A Mac with 16 GB: the numbers only. Its behaviour has not been measured on a real one.
+final class SmallMacTests: XCTestCase {
+    private let sixteen: UInt64 = 16 << 30
+    private func model(_ id: String) throws -> ModelInfo { try XCTUnwrap(ModelCatalog.shared.model(id)) }
+
+    func testQwen36StreamsOn16GBAndIsRecommended() throws {
+        XCTAssertEqual(MemoryPlanner.fit(try model("qwen3.6-35b-a3b-q4"), physical: sixteen), .streams)
+        XCTAssertEqual(SystemCheck.recommended(ModelCatalog.shared.models, physical: sixteen)?.id, "qwen3.6-35b-a3b-q4")
+    }
+
+    func testAMacWithLessKeepsWarningInsteadOfCrashing() throws {
+        XCTAssertEqual(MemoryPlanner.fit(try model("qwen3.6-35b-a3b-q4"), physical: 8 << 30), .tooBig)
+        XCTAssertNil(SystemCheck.recommended(ModelCatalog.shared.models, physical: 8 << 30))
+    }
+
+    func testLargerMacsKeepTheirMeasuredReserves() {
+        for gb: UInt64 in [24, 32, 64, 128] {
+            XCTAssertEqual(MemoryPlanner.streamingHeadroom(gb << 30), MemoryPlanner.osHeadroom)
+            XCTAssertGreaterThanOrEqual(MemoryPlanner.stagingReserve(gb << 30), 4_500_000_000)
+        }
+    }
+
+    @MainActor func testThePlanOn16GBLeavesMemoryFree() throws {
+        let m = try model("qwen3.6-35b-a3b-q4")
+        guard ModelStore().status(m.id).isComplete else { throw XCTSkip("Qwen3.6 not downloaded") }
+        let index = try GGUFIndex.load(shards: ModelStore().shardURLs(m), sizes: m.files.map(\.size))
+        let system = SystemInfo(chip: "Apple M2", physicalMemory: sixteen, performanceCores: 4, gpuWorkingSet: 12_000_000_000, wiredLimitMB: 0, freeDisk: 100_000_000_000)
+        let context = try XCTUnwrap(MemoryPlanner.contextRoom(index: index, system: system, vision: false))
+        XCTAssertEqual(context, MemoryPlanner.tinyMacContext)
+        let plan = MemoryPlanner.plan(index: index, system: system, contextSize: context, vision: false)
+        print("PLAN16 cache \(plan.expertCache) dense \(plan.dense) overhead \(plan.overhead)")
+        XCTAssertGreaterThanOrEqual(plan.expertCache, 1_000_000_000, "a real expert cache, not only page faults")
+        XCTAssertLessThanOrEqual(plan.expertCache, MemoryPlanner.largestCacheOnSmallMac)
+        XCTAssertFalse(plan.fitsInMemory)
+        // what is held fast must leave macOS and the apps at least the headroom
+        XCTAssertLessThanOrEqual(plan.dense + plan.expertCache + plan.overhead + MemoryPlanner.streamingHeadroom(sixteen), sixteen)
+        if let out = ProcessInfo.processInfo.environment["MACAIMAGIC_PLAN16"] {
+            let args = EngineController().arguments(model: m, shards: ModelStore().shardURLs(m), plan: plan, vision: nil)
+            try args.joined(separator: "\n").write(toFile: out, atomically: true, encoding: .utf8)
+        }
+    }
+}
+
