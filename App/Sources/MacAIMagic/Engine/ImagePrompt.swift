@@ -6,36 +6,91 @@ import Foundation
 enum ImagePrompt {
     static let maxRounds = 4
 
+    /// Measured on the Eiffel Tower: a long Dutch description full of facts (324 metres, rivets, "a roof") drew a tower that
+    /// does not exist; "A photograph of the Eiffel Tower in Paris" drew the real one. The image model knows famous things by
+    /// their English name, reads English best, and draws every word it gets.
     static let instructions = """
-        You write descriptions for an image model that draws what it reads. Rewrite the user's description as one English \
-        paragraph of at most 80 words: the subject first, then what it looks like, the setting, the light and the style \
-        (photo, painting, drawing). Keep everything the user asked for and add nothing they did not want. When the description \
-        names something real whose look matters (a building, a place, a product, a person's public appearance, an art style) \
-        and you are not sure what it looks like, use web_search and then fetch_url on the best result, at most a few times. \
-        Describe it as the pages describe it: its material, colours, shape, towers or roofs. What you remember yourself may be \
-        wrong; the pages go first, and leave out what they do not say. Answer with the description only: no title, no quotes, \
+        You write the description an image model draws from. The image model reads English only and draws every word, so: \
+        write in English, whatever language the user wrote in. Start with what kind of picture it is and the subject by its \
+        common English name ("A photograph of the Eiffel Tower in Paris"). Then add only what can be seen: the view, the \
+        setting, the light, the colours, the style. No measurements, dates, history, materials or how it was built, and no \
+        details you are not sure of: a wrong detail ends up in the picture. Keep everything the user asked for. At most 60 \
+        words, one paragraph. Never describe the shape or parts of a real, named thing from memory: such details are often \
+        wrong, and a wrong detail ends up in the picture. When the request names a real place, building, landmark, product or \
+        artwork, first use web_search and read one good page with fetch_url, then describe in a few words what the pages say \
+        it looks like (its shape, colours and surroundings). If they say nothing about its look, give only its name and the \
+        scene. Answer with the description only: no title, no quotes, \
         no explanation.
         """
 
     struct Result { var prompt: String; var sources: [Source] }
 
-    /// `send` posts one request and returns the decoded answer (tests stand in for the engine); `onStep` names what happens.
+    /// Pages of photos without text: they say nothing about what a thing looks like.
+    static let picturesOnly = ["alamy.", "dreamstime.", "shutterstock.", "gettyimages.", "istockphoto.", "pinterest.", "depositphotos.",
+                               "123rf.", "adobe.com", "unsplash.", "pexels.", "flickr."]
+
+    /// The search hits to read when the model searched but read nothing: the first page with text (often the place's own,
+    /// which says most about its look) and an encyclopedia.
+    static func pagesToRead(_ hits: [Source]) -> [Source] {
+        let readable = hits.filter { hit in !picturesOnly.contains { hit.url.contains($0) } }
+        let own = readable.first { !$0.url.contains("wikipedia.org") }
+        let encyclopedia = readable.first { $0.url.contains("wikipedia.org") }
+        return [own, encyclopedia].compactMap { $0 }
+    }
+
+    /// `send` posts one request and returns the decoded answer (tests stand in for the engine); `onStep` names what happens;
+    /// `fetch` reads a page (tests stand in for the web).
     static func improve(_ text: String, model: String, send: ([String: Any]) async throws -> [String: Any],
+                        fetch: (String) async -> String? = { url in try? await WebTools.fetch(url).1 },
                         onStep: (String) -> Void) async throws -> Result {
-        var messages: [[String: Any]] = [["role": "system", "content": instructions], ["role": "user", "content": text]]
+        var searchHits: [Source] = []
+        var readPage = false
+        var forcedRead = false
+        var messages: [[String: Any]] = [["role": "system", "content": instructions],
+                                         ["role": "user", "content": "The user's request:\n\(text)\n\nWrite the English description now."]]
         var sources: [Source] = []
-        for round in 0...maxRounds {
+        for round in 0...(maxRounds + 1) {
             var body: [String: Any] = [
                 "model": model, "messages": messages, "stream": false, "temperature": 0.3, "max_tokens": 400,
                 "chat_template_kwargs": ["enable_thinking": false], "thinking_budget_tokens": 0,
             ]
             // the last round may only answer
-            if round < maxRounds { body["tools"] = WebTools.definitions } else { body["tool_choice"] = "none" }
+            if round < maxRounds && !forcedRead { body["tools"] = WebTools.definitions } else { body["tool_choice"] = "none" }
             let answer = try await send(body)
             guard let message = (answer["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any] else { break }
             let calls = (message["tool_calls"] as? [[String: Any]]) ?? []
             if calls.isEmpty {
-                let prompt = cleaned(message["content"] as? String ?? "")
+                var prompt = cleaned(message["content"] as? String ?? "")
+                // it searched but read no page, so its description came from memory: the app reads the best hit and asks again
+                if !readPage && !forcedRead {
+                    var pages: [String] = []
+                    for page in pagesToRead(searchHits) {
+                        onStep(label(ToolCall(id: "", name: "fetch_url", arguments: "{\"url\": \"\(page.url)\"}")))
+                        guard let body = await fetch(page.url), !body.isEmpty else { continue }
+                        pages.append("<<<\n" + String(body.prefix(2500)) + "\n>>>")
+                        if !sources.contains(where: { $0.url == page.url }) { sources.append(page) }
+                    }
+                    if !pages.isEmpty {
+                        forcedRead = true
+                        readPage = true
+                        messages.append(["role": "assistant", "content": prompt])
+                        messages.append(["role": "user", "content": "Here are pages about it. Rewrite the description so that what it says about the look of the subject (its shape, colours, towers, roofs, material as it looks) comes from these pages, not from memory. Leave out what they do not say. Keep the subject's name in the first words. English, at most 60 words, the description only.\n\n" + pages.joined(separator: "\n\n")])
+                        continue
+                    }
+                }
+                // a small model answers in the user's language now and then: once more, in English
+                if !prompt.isEmpty && !isEnglish(prompt) {
+                    onStep(L("schrijft het opnieuw, in het Engels"))
+                    messages.append(["role": "assistant", "content": prompt])
+                    messages.append(["role": "user", "content": "That is not English. Write the same description in English, at most 60 words."])
+                    var again = body
+                    again["messages"] = messages
+                    again["tools"] = nil
+                    again["tool_choice"] = "none"
+                    let retry = try await send(again)
+                    let second = cleaned((((retry["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])?["content"] as? String) ?? "")
+                    if !second.isEmpty { prompt = second }
+                }
                 return Result(prompt: prompt.isEmpty ? text : prompt, sources: sources)
             }
             messages.append(["role": "assistant", "content": message["content"] as? String ?? "", "tool_calls": calls])
@@ -51,6 +106,7 @@ enum ImagePrompt {
                 }
                 onStep(label(tool))
                 let out = await WebTools.run(tool)
+                if tool.name == "web_search" { searchHits = out.sources } else if tool.name == "fetch_url" { readPage = true }
                 for s in out.sources where !sources.contains(where: { $0.url == s.url }) { sources.append(s) }
                 // the fast model has a context of 16K: a page is cut to what fits a few times
                 messages.append(["role": "tool", "tool_call_id": tool.id, "content": String(out.text.prefix(3000))])
@@ -67,6 +123,16 @@ enum ImagePrompt {
         case "fetch_url": return L("leest: \(URL(string: args["url"] as? String ?? "")?.host?.replacingOccurrences(of: "www.", with: "") ?? "…")")
         default: return call.name
         }
+    }
+
+    /// More English little words than Dutch, German or French ones.
+    static func isEnglish(_ text: String) -> Bool {
+        let words = text.lowercased().split { !$0.isLetter && $0 != "'" }.map(String.init)
+        let english: Set<String> = ["the", "a", "an", "of", "with", "and", "in", "on", "at", "its", "is", "from", "by"]
+        let other: Set<String> = ["de", "het", "een", "van", "met", "en", "op", "bij", "die", "dat", "zijn", "der", "das", "und", "mit",
+                                  "ein", "eine", "auf", "le", "la", "les", "une", "des", "avec", "et", "du", "sur"]
+        let e = words.filter(english.contains).count, o = words.filter(other.contains).count
+        return e >= o
     }
 
     /// The description alone: no quotes, no label in front, no thinking left behind.

@@ -383,6 +383,50 @@ final class ImagePromptTests: XCTestCase {
         XCTAssertEqual((bodies[0]["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
     }
 
+    func testEnglishIsRecognised() {
+        XCTAssertTrue(ImagePrompt.isEnglish("A photograph of the Eiffel Tower in Paris on a clear afternoon"))
+        XCTAssertFalse(ImagePrompt.isEnglish("De Eiffeltoren, een smeedijzeren monument in Parijs met vier poten"))
+        XCTAssertFalse(ImagePrompt.isEnglish("Der Eiffelturm in Paris mit blauem Himmel und einer Wiese"))
+    }
+
+    /// A Dutch answer is asked for once more, in English, without tools.
+    func testADutchAnswerIsAskedAgainInEnglish() async throws {
+        var bodies: [[String: Any]] = []
+        let r = try await ImagePrompt.improve("maak een foto van de eifeltoren", model: "m", send: { body in
+            bodies.append(body)
+            return bodies.count == 1 ? self.reply("De Eiffeltoren in Parijs met een blauwe lucht") : self.reply("A photograph of the Eiffel Tower in Paris")
+        }, onStep: { _ in })
+        XCTAssertEqual(r.prompt, "A photograph of the Eiffel Tower in Paris")
+        XCTAssertEqual(bodies.count, 2)
+        XCTAssertNil(bodies[1]["tools"])
+        XCTAssertTrue((bodies[0]["messages"] as? [[String: Any]])?.last?["content"] as? String == "The user's request:\nmaak een foto van de eifeltoren\n\nWrite the English description now.")
+    }
+
+    func testPagesWithTextAreReadNotStockPhotoSites() {
+        let hits = [Source(title: "a", url: "https://www.alamy.com/x"), Source(title: "b", url: "https://www.rijksmuseum.nl/gebouw"),
+                    Source(title: "c", url: "https://nl.wikipedia.org/wiki/Rijksmuseum")]
+        XCTAssertEqual(ImagePrompt.pagesToRead(hits).map(\.url), ["https://www.rijksmuseum.nl/gebouw", "https://nl.wikipedia.org/wiki/Rijksmuseum"])
+        XCTAssertTrue(ImagePrompt.pagesToRead([hits[0]]).isEmpty)
+    }
+
+    /// The model searched but read nothing: its description came from memory, so the app reads the pages and asks again.
+    func testASearchWithoutReadingGetsPagesRead() async throws {
+        let search: [[String: Any]] = [["id": "1", "type": "function", "function": ["name": "web_search", "arguments": "{\"query\": \"x\"}"]]]
+        var bodies: [[String: Any]] = []
+        var fetched: [String] = []
+        let r = try await ImagePrompt.improve("het Rijksmuseum", model: "m", send: { body in
+            bodies.append(body)
+            switch bodies.count {
+            case 1: return self.reply("", calls: search)
+            case 2: return self.reply("A photograph of the Rijksmuseum with a dome")
+            default: return self.reply("A photograph of the Rijksmuseum, a red-brick building with two towers")
+            }
+        }, fetch: { url in fetched.append(url); return "A red-brick building with two towers." }, onStep: { _ in })
+        XCTAssertEqual(r.prompt, "A photograph of the Rijksmuseum, a red-brick building with two towers")
+        XCTAssertNil(bodies.last?["tools"], "the last round may only answer")
+        _ = fetched
+    }
+
     func testAnEmptyAnswerKeepsTheUsersDescription() async throws {
         let r = try await ImagePrompt.improve("een rode vos", model: "m", send: { _ in self.reply("  ") }, onStep: { _ in })
         XCTAssertEqual(r.prompt, "een rode vos")
@@ -452,8 +496,10 @@ final class ImagePromptTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-improve")
         app.images.root = folder
         let start = Date()
-        let made = await app.makeImageNow(prompt: "het Rijksmuseum in Amsterdam bij avondlicht, foto", size: ImageSize(width: 512, height: 512),
-                                          seed: 7, improve: true)
+        let env = ProcessInfo.processInfo.environment
+        let side = Int(env["MACAIMAGIC_IMPROVE_SIZE"] ?? "") ?? 512
+        let made = await app.makeImageNow(prompt: env["MACAIMAGIC_IMPROVE_PROMPT"] ?? "het Rijksmuseum in Amsterdam bij avondlicht, foto",
+                                          size: ImageSize(width: side, height: side), seed: 11, improve: true)
         print("STEPS:\n" + app.images.steps.map { "  \($0.state) \($0.title)" }.joined(separator: "\n"))
         print("HEAVY after: \(app.engine.state), FAST after: \(app.documentEngines.fast.state) \(app.documentEngines.fast.model?.name ?? "")")
         await app.documentEngines.fast.stopAndWait()

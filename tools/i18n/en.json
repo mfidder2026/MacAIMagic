@@ -599,5 +599,6 @@
  "%@ stopt om ruimte te maken voor de afbeelding": "%@ stops to make room for the image",
  "Het beeldmodel": "The image model",
  "zoekt: %@": "searches: %@",
- "leest: %@": "reads: %@"
+ "leest: %@": "reads: %@",
+ "schrijft het opnieuw, in het Engels": "rewrites it in English"
 }

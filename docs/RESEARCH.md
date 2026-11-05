@@ -319,3 +319,14 @@ wrote from memory a neoclassical building with a dome, and FLUX drew that. Told 
 remembers may be wrong, it fetched the museum's own page about the building and wrote a red-brick building with towers
 and a passage through the middle: 21 s for the description, 13 s for the image, and the image shows the Rijksmuseum.
 
+**The Eiffel Tower, and what the description must not do** (1.9.11). Asked for "maak een foto van de eifeltoren", Ministral
+wrote a long Dutch description full of facts (324 metres, rivets, painted panels, "an upholstered roof"), and FLUX drew a
+tower that does not exist. With the same seed, "A photograph of the Eiffel Tower in Paris" drew the real one: the image
+model knows famous things by their English name, reads English best, and draws every word, wrong ones too. So the
+description is now English (checked, and asked for again when it is not), starts with the subject's English name, holds
+only what can be seen, and at most 60 words. A named real thing is looked up first: when the model searches but reads no
+page, the app reads the first page with text and an encyclopedia (no stock-photo sites) and has it rewrite from those.
+Result: the Eiffel Tower came out right in every run; the Rijksmuseum comes out as a neo-Gothic building with towers,
+close but not the real one, because the image model does not know it by name and the small model picks little of its
+look from the pages.
+
