@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.10 (macOS, Apple Silicon)
+# MacAIMagic 1.9.11 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.10-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.11-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,13 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.10-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.11-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.9.11:
+- **Better images with "Verbeteren met web".** The description for the image model is now always English, starts with the subject's name and holds only what can be seen: no measurements, history or invented details, which the image model would draw. A request like "maak een foto van de eifeltoren" now gives the real Eiffel Tower; before, a long Dutch description drew a tower that does not exist.
+- **A real building is looked up first.** When the model searches but reads no page, the app reads a page with text and an encyclopedia (not a stock-photo site) and has the description rewritten from them. Lesser-known buildings still come out as a close likeness rather than the real thing.
 
 New in 1.9.10:
 - **The fast model writes the image description.** With "Verbeteren met web" on, the fast model (Snel, for example Ministral) writes the better description; it loads in seconds and stays beside the image. The heavy model only does it when there is no other. Before, it started the heavy model, which takes minutes and then had to stop again.
