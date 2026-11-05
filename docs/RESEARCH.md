@@ -277,3 +277,25 @@ macOS swapped 1–2 GB during these runs without the speed falling over the roun
 Mac: the M3 Max computes faster than an M1, and its SSD differs. For comparison, Qwen3.6-35B-A3B, which fits whole, writes
 at 52 tok/s here with the 32 GB settings and at 43–45 tok/s on a Mac Studio M1 with 32 GB.
 
+## 8. A small model and images (MacAIMagic 1.9.7)
+
+Both came from the Windows version, which measured them first; these numbers are measured here, on the M3 Max.
+
+**Ministral-3-8B Q4** (5.2 GB, no experts): with the app's own measurement, writing 50.6 tok/s, reading a 4,500-token
+prompt 629 tok/s, loading 6 s. A model without experts gets no expert cache; on a Mac where it does not fit under the GPU
+limit, the layers that do not fit run on the processor, and the context is at least 8K (its KV cache costs 142 KB per
+token). Not measured on a Mac with 8 or 16 GB.
+
+**FLUX.2 Klein 4B** with the image engine built for Metal, 4 steps, the whole run with loading:
+
+| Image | GPU | Extra memory | Processor (12 threads) |
+|---|---|---|---|
+| 512 × 512 | 16–20 s | 3.9 GB with a budget of 1.2 GiB | 78 s |
+| 768 × 768 | 34 s | 3.8 GB with 1.2 GiB | |
+| 1024 × 1024 | 60 s | 6.8 GB without a limit, 4.1 GB with 5.2 GiB; fails cleanly with 1.2 GiB | |
+
+The app gives the image engine what the GPU may use minus macOS's room: on a Mac with 8 GB that is the budget of 1.2 GiB,
+with 768 × 768 as the largest size on the GPU and 1024 on the processor. A Dutch description ("een rode vos die de krant
+leest op een bankje in Amsterdam") drew a man reading the paper; the same in English drew the fox. The text model reads
+English best, so the page says so.
+

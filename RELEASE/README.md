@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.6 (macOS, Apple Silicon)
+# MacAIMagic 1.9.7 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.6-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.7-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,16 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.6-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.7-macOS-arm64.zip.sha256`
 
-Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B). As a cluster helper any amount of memory helps.
+Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.9.7:
+- **Make images on the Mac** (sidebar → Beeld) with FLUX.2 Klein 4B (5.3 GB). Measured on an M3 Max: 512 × 512 in 16-20 s, 1024 × 1024 in 60 s on the GPU. A description in English works best. Images go to Pictures/MacAIMagic, with the description in a file beside them, not inside the image.
+- **Ministral-3-8B** (5 GB), a small model that also reads images, for a Mac with 8 or 16 GB: 51 tok/s on the M3 Max.
+- **Downloads work again.** The makers replaced or removed files of Qwen3.8-Flash-Next and DeepSeek-V4.1-Flash Compact, so these could no longer be downloaded. Every download now names one version of its files, models you already have stay valid, and a replaced file is reported at once, before anything comes down. Download errors now show on the model card.
+- **Fixes:** a command that starts a program in the background no longer waits for it, and Stop and the time-out end the whole command; the pause after the last step shows in the chat; a failing Brave search says so and DuckDuckGo takes over; the search region follows the app's language; an unreadable conversations file is kept as .bad; the API key is no longer visible in the process list; a cluster helper stops with the app, and one added by hand that does not answer is left out.
+- The Documents button reads "Document voorbereiden", and the version stands beside the name in the sidebar.
 
 New in 1.9.6: a Mac with 16 GB can use Qwen3.6-35B-A3B. It no longer says "too big": the model streams from the SSD with a small expert cache, and the system check recommends it. This has not yet been measured on a real Mac with 16 GB and may be slow.
 
