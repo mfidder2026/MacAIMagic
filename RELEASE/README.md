@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.9 (macOS, Apple Silicon)
+# MacAIMagic 1.9.10 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.9-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.10-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,15 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.9-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.10-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.9.10:
+- **The fast model writes the image description.** With "Verbeteren met web" on, the fast model (Snel, for example Ministral) writes the better description; it loads in seconds and stays beside the image. The heavy model only does it when there is no other. Before, it started the heavy model, which takes minutes and then had to stop again.
+- **The status pill names every model in memory**, with its role: for example "DeepSeek-V4.1-Flash actief (Zwaar) · Ministral-3-8B laden… (Snel) · FLUX.2 tekent". With nothing loaded it says "Geen model geladen".
+- **Beeld shows who does what**: which model writes the description and which draws, and every step with its model, also a model that stops to make room.
+- The speed gauge counts the fast model's writing too.
 
 New in 1.9.9:
 - **Choose every model the same way.** Each model card has role buttons in one style: **Zwaar** and **Snel** for a model that chats, **Afbeeldingen** for one that draws. You now choose the fast model for Documents yourself; choosing it again lets the app pick.
