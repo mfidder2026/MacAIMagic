@@ -561,5 +561,19 @@
  "Kies voor afbeeldingen": "Für Bilder wählen",
  "Afbeelding van 1024 × 1024, met laden": "Bild mit 1024 × 1024, mit Laden",
  "Beeldtokens": "Bild-Tokens",
- "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "Dieselbe Messung für jedes Modell: einen Prompt von ~2.500 Tokens lesen und 300 Tokens schreiben, oder ein Bild mit 1024 × 1024 erstellen."
+ "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "Dieselbe Messung für jedes Modell: einen Prompt von ~2.500 Tokens lesen und 300 Tokens schreiben, oder ein Bild mit 1024 × 1024 erstellen.",
+ "Beschrijving schrijven…": "Beschreibung schreiben…",
+ "Beschrijving verbeteren…": "Beschreibung verbessern…",
+ "De beschrijving kon niet worden verbeterd (%@); de afbeelding is met je eigen beschrijving gemaakt.": "Die Beschreibung konnte nicht verbessert werden (%@); das Bild wurde mit deiner eigenen Beschreibung erstellt.",
+ "Er is geen chatmodel gekozen.": "Es wurde kein Chatmodell gewählt.",
+ "%@ is nog niet gedownload.": "%@ ist noch nicht heruntergeladen.",
+ "%@ starten…": "%@ wird gestartet…",
+ "%@ startte niet.": "%@ ist nicht gestartet.",
+ "Verbeteren met web": "Mit Web verbessern",
+ "Het chatmodel": "Das Chatmodell",
+ "%@ schrijft eerst een betere Engelse beschrijving en zoekt zo nodig op het web hoe iets eruitziet. Dat kost wat tijd.": "%@ schreibt zuerst eine bessere englische Beschreibung und sucht bei Bedarf im Web, wie etwas aussieht. Das kostet etwas Zeit.",
+ "%@ verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.": "%@ verbessert zuerst die Beschreibung. Was an die Suchmaschine geht, ist von E-Mail-Adressen, Nummern und Beträgen befreit.",
+ "%@ start eerst om de beschrijving te verbeteren; dat kan even duren.": "%@ startet zuerst, um die Beschreibung zu verbessern; das kann etwas dauern.",
+ "Beschrijving voor het beeldmodel": "Beschreibung für das Bildmodell",
+ "%@ kan nu niet starten.": "%@ kann jetzt nicht starten."
 }

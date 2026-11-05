@@ -93,6 +93,11 @@ struct ImagesView: View {
                     ForEach(ImagePlanner.sizes) { Text(label($0)).tag($0.key) }
                 }
                 .fixedSize().disabled(images.busy)
+                Toggle(isOn: $settings.imageImprove) {
+                    Label(L("Verbeteren met web"), systemImage: "globe")
+                }
+                .toggleStyle(.button).disabled(images.busy)
+                .help(L("\(app.selectedModel?.shortName ?? L("Het chatmodel")) schrijft eerst een betere Engelse beschrijving en zoekt zo nodig op het web hoe iets eruitziet. Dat kost wat tijd."))
                 if images.busy {
                     Button(L("Stop")) { images.stop() }
                 } else {
@@ -122,6 +127,12 @@ struct ImagesView: View {
             }
             Text(L("Het model volgt een beschrijving in het Engels het best: in het Nederlands mist het soms waar het om gaat."))
                 .font(.caption).foregroundStyle(.secondary)
+            if settings.imageImprove, !images.busy {
+                Text(app.engine.state.isRunning
+                     ? L("\(app.selectedModel?.shortName ?? "") verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.")
+                     : L("\(app.selectedModel?.shortName ?? "") start eerst om de beschrijving te verbeteren; dat kan even duren."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if let note = images.note { Text(note).font(.caption).foregroundStyle(Theme.amber) }
             if let error = images.error { Text(error).font(.caption).foregroundStyle(Theme.pink) }
         }
@@ -133,6 +144,25 @@ struct ImagesView: View {
                 Image(nsImage: picture).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: 620, alignment: .leading)
             }
             if !image.prompt.isEmpty { Text(image.prompt).textSelection(.enabled) }
+            if let used = image.usedPrompt {
+                DisclosureGroup(L("Beschrijving voor het beeldmodel")) {
+                    Text(used).font(.callout).foregroundStyle(.secondary).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(.caption)
+            }
+            if image.path == images.last?.path, !images.sources.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(images.sources.prefix(10)) { s in
+                            Link(destination: URL(string: s.url) ?? URL(string: "about:blank")!) {
+                                Label(URL(string: s.url)?.host?.replacingOccurrences(of: "www.", with: "") ?? s.url, systemImage: "globe")
+                                    .font(.caption).lineLimit(1)
+                            }
+                            .help(s.title)
+                        }
+                    }
+                }
+            }
             Text(image.seconds > 0
                  ? L("\(image.width) × \(image.height) · \(clock(image.seconds)) \(place(image)) · nummer \(image.seed)")
                  : (image.path as NSString).lastPathComponent)

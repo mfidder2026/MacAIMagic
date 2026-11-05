@@ -189,10 +189,12 @@ struct ImageResult: Codable, Identifiable, Equatable {
     var created = Date()
     /// Image tokens the model drew per second, over the steps.
     var tokensPerSecond: Double?
+    /// The description the image model got, when the chat model improved the user's.
+    var usedPrompt: String?
     var path = ""
     var id: String { path }
 
-    private enum CodingKeys: String, CodingKey { case prompt, width, height, seed, seconds, onGPU, created, tokensPerSecond }
+    private enum CodingKeys: String, CodingKey { case prompt, width, height, seed, seconds, onGPU, created, tokensPerSecond, usedPrompt }
 }
 
 /// Makes one image at a time with the image engine.
@@ -206,6 +208,8 @@ final class ImageMaker: ObservableObject {
     @Published private(set) var note: String?
     @Published private(set) var last: ImageResult?
     @Published private(set) var started = Date()
+    /// Where the improved description came from.
+    @Published private(set) var sources: [Source] = []
 
     /// The image tokens per second while the model draws, for the live meters; nil when no image is being made.
     var onRate: ((Double?) -> Void)?
@@ -221,7 +225,10 @@ final class ImageMaker: ObservableObject {
     /// Makes the image. `prepare` runs first with this maker already busy, so nothing starts beside it; what it returns is why not to
     /// go on. On return: the image, or nil with the reason in `error` (a stop leaves that empty).
     @discardableResult
-    func make(prompt: String, size: ImageSize, system: SystemInfo, files: [String], seed: Int? = nil, prepare: (() async -> String?)? = nil) async -> ImageResult? {
+    /// `improve` runs first: it gives the description for the image model and where it came from, and names its steps.
+    func make(prompt: String, size: ImageSize, system: SystemInfo, files: [String], seed: Int? = nil,
+              improve: ((@escaping (String) -> Void) async throws -> (prompt: String, sources: [Source]))? = nil,
+              prepare: (() async -> String?)? = nil) async -> ImageResult? {
         guard !busy else { return nil }
         busy = true
         stopped = false
@@ -237,6 +244,21 @@ final class ImageMaker: ObservableObject {
                                     "MacAIMagic: een afbeelding maken" as CFString, &awake)
         defer { IOPMAssertionRelease(awake) }
 
+        sources = []
+        var drawn = prompt
+        if let improve {
+            status = L("Beschrijving verbeteren…")
+            do {
+                let better = try await improve { [weak self] step in self?.status = step }
+                drawn = better.prompt
+                sources = better.sources
+            } catch is CancellationError {
+                return nil
+            } catch {
+                note = L("De beschrijving kon niet worden verbeterd (\(error.localizedDescription)); de afbeelding is met je eigen beschrijving gemaakt.")
+            }
+            if stopped { return nil }
+        }
         if let why = await prepare?() { error = why; return nil }
         guard let exe = executableOverride ?? Paths.engineBinary("image-engine") else {
             error = L("De beeldengine ontbreekt in de app. Installeer MacAIMagic opnieuw.")
@@ -254,13 +276,13 @@ final class ImageMaker: ObservableObject {
         let output = folder.appendingPathComponent("\(stamp.string(from: begin))-\(chosen).png")
 
         var plan = ImagePlanner.plan(size, system)
-        var outcome = await run(exe, plan, files, prompt, chosen, output, appendLog: false)
+        var outcome = await run(exe, plan, files, drawn, chosen, output, appendLog: false)
         // the GPU can refuse in ways no plan foresees. The processor always works
         if outcome.failed && plan.onGPU && !stopped {
             note = L("De GPU lukte niet, dus deze afbeelding is op de processor gemaakt. Dat duurt langer.")
             fraction = 0
             plan = ImagePlanner.planForProcessor(size, system)
-            outcome = await run(exe, plan, files, prompt, chosen, output, appendLog: true)
+            outcome = await run(exe, plan, files, drawn, chosen, output, appendLog: true)
         }
         if stopped { return nil }
         if outcome.failed {
@@ -269,7 +291,8 @@ final class ImageMaker: ObservableObject {
         }
         var result = ImageResult(prompt: prompt, width: size.width, height: size.height, seed: chosen,
                                  seconds: Date().timeIntervalSince(begin), onGPU: plan.onGPU, created: Date(),
-                                 tokensPerSecond: outcome.secondsPerStep.map { Double(ImagePlanner.tokensPerStep(size)) / $0 })
+                                 tokensPerSecond: outcome.secondsPerStep.map { Double(ImagePlanner.tokensPerStep(size)) / $0 },
+                                 usedPrompt: drawn == prompt ? nil : drawn)
         result.path = output.path
         // the image itself is there, also when this fails
         if let data = try? JSONEncoder().encode(result) { try? data.write(to: output.deletingPathExtension().appendingPathExtension("json")) }

@@ -72,7 +72,11 @@ comes from the internal SSD.
   in 14 s and 1024 × 1024 in 42-46 s on the GPU, about 450 image tokens per second (12.6 GB extra memory; a Mac with less
   memory works in parts, 1024 × 1024 then takes 61 s on 7 GB, and a Mac with 8 GB gets a smaller budget and size);
   512 × 512 in 78 s on the processor. FLUX stands among the models (**Kies voor afbeeldingen**) and in **Vergelijken**,
-  and the speed gauge counts its image tokens while it draws. A description in English works best: a Dutch one drew a
+  and the speed gauge counts its image tokens while it draws. **Verbeteren met web** lets the chat model first write a
+  better English description, looking up on the web what something looks like: measured with Ministral, "het
+  Rijksmuseum in Amsterdam bij avondlicht" became a red-brick building with towers and the passage through it, in 21 s
+  before the 13 s image. What goes to the search engine is cleaned of e-mail addresses, numbers and amounts. A small chat
+  model can stay beside the image when there is room; a large one makes room. A description in English works best: a Dutch one drew a
   man where the English one drew the fox. The image engine is built with `scripts/build_image_engine.sh`.
 - **Documents**: make Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with attachments
   (context and information), a house style (only the layout) and its documents. Say "make an AQS": the model looks in the

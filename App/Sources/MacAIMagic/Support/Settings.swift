@@ -31,6 +31,8 @@ final class Settings: ObservableObject {
     @AppStorage("imageSize") var imageSize = ""
     /// The model that makes images (Modellen → Kies voor afbeeldingen); empty: the first in the catalog.
     @AppStorage("imageModel") var imageModel = ""
+    /// The chat model rewrites the description for the image model first, with the web when it needs it.
+    @AppStorage("imageImprove") var imageImprove = false
     @AppStorage("thinking") var thinking = true
     @AppStorage("reasoningEffort") var reasoningEffort = "high"
     /// At most this many tokens of thinking, then the model writes its answer (0: no limit).

@@ -561,5 +561,19 @@
  "Kies voor afbeeldingen": "Choisir pour les images",
  "Afbeelding van 1024 × 1024, met laden": "Image de 1024 × 1024, chargement compris",
  "Beeldtokens": "Jetons d'image",
- "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "La même mesure pour chaque modèle : lire un prompt d'environ 2 500 jetons et écrire 300 jetons, ou créer une image de 1024 × 1024."
+ "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "La même mesure pour chaque modèle : lire un prompt d'environ 2 500 jetons et écrire 300 jetons, ou créer une image de 1024 × 1024.",
+ "Beschrijving schrijven…": "Rédaction de la description…",
+ "Beschrijving verbeteren…": "Amélioration de la description…",
+ "De beschrijving kon niet worden verbeterd (%@); de afbeelding is met je eigen beschrijving gemaakt.": "La description n'a pas pu être améliorée (%@) ; l'image a été créée avec votre propre description.",
+ "Er is geen chatmodel gekozen.": "Aucun modèle de chat n'a été choisi.",
+ "%@ is nog niet gedownload.": "%@ n'a pas encore été téléchargé.",
+ "%@ starten…": "Démarrage de %@…",
+ "%@ startte niet.": "%@ n'a pas démarré.",
+ "Verbeteren met web": "Améliorer avec le web",
+ "Het chatmodel": "Le modèle de chat",
+ "%@ schrijft eerst een betere Engelse beschrijving en zoekt zo nodig op het web hoe iets eruitziet. Dat kost wat tijd.": "%@ écrit d'abord une meilleure description en anglais et cherche sur le web à quoi ressemble quelque chose si nécessaire. Cela prend un peu de temps.",
+ "%@ verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.": "%@ améliore d'abord la description. Ce qui part vers le moteur de recherche est débarrassé des adresses e-mail, numéros et montants.",
+ "%@ start eerst om de beschrijving te verbeteren; dat kan even duren.": "%@ démarre d'abord pour améliorer la description ; cela peut prendre un moment.",
+ "Beschrijving voor het beeldmodel": "Description pour le modèle d'image",
+ "%@ kan nu niet starten.": "%@ ne peut pas démarrer maintenant."
 }

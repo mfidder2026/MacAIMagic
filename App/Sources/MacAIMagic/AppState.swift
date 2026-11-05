@@ -69,9 +69,12 @@ final class AppState: ObservableObject {
         return (MemoryPlanner.contextRoom(index: index, system: system, vision: true) ?? 0) >= 16_384
     }
 
-    var canStart: Bool {
+    var canStart: Bool { !images.busy && chatModelReady }
+
+    /// The chosen chat model can start: downloaded, planned, and the engine is there.
+    private var chatModelReady: Bool {
         guard let m = selectedModel else { return false }
-        return !images.busy && models.status(m.id).isComplete && plan != nil && Paths.engineBinary("llama-server") != nil
+        return models.status(m.id).isComplete && plan != nil && Paths.engineBinary("llama-server") != nil
     }
 
     func loadIndex() {
@@ -88,9 +91,10 @@ final class AppState: ObservableObject {
 
     func refreshSystem() { system = simulatedSystem ?? SystemInfo.current() }
 
-    func startEngine() {
+    /// `forImage`: the image being made needs the chat model first, to improve its description.
+    func startEngine(forImage: Bool = false) {
         if index == nil { loadIndex() }
-        guard !images.busy, let m = selectedModel, let index, var plan else { return }
+        guard forImage || !images.busy, let m = selectedModel, let index, var plan else { return }
         if !plan.fitsInMemory {
             // the expert cache leaves room for what other apps hold right now
             plan = MemoryPlanner.plan(index: index, system: system, contextSize: contextSize(index),
@@ -107,7 +111,45 @@ final class AppState: ObservableObject {
     /// One image. Next to a chat model there is rarely room, so what runs stops first: not an answer being written or a
     /// measurement, those go first, and the chat engine is not started again by itself.
     func makeImage(prompt: String, size: ImageSize) {
-        Task { await makeImageNow(prompt: prompt, size: size) }
+        Task { await makeImageNow(prompt: prompt, size: size, improve: Settings.shared.imageImprove) }
+    }
+
+    /// The chat model writes a better description: started first when it does not run, and the engine makes room afterwards
+    /// as for any image. Fails without a downloaded chat model.
+    private func improveDescription(_ text: String, onStep: @escaping (String) -> Void) async throws -> (prompt: String, sources: [Source]) {
+        guard let model = selectedModel else { throw ImproveError(L("Er is geen chatmodel gekozen.")) }
+        if !engine.state.isRunning {
+            guard models.status(model.id).isComplete else { throw ImproveError(L("\(model.name) is nog niet gedownload.")) }
+            guard chatModelReady else { throw ImproveError(L("\(model.name) kan nu niet starten.")) }
+            onStep(L("\(model.shortName) starten…"))
+            startEngine(forImage: true)
+            let started = Date()
+            while !engine.state.isRunning {
+                if case .failed(let why) = engine.state { throw ImproveError(why) }
+                if Date().timeIntervalSince(started) > 1800 { throw ImproveError(L("\(model.name) startte niet.")) }
+                try await Task.sleep(for: .milliseconds(500))
+            }
+        }
+        onStep(L("Beschrijving verbeteren…"))
+        let base = engine.baseURL
+        let result = try await ImagePrompt.improve(text, model: engine.model?.name ?? model.name, send: { body in
+            var req = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+            req.timeoutInterval = 600
+            let (data, response) = try await URLSession.shared.data(for: req)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard status == 200 else { throw ImproveError(L("Engine gaf \(status): \(String(decoding: data.prefix(300), as: UTF8.self))")) }
+            return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        }, onStep: onStep)
+        return (result.prompt, result.sources)
+    }
+
+    struct ImproveError: LocalizedError {
+        let errorDescription: String?
+        init(_ text: String) { errorDescription = text }
     }
 
     /// The model that makes images: chosen under Modellen, else the first.
@@ -116,17 +158,26 @@ final class AppState: ObservableObject {
     }
 
     @discardableResult
-    func makeImageNow(prompt: String, size: ImageSize, seed: Int? = nil, measuring: Bool = false) async -> ImageResult? {
+    func makeImageNow(prompt: String, size: ImageSize, seed: Int? = nil, measuring: Bool = false, improve: Bool = false) async -> ImageResult? {
         guard let m = imageModel else { return nil }
         let files = models.shardURLs(m).map(\.path)
-        return await images.make(prompt: prompt, size: size, system: system, files: files, seed: seed) { [weak self] in
+        let rewrite: ((@escaping (String) -> Void) async throws -> (prompt: String, sources: [Source]))? =
+            improve ? { [weak self] step in
+                guard let self else { throw CancellationError() }
+                return try await self.improveDescription(prompt, onStep: step)
+            } : nil
+        return await images.make(prompt: prompt, size: size, system: system, files: files, seed: seed, improve: rewrite) { [weak self] in
                 guard let self else { return nil }
                 if !self.models.status(m.id).isComplete { return L("De bestanden voor afbeeldingen zijn er nog niet helemaal.") }
                 if !measuring && self.bench.running != nil { return L("Er loopt een meting. Wacht tot die klaar is.") }
                 if self.documents.busy { return L("De documentmodule is bezig. Wacht tot die klaar is of stop hem.") }
+                // the engine says it is done a moment after the description came in
+                for _ in 0..<8 where self.metrics.engineBusy && !self.chat.busy { try? await Task.sleep(for: .milliseconds(500)) }
                 if self.chat.busy || self.metrics.engineBusy { return L("De engine werkt aan een antwoord. Wacht tot dat klaar is of stop het.") }
                 await self.documentEngines.fast.stopAndWait()
-                await self.engine.stopAndWait()
+                // a small chat model can stay beside the image when this Mac has the room for a whole one; else it makes room
+                let need = ImagePlanner.wholeBytes(size) + ImagePlanner.wholeMargin + MemoryPlanner.osHeadroom
+                if SystemInfo.availableMemory() < need { await self.engine.stopAndWait() }
                 self.refreshSystem()
                 return nil
             }

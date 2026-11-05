@@ -312,3 +312,10 @@ So the app works in parts only where a whole image would not leave the GPU 2 GB 
 1024 × 1024, with loading): 46 s and 450 image tokens per second. An image token is a patch of 16 × 16 pixels, and the
 model works on all of them in every step (4,096 per step at 1024 × 1024); the speed gauge shows them while it draws.
 
+**A better description, with the web** (1.9.8). FLUX draws what it reads, and reads English best. With the switch on,
+the chat model rewrites the description in English first and may search the web for what something looks like. Measured
+with Ministral-3-8B and "het Rijksmuseum in Amsterdam bij avondlicht, foto": the first instruction let it search, but it
+wrote from memory a neoclassical building with a dome, and FLUX drew that. Told that the pages go first and what it
+remembers may be wrong, it fetched the museum's own page about the building and wrote a red-brick building with towers
+and a passage through the middle: 21 s for the description, 13 s for the image, and the image shows the Rijksmuseum.
+

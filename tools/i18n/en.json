@@ -561,5 +561,19 @@
  "Kies voor afbeeldingen": "Choose for images",
  "Afbeelding van 1024 × 1024, met laden": "Image of 1024 × 1024, with loading",
  "Beeldtokens": "Image tokens",
- "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "The same measurement on every model: read a ~2,500-token prompt and write 300 tokens, or make an image of 1024 × 1024."
+ "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "The same measurement on every model: read a ~2,500-token prompt and write 300 tokens, or make an image of 1024 × 1024.",
+ "Beschrijving schrijven…": "Writing the description…",
+ "Beschrijving verbeteren…": "Improving the description…",
+ "De beschrijving kon niet worden verbeterd (%@); de afbeelding is met je eigen beschrijving gemaakt.": "The description could not be improved (%@); the image was made with your own description.",
+ "Er is geen chatmodel gekozen.": "No chat model has been chosen.",
+ "%@ is nog niet gedownload.": "%@ has not been downloaded yet.",
+ "%@ starten…": "Starting %@…",
+ "%@ startte niet.": "%@ did not start.",
+ "Verbeteren met web": "Improve with web",
+ "Het chatmodel": "The chat model",
+ "%@ schrijft eerst een betere Engelse beschrijving en zoekt zo nodig op het web hoe iets eruitziet. Dat kost wat tijd.": "%@ first writes a better English description and searches the web for what something looks like when needed. That takes some time.",
+ "%@ verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.": "%@ first improves the description. What goes to the search engine has e-mail addresses, numbers and amounts taken out.",
+ "%@ start eerst om de beschrijving te verbeteren; dat kan even duren.": "%@ starts first to improve the description; that can take a while.",
+ "Beschrijving voor het beeldmodel": "Description for the image model",
+ "%@ kan nu niet starten.": "%@ cannot start now."
 }

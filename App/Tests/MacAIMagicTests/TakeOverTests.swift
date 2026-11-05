@@ -359,3 +359,106 @@ final class ImagePlannerTests: XCTestCase {
         print(String(format: "IMAGE 512 on the GPU: %.1f s", r.seconds))
     }
 }
+
+
+/// The chat model's better description, with a stand-in for the engine.
+final class ImagePromptTests: XCTestCase {
+    private func reply(_ content: String, calls: [[String: Any]] = []) -> [String: Any] {
+        var message: [String: Any] = ["role": "assistant", "content": content]
+        if !calls.isEmpty { message["tool_calls"] = calls }
+        return ["choices": [["message": message]]]
+    }
+
+    func testTheAnswerIsTheDescriptionAlone() {
+        XCTAssertEqual(ImagePrompt.cleaned("Prompt: \"a red fox on a bench\""), "a red fox on a bench")
+        XCTAssertEqual(ImagePrompt.cleaned("<think>hmm</think>\n a fox "), "a fox")
+    }
+
+    func testWithoutSearchingOneRequestIsEnough() async throws {
+        var bodies: [[String: Any]] = []
+        let r = try await ImagePrompt.improve("een rode vos", model: "m", send: { bodies.append($0); return self.reply("a red fox, photo") }, onStep: { _ in })
+        XCTAssertEqual(r.prompt, "a red fox, photo")
+        XCTAssertEqual(bodies.count, 1)
+        XCTAssertNotNil(bodies[0]["tools"])
+        XCTAssertEqual((bodies[0]["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
+    }
+
+    func testAnEmptyAnswerKeepsTheUsersDescription() async throws {
+        let r = try await ImagePrompt.improve("een rode vos", model: "m", send: { _ in self.reply("  ") }, onStep: { _ in })
+        XCTAssertEqual(r.prompt, "een rode vos")
+    }
+
+    /// A model that keeps calling tools gets a last round in which it may only answer.
+    func testTheLastRoundMayOnlyAnswer() async throws {
+        var bodies: [[String: Any]] = []
+        let call: [[String: Any]] = [["id": "1", "type": "function", "function": ["name": "nope", "arguments": "{}"]]]
+        _ = try await ImagePrompt.improve("x", model: "m", send: { body in
+            bodies.append(body)
+            return body["tool_choice"] as? String == "none" ? self.reply("a fox") : self.reply("", calls: call)
+        }, onStep: { _ in })
+        XCTAssertEqual(bodies.count, ImagePrompt.maxRounds + 1)
+        XCTAssertNil(bodies.last?["tools"])
+    }
+}
+
+@MainActor final class ImageImproveMakerTests: XCTestCase {
+    func testTheImprovedDescriptionGoesToTheEngineAndIsKept() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let exe = folder.appendingPathComponent("engine.sh")
+        try "#!/bin/bash\nwhile [ $# -gt 0 ]; do case \"$1\" in -o) OUT=\"$2\"; shift;; -p) echo \"$2\" > \"$OUT.prompt\"; P=\"$2\"; shift;; esac; shift; done\necho \"$P\" > \"$OUT.txt\"; echo png > \"$OUT\"\n"
+            .write(to: exe, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
+        let m = ImageMaker()
+        m.root = folder.appendingPathComponent("out")
+        m.executableOverride = exe
+        let system = SystemInfo(chip: "M1", physicalMemory: 32 << 30, performanceCores: 4, gpuWorkingSet: 21 << 30, wiredLimitMB: 0, freeDisk: 1 << 40)
+        let made = await m.make(prompt: "een rode vos", size: ImageSize(width: 512, height: 512), system: system, files: ["a", "b", "c"],
+                                improve: { step in step("x"); return ("a red fox", [Source(title: "t", url: "https://example.org")]) })
+        let r = try XCTUnwrap(made)
+        XCTAssertEqual(r.prompt, "een rode vos")
+        XCTAssertEqual(r.usedPrompt, "a red fox")
+        XCTAssertEqual(try String(contentsOfFile: r.path + ".txt", encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines), "a red fox")
+        XCTAssertEqual(m.sources.count, 1)
+        XCTAssertEqual(m.history().first?.usedPrompt, "a red fox")
+    }
+
+    func testAFailedImprovementStillMakesTheImage() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let exe = folder.appendingPathComponent("engine.sh")
+        try "#!/bin/bash\nwhile [ $# -gt 0 ]; do case \"$1\" in -o) OUT=\"$2\"; shift;; esac; shift; done\necho png > \"$OUT\"\n".write(to: exe, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
+        let m = ImageMaker()
+        m.root = folder.appendingPathComponent("out")
+        m.executableOverride = exe
+        let system = SystemInfo(chip: "M1", physicalMemory: 32 << 30, performanceCores: 4, gpuWorkingSet: 21 << 30, wiredLimitMB: 0, freeDisk: 1 << 40)
+        let made = await m.make(prompt: "vos", size: ImageSize(width: 512, height: 512), system: system, files: ["a", "b", "c"],
+                                improve: { _ in throw AppState.ImproveError("geen model") })
+        XCTAssertNotNil(made)
+        XCTAssertNil(made?.usedPrompt)
+        XCTAssertTrue(m.note?.contains("geen model") == true)
+    }
+
+    /// MACAIMAGIC_IMPROVE_TEST=<chat model id>: the real chat model improves a Dutch description, with the web, and FLUX draws it.
+    func testARealImprovement() async throws {
+        guard let id = ProcessInfo.processInfo.environment["MACAIMAGIC_IMPROVE_TEST"] else { throw XCTSkip("no improve test") }
+        let app = AppState()
+        let saved = app.selectedModelID
+        app.selectedModelID = id
+        defer { app.selectedModelID = saved }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-improve")
+        app.images.root = folder
+        let start = Date()
+        let made = await app.makeImageNow(prompt: "het Rijksmuseum in Amsterdam bij avondlicht, foto", size: ImageSize(width: 512, height: 512),
+                                          seed: 7, improve: true)
+        await app.engine.stopAndWait()
+        let r = try XCTUnwrap(made, app.images.error ?? "")
+        print("IMPROVED in \(Int(Date().timeIntervalSince(start))) s, image \(Int(r.seconds)) s: \(r.usedPrompt ?? "(not improved: \(app.images.note ?? ""))")")
+        print("SOURCES: \(app.images.sources.map(\.url))")
+        print("IMAGE: \(r.path)")
+        XCTAssertNotNil(r.usedPrompt)
+    }
+}
