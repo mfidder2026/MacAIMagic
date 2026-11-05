@@ -65,8 +65,7 @@ comes from the internal SSD.
 - **Seven models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
   says for this Mac whether the model fits in memory, streams from the SSD, or is too big. Every download address names
   one version of its file, and the size is checked before a byte comes down: when a maker replaces or removes a file,
-  the card says so at once. Every Monday a GitHub job (`tools/check_catalog.py`) checks that every file can still be
-  downloaded, reading headers only.
+  the card says so at once. `tools/check_catalog.py` checks that every file can still be downloaded, reading headers only.
 - **Images** (sidebar → **Beeld**): describe what you want and FLUX.2 Klein 4B (5.3 GB, Apache 2.0) makes the image on
   this Mac, with earlier ones below it. Images go to `~/Pictures/MacAIMagic` with their description in a file beside
   them, not inside the image. A running chat model stops first. The image engine is built with
