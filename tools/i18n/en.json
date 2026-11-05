@@ -575,5 +575,9 @@
  "%@ verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.": "%@ first improves the description. What goes to the search engine has e-mail addresses, numbers and amounts taken out.",
  "%@ start eerst om de beschrijving te verbeteren; dat kan even duren.": "%@ starts first to improve the description; that can take a while.",
  "Beschrijving voor het beeldmodel": "Description for the image model",
- "%@ kan nu niet starten.": "%@ cannot start now."
+ "%@ kan nu niet starten.": "%@ cannot start now.",
+ "Dit is het zware model.": "This is the heavy model.",
+ "Het snelle model doet in Documenten het kleine werk: notities, spelling, korter maken.": "In Documents the fast model does the small work: notes, spelling, shortening.",
+ "Start vanzelf als er een afbeelding wordt gemaakt.": "Starts by itself when an image is made.",
+ "Nog niet gedownload: zie Modellen.": "Not downloaded yet: see Models."
 }

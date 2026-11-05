@@ -462,3 +462,24 @@ final class ImagePromptTests: XCTestCase {
         XCTAssertNotNil(r.usedPrompt)
     }
 }
+
+
+/// The fast model the user chose under Modellen goes first, as long as it fits beside the heavy one.
+final class ChosenFastModelTests: XCTestCase {
+    private func model(_ id: String) -> ModelInfo { ModelCatalog.shared.model(id)! }
+
+    func testTheChosenFastModelGoesFirst() {
+        var idx = GGUFIndex()
+        idx.tensors.append(.init(name: "x", bytes: 20_000_000_000))
+        let system = SystemInfo(chip: "M3 Max", physicalMemory: 128 << 30, performanceCores: 12, gpuWorkingSet: 100_000_000_000, wiredLimitMB: 0, freeDisk: 1 << 40)
+        let plan = MemoryPlanner.plan(index: idx, system: system, contextSize: 8192, vision: false)
+        let heavy = model("glm-5.3-flash-compact")
+        let downloaded = [heavy, model("qwen3.6-35b-a3b-q4"), model("ministral-3-8b-q4")]
+        XCTAssertEqual(DocumentModels.fastModel(heavy: heavy, heavyPlan: plan, downloaded: downloaded, physical: system.physicalMemory)?.id,
+                       "ministral-3-8b-q4", "by itself: the smallest")
+        XCTAssertEqual(DocumentModels.fastModel(heavy: heavy, heavyPlan: plan, downloaded: downloaded, physical: system.physicalMemory,
+                                                chosen: "qwen3.6-35b-a3b-q4")?.id, "qwen3.6-35b-a3b-q4")
+        XCTAssertEqual(DocumentModels.fastModel(heavy: heavy, heavyPlan: plan, downloaded: downloaded, physical: system.physicalMemory,
+                                                chosen: heavy.id)?.id, "ministral-3-8b-q4", "the heavy one is never also the fast one")
+    }
+}

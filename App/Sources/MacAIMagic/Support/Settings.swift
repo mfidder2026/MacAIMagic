@@ -31,6 +31,8 @@ final class Settings: ObservableObject {
     @AppStorage("imageSize") var imageSize = ""
     /// The model that makes images (Modellen → Kies voor afbeeldingen); empty: the first in the catalog.
     @AppStorage("imageModel") var imageModel = ""
+    /// The fast model of the documents module (Modellen → Snel); empty: the smallest that fits beside the heavy one.
+    @AppStorage("fastModel") var fastModel = ""
     /// The chat model rewrites the description for the image model first, with the web when it needs it.
     @AppStorage("imageImprove") var imageImprove = false
     @AppStorage("thinking") var thinking = true

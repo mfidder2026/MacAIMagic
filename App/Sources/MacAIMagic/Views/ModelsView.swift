@@ -46,6 +46,8 @@ private struct ModelCard: View {
     /// Makes images instead of chatting: chosen apart, for the page Beeld.
     private var makesImages: Bool { models.catalog.images.contains(model) }
     private var selected: Bool { makesImages ? app.imageModel?.id == model.id : app.selectedModelID == model.id }
+    /// The documents module's fast model: chosen here, or the one it picks itself.
+    private var isFast: Bool { !makesImages && app.documentEngines.fastChoice?.id == model.id }
     private var running: Bool { engine.model?.id == model.id && engine.state.isRunning }
     /// Does the model fit in this Mac's memory, stream from the SSD, or not run here at all?
     private var fit: MemoryPlanner.Fit { MemoryPlanner.fit(model, physical: app.system.physicalMemory) }
@@ -113,13 +115,25 @@ private struct ModelCard: View {
                     }
                 }
                 Spacer()
-                if selected {
-                    Label(makesImages ? L("Gekozen voor afbeeldingen") : L("Gekozen"), systemImage: "checkmark.circle.fill")
-                        .font(.callout).foregroundStyle(Theme.family(model.family))
-                } else if makesImages {
-                    Button(L("Kies voor afbeeldingen")) { Settings.shared.imageModel = model.id; app.objectWillChange.send() }
+                // the same three roles on every card: heavy and fast for a model that chats, images for one that draws
+                if makesImages {
+                    RoleButton(title: L("Afbeeldingen"), icon: "photo", on: selected, color: Theme.family(model.family)) {
+                        Settings.shared.imageModel = model.id
+                        app.objectWillChange.send()
+                    }
                 } else {
-                    Button(L("Kies")) { Task { await app.select(model.id) } }.disabled(!status.headersAvailable)
+                    RoleButton(title: L("Zwaar"), icon: "brain", on: selected, color: Theme.family(model.family)) {
+                        if Settings.shared.fastModel == model.id { Settings.shared.fastModel = "" }
+                        Task { await app.select(model.id) }
+                    }
+                    .disabled(!status.headersAvailable && !selected)
+                    RoleButton(title: L("Snel"), icon: "bolt.fill", on: isFast, color: Theme.family(model.family)) {
+                        // the chosen one again: back to the automatic choice
+                        Settings.shared.fastModel = isFast && !Settings.shared.fastModel.isEmpty ? "" : model.id
+                        app.objectWillChange.send()
+                    }
+                    .disabled(selected || !status.isComplete)
+                    .help(selected ? L("Dit is het zware model.") : L("Het snelle model doet in Documenten het kleine werk: notities, spelling, korter maken."))
                 }
             }
         }
@@ -279,5 +293,28 @@ private struct FolderCard: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         settings.modelFolder = url.path
         app.loadIndex()
+    }
+}
+
+/// One role of a model: heavy, fast or images. The same look on every card: filled with a check when it has the role.
+struct RoleButton: View {
+    let title: String
+    let icon: String
+    let on: Bool
+    let color: Color
+    let action: () -> Void
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: on ? "checkmark.circle.fill" : icon)
+                .font(.callout.weight(on ? .semibold : .regular))
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .foregroundStyle(on ? AnyShapeStyle(color) : AnyShapeStyle(.primary))
+                .background(Capsule().fill(on ? color.opacity(0.16) : .white.opacity(0.05)))
+                .overlay(Capsule().stroke(on ? color.opacity(0.6) : .white.opacity(0.1), lineWidth: 1))
+                .opacity(enabled || on ? 1 : 0.4)
+        }
+        .buttonStyle(.plain)
     }
 }

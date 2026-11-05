@@ -10,10 +10,12 @@ enum DocumentModels {
 
     /// The smallest downloaded model next to `heavy`, when both stay whole in this Mac's memory. A heavy model that
     /// streams from the SSD needs the free memory for its experts; then one model does everything.
-    static func fastModel(heavy: ModelInfo?, heavyPlan: MemoryPlan?, downloaded: [ModelInfo], physical: UInt64) -> ModelInfo? {
+    /// `chosen`: the model the user chose under Modellen; it goes first when it is downloaded, as long as it fits.
+    static func fastModel(heavy: ModelInfo?, heavyPlan: MemoryPlan?, downloaded: [ModelInfo], physical: UInt64, chosen: String = "") -> ModelInfo? {
         guard let heavy, let heavyPlan, heavyPlan.fitsInMemory else { return nil }
         let heavyMemory = heavy.memory ?? heavy.totalSize
-        guard let small = downloaded.filter({ $0.id != heavy.id && ($0.memory ?? $0.totalSize) < heavyMemory })
+        let picked = downloaded.first { $0.id == chosen && $0.id != heavy.id }
+        guard let small = picked ?? downloaded.filter({ $0.id != heavy.id && ($0.memory ?? $0.totalSize) < heavyMemory })
             .min(by: { ($0.memory ?? $0.totalSize) < ($1.memory ?? $1.totalSize) }) else { return nil }
         let needed = (small.memory ?? small.totalSize) + MemoryPlanner.minimumOverhead + MemoryPlanner.osHeadroom
         return heavyPlan.resident + needed <= physical ? small : nil
@@ -44,7 +46,7 @@ final class DocumentEngines: ObservableObject {
         let m = app.models
         return DocumentModels.fastModel(heavy: app.selectedModel, heavyPlan: app.plan,
                                         downloaded: m.catalog.models.filter { m.status($0.id).isComplete },
-                                        physical: app.system.physicalMemory)
+                                        physical: app.system.physicalMemory, chosen: Settings.shared.fastModel)
     }
 
     func endpoint(_ role: ModelRole) async throws -> (url: URL, model: String) {

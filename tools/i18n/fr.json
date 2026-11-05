@@ -575,5 +575,9 @@
  "%@ verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.": "%@ améliore d'abord la description. Ce qui part vers le moteur de recherche est débarrassé des adresses e-mail, numéros et montants.",
  "%@ start eerst om de beschrijving te verbeteren; dat kan even duren.": "%@ démarre d'abord pour améliorer la description ; cela peut prendre un moment.",
  "Beschrijving voor het beeldmodel": "Description pour le modèle d'image",
- "%@ kan nu niet starten.": "%@ ne peut pas démarrer maintenant."
+ "%@ kan nu niet starten.": "%@ ne peut pas démarrer maintenant.",
+ "Dit is het zware model.": "C'est le modèle lourd.",
+ "Het snelle model doet in Documenten het kleine werk: notities, spelling, korter maken.": "Dans Documents, le modèle rapide fait le petit travail : notes, orthographe, raccourcir.",
+ "Start vanzelf als er een afbeelding wordt gemaakt.": "Démarre tout seul quand une image est créée.",
+ "Nog niet gedownload: zie Modellen.": "Pas encore téléchargé : voir Modèles."
 }

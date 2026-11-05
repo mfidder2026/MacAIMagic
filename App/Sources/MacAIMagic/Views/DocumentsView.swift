@@ -120,23 +120,32 @@ struct DocumentsView: View {
     private var modelsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Modellen")).font(.caption).foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Image(systemName: "brain").frame(width: 18).foregroundStyle(Theme.cyan)
-                    Text(L("Zwaar")).font(.callout)
-                    Text(app.selectedModel?.shortName ?? L("Geen model")).font(.callout.weight(.medium)).lineLimit(1)
-                    Spacer()
-                    Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
+            ModelRoleRow(icon: "brain", role: L("Zwaar"), name: app.selectedModel?.shortName ?? L("Geen model"), active: engine.state.isRunning) {
+                Text(engine.state.statusText(idle: L("Start vanzelf als er geschreven wordt."))).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                HStack {
+                    if engine.state != .stopped && !isFailed(engine.state) {
+                        Button(L("Stop")) { engine.stop() }.disabled(studio.busy)
+                    } else {
+                        Button(isFailed(engine.state) ? L("Probeer opnieuw") : L("Start nu")) { app.startEngine() }.disabled(!app.canStart)
+                    }
                 }
-                Text(engine.state.statusText(idle: L("Start vanzelf als er geschreven wordt."))).font(.caption).foregroundStyle(.secondary).lineLimit(2).padding(.leading, 24)
+                .buttonStyle(DocumentActionStyle(prominent: false, small: true))
             }
             if let fast = app.documentEngines.fastChoice {
                 FastModelRow(engines: app.documentEngines, engine: app.documentEngines.fast, name: fast.shortName)
             } else {
-                Text(L("Eén model voor alles: er past geen tweede model naast op deze Mac, of er is er geen gedownload."))
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                ModelRoleRow(icon: "bolt.fill", role: L("Snel"), name: app.selectedModel?.shortName ?? L("Geen model"), active: engine.state.isRunning) {
+                    Text(L("Eén model voor alles: er past geen tweede model naast op deze Mac, of er is er geen gedownload."))
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
             }
+            ImageModelRow(images: app.images, model: app.imageModel, ready: app.imageModel.map { app.models.status($0.id).isComplete } ?? false)
         }
+    }
+
+    private func isFailed(_ state: EngineController.State) -> Bool {
+        if case .failed = state { return true }
+        return false
     }
 
     private func chooseFolder() {
@@ -537,19 +546,11 @@ private struct FastModelRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Image(systemName: "bolt.fill").frame(width: 18).foregroundStyle(Theme.cyan)
-                Text(L("Snel")).font(.callout)
-                Text(name).font(.callout.weight(.medium)).lineLimit(1)
-                Spacer()
-                Circle().fill(engine.state.isRunning ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
-            }
+        ModelRoleRow(icon: "bolt.fill", role: L("Snel"), name: name, active: engine.state.isRunning) {
             if let problem = engines.fastProblem {
-                Text(L("Start niet; het zware model doet dit werk nu. \(problem)")).font(.caption).foregroundStyle(Theme.amber)
-                    .lineLimit(4).padding(.leading, 24)
+                Text(L("Start niet; het zware model doet dit werk nu. \(problem)")).font(.caption).foregroundStyle(Theme.amber).lineLimit(4)
             } else {
-                Text(engine.state.statusText(idle: L("Start vanzelf bij de eerste snelle actie."))).font(.caption).foregroundStyle(.secondary).lineLimit(2).padding(.leading, 24)
+                Text(engine.state.statusText(idle: L("Start vanzelf bij de eerste snelle actie."))).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             HStack {
                 if engine.state.isRunning || loading {
@@ -559,7 +560,46 @@ private struct FastModelRow: View {
                 }
             }
             .buttonStyle(DocumentActionStyle(prominent: false, small: true))
-            .padding(.leading, 24)
+        }
+    }
+}
+
+/// The image model in the same row as the others: it runs only while an image is made, so its dot is green only then.
+private struct ImageModelRow: View {
+    @ObservedObject var images: ImageMaker
+    let model: ModelInfo?
+    let ready: Bool
+
+    var body: some View {
+        ModelRoleRow(icon: "photo", role: L("Afbeeldingen"), name: model?.shortName ?? L("Geen model"), active: images.busy) {
+            Text(images.busy ? images.status
+                 : ready ? L("Start vanzelf als er een afbeelding wordt gemaakt.") : L("Nog niet gedownload: zie Modellen."))
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            if images.busy {
+                Button(L("Stop")) { images.stop() }.buttonStyle(DocumentActionStyle(prominent: false, small: true))
+            }
+        }
+    }
+}
+
+/// One model with its role: the same row for heavy, fast and images. Green dot: it runs now.
+private struct ModelRoleRow<Detail: View>: View {
+    let icon: String
+    let role: String
+    let name: String
+    let active: Bool
+    @ViewBuilder var detail: Detail
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).frame(width: 18).foregroundStyle(Theme.cyan)
+                Text(role).font(.callout)
+                Text(name).font(.callout.weight(.medium)).lineLimit(1)
+                Spacer()
+                Circle().fill(active ? Theme.mint : .secondary.opacity(0.4)).frame(width: 7, height: 7)
+            }
+            VStack(alignment: .leading, spacing: 3) { detail }.padding(.leading, 24)
         }
     }
 }
