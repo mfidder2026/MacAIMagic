@@ -110,28 +110,29 @@ struct ImagesView: View {
                 }
                 Spacer()
             }
-            if images.busy {
-                ProgressView(value: images.fraction).tint(Theme.violet)
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text(images.status + " · " + clock(context.date.timeIntervalSince(images.started))).font(.callout).foregroundStyle(.secondary)
+            // who does what: the image model always, the model that writes the description when the switch is on
+            HStack(spacing: 14) {
+                if settings.imageImprove {
+                    if let writer = app.describer {
+                        roleLabel(icon: "text.bubble", text: L("Beschrijving: \(writer.model.name) (\(writer.role))"))
+                    } else {
+                        roleLabel(icon: "text.bubble", text: L("Beschrijving: geen chatmodel gedownload"))
+                    }
                 }
+                roleLabel(icon: "photo", text: L("Afbeelding: \(model?.name ?? L("geen model"))"))
             }
+            if images.busy { ProgressView(value: images.fraction).tint(Theme.violet) }
+            if !images.steps.isEmpty { stepList }
             let plan = ImagePlanner.plan(size, app.system)
             Text(plan.onGPU ? L("Op de GPU duurt een afbeelding seconden tot een minuut.")
                             : L("Op de processor duurt een afbeelding minuten. Hoe lang precies hangt af van deze Mac en de grootte.")
                                 + (plan.tiling ? " " + L("Op dit geheugen werkt de laatste stap in delen, en dat duurt langer.") : ""))
                 .font(.caption).foregroundStyle(.secondary)
-            if app.engine.state != .stopped, !images.busy, let running = app.engine.model {
-                Text(L("\(running.shortName) stopt zolang er een afbeelding wordt gemaakt: daarnaast is meestal geen ruimte. Start het daarna weer in een gesprek."))
-                    .font(.caption).foregroundStyle(Theme.amber)
-            }
+
             Text(L("Het model volgt een beschrijving in het Engels het best: in het Nederlands mist het soms waar het om gaat."))
                 .font(.caption).foregroundStyle(.secondary)
-            if settings.imageImprove, !images.busy {
-                Text(app.engine.state.isRunning
-                     ? L("\(app.selectedModel?.shortName ?? "") verbetert eerst de beschrijving. Wat naar de zoekmachine gaat, is ontdaan van e-mailadressen, nummers en bedragen.")
-                     : L("\(app.selectedModel?.shortName ?? "") start eerst om de beschrijving te verbeteren; dat kan even duren."))
-                    .font(.caption).foregroundStyle(.secondary)
+            if settings.imageImprove, !images.busy, let writer = app.describer {
+                Text(writerNote(writer)).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             if let note = images.note { Text(note).font(.caption).foregroundStyle(Theme.amber) }
             if let error = images.error { Text(error).font(.caption).foregroundStyle(Theme.pink) }
@@ -191,6 +192,40 @@ struct ImagesView: View {
                     }
                     .buttonStyle(.plain)
                     .help(item.prompt.isEmpty ? (item.path as NSString).lastPathComponent : item.prompt)
+                }
+            }
+        }
+    }
+
+    private func roleLabel(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+    }
+
+    /// What will happen before the image, in plain words: which model starts, and what makes room.
+    private func writerNote(_ writer: AppState.Describer) -> String {
+        let target = writer.onFast ? app.documentEngines.fast : app.engine
+        let runs = target.state.isRunning && target.model?.id == writer.model.id
+        let first = runs ? L("\(writer.model.shortName) draait al en schrijft eerst een Engelse beschrijving; zo nodig zoekt het op het web hoe iets eruitziet.")
+                         : L("\(writer.model.shortName) start eerst (enkele seconden tot minuten) en schrijft een Engelse beschrijving; zo nodig zoekt het op het web hoe iets eruitziet.")
+        return first + " " + L("Is er daarna te weinig geheugen voor de afbeelding, dan stopt een model om ruimte te maken; dat zie je in de stappen.")
+    }
+
+    /// Each step with the model that does it: a spinner while it runs, a check when done, a cross when it failed.
+    private var stepList: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(images.steps) { s in
+                HStack(spacing: 8) {
+                    switch s.state {
+                    case .running: ProgressView().controlSize(.small).frame(width: 16)
+                    case .done: Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.mint).frame(width: 16)
+                    case .failed: Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.amber).frame(width: 16)
+                    }
+                    Text(s.title).font(.callout).lineLimit(1).truncationMode(.middle)
+                    if s.state == .running {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Text(clock(context.date.timeIntervalSince(s.started))).font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
         }

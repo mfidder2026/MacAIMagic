@@ -76,8 +76,9 @@ Maak afbeeldingen op de Mac zelf (zijbalk → **Beeld**): beschrijf wat je wilt 
 maakt het. De afbeeldingen komen in `~/Pictures/MacAIMagic`, met de beschrijving in een bestand ernaast, niet in de afbeelding.
 Een draaiend chatmodel stopt eerst. Gemeten op de M3 Max, 4 stappen met laden: 512 × 512 in 14 s en 1024 × 1024 in 42-46 s
 op de GPU, ongeveer 450 beeldtokens per seconde; 512 × 512 in 78 s op de processor. FLUX staat bij de modellen
-(**Kies voor afbeeldingen**) en bij **Vergelijken**, en de snelheidsmeter telt de beeldtokens terwijl het tekent. Met **Verbeteren met web** schrijft het chatmodel eerst een betere
-Engelse beschrijving en zoekt het zo nodig op het web hoe iets eruitziet: met Ministral werd "het Rijksmuseum in Amsterdam bij
+(**Kies voor afbeeldingen**) en bij **Vergelijken**, en de snelheidsmeter telt de beeldtokens terwijl het tekent. Met **Verbeteren met web** schrijft het snelle model (Snel; het zware alleen als er geen ander is)
+eerst een betere Engelse beschrijving; de pagina toont elke stap met het model dat hem doet, en de statusknop bovenaan noemt elk
+model dat in het geheugen staat. Het snelle model en zoekt het zo nodig op het web hoe iets eruitziet: met Ministral werd "het Rijksmuseum in Amsterdam bij
 avondlicht" een gebouw van rode baksteen met torens en de doorgang, in 21 s, waarna het beeld 13 s kostte. Een Engelse beschrijving werkt het best: een Nederlandse
 tekende een man waar de Engelse de vos tekende. De beeldengine bouw je met `scripts/build_image_engine.sh`.
 

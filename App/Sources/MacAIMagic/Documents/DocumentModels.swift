@@ -88,6 +88,13 @@ final class DocumentEngines: ObservableObject {
         Task { _ = try? await startingFast(small) }
     }
 
+    /// For an image's description: the fast model, also when no heavy model runs.
+    func startForImage(_ model: ModelInfo) async throws {
+        failedModel = nil
+        fastProblem = nil
+        try await startFast(model)
+    }
+
     func stopFast() {
         stoppedByUser = true
         failedModel = nil
@@ -113,9 +120,10 @@ final class DocumentEngines: ObservableObject {
         if case .starting = fast.state {} else {
             let shards = app.models.shardURLs(small)
             let index = try GGUFIndex.load(shards: shards, sizes: small.files.map(\.size))
-            // the memory that is left next to the heavy model
+            // the memory that is left next to the heavy model, when it runs
             let s = app.system
-            let taken = app.plan?.resident ?? 0
+            let heavyActive = app.engine.state.isRunning || { if case .starting = app.engine.state { return true }; return false }()
+            let taken = heavyActive ? app.plan?.resident ?? 0 : 0
             let rest = SystemInfo(chip: s.chip, physicalMemory: s.physicalMemory - min(taken, s.physicalMemory),
                                   performanceCores: s.performanceCores, gpuWorkingSet: s.effectiveGPULimit - min(taken, s.effectiveGPULimit),
                                   wiredLimitMB: 0, freeDisk: s.freeDisk)

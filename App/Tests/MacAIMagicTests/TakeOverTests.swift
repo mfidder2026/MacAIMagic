@@ -442,22 +442,24 @@ final class ImagePromptTests: XCTestCase {
         XCTAssertTrue(m.note?.contains("geen model") == true)
     }
 
-    /// MACAIMAGIC_IMPROVE_TEST=<chat model id>: the real chat model improves a Dutch description, with the web, and FLUX draws it.
+    /// MACAIMAGIC_IMPROVE_TEST=1: with the owner's own choice of models, the fast model writes the description with the web, the
+    /// heavy one does not start, and FLUX draws it.
     func testARealImprovement() async throws {
-        guard let id = ProcessInfo.processInfo.environment["MACAIMAGIC_IMPROVE_TEST"] else { throw XCTSkip("no improve test") }
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_IMPROVE_TEST"] == "1" else { throw XCTSkip("no improve test") }
         let app = AppState()
-        let saved = app.selectedModelID
-        app.selectedModelID = id
-        defer { app.selectedModelID = saved }
+        let writer = try XCTUnwrap(app.describer)
+        print("WRITER: \(writer.model.name) (\(writer.role)), heavy: \(app.selectedModel?.name ?? "-")")
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-improve")
         app.images.root = folder
         let start = Date()
         let made = await app.makeImageNow(prompt: "het Rijksmuseum in Amsterdam bij avondlicht, foto", size: ImageSize(width: 512, height: 512),
                                           seed: 7, improve: true)
+        print("STEPS:\n" + app.images.steps.map { "  \($0.state) \($0.title)" }.joined(separator: "\n"))
+        print("HEAVY after: \(app.engine.state), FAST after: \(app.documentEngines.fast.state) \(app.documentEngines.fast.model?.name ?? "")")
+        await app.documentEngines.fast.stopAndWait()
         await app.engine.stopAndWait()
         let r = try XCTUnwrap(made, app.images.error ?? "")
         print("IMPROVED in \(Int(Date().timeIntervalSince(start))) s, image \(Int(r.seconds)) s: \(r.usedPrompt ?? "(not improved: \(app.images.note ?? ""))")")
-        print("SOURCES: \(app.images.sources.map(\.url))")
         print("IMAGE: \(r.path)")
         XCTAssertNotNil(r.usedPrompt)
     }
@@ -481,5 +483,69 @@ final class ChosenFastModelTests: XCTestCase {
                                                 chosen: "qwen3.6-35b-a3b-q4")?.id, "qwen3.6-35b-a3b-q4")
         XCTAssertEqual(DocumentModels.fastModel(heavy: heavy, heavyPlan: plan, downloaded: downloaded, physical: system.physicalMemory,
                                                 chosen: heavy.id)?.id, "ministral-3-8b-q4", "the heavy one is never also the fast one")
+    }
+}
+
+
+/// Who writes the description for an image: the fast model, the heavy one only when there is no other.
+final class DescriberTests: XCTestCase {
+    private func model(_ id: String) -> ModelInfo { ModelCatalog.shared.model(id)! }
+    private let plenty: UInt64 = 100_000_000_000
+
+    func testTheFastModelWritesIt() {
+        let heavy = model("deepseek-v4.1-flash-compact"), small = model("ministral-3-8b-q4")
+        let d = AppState.describer(heavy: heavy, downloaded: [heavy, small, model("qwen3.6-35b-a3b-q4")], chosenFast: "",
+                                   heavyRunning: false, fastRunning: nil, available: plenty)
+        XCTAssertEqual(d?.model.id, small.id)
+        XCTAssertEqual(d?.onFast, true)
+    }
+
+    func testTheChosenFastModelWritesIt() {
+        let heavy = model("deepseek-v4.1-flash-compact")
+        let d = AppState.describer(heavy: heavy, downloaded: [heavy, model("ministral-3-8b-q4"), model("qwen3.6-35b-a3b-q4")],
+                                   chosenFast: "qwen3.6-35b-a3b-q4", heavyRunning: false, fastRunning: nil, available: plenty)
+        XCTAssertEqual(d?.model.id, "qwen3.6-35b-a3b-q4")
+    }
+
+    func testOnlyOneModelMeansTheHeavyOne() {
+        let heavy = model("deepseek-v4.1-flash-compact")
+        let d = AppState.describer(heavy: heavy, downloaded: [heavy], chosenFast: "", heavyRunning: false, fastRunning: nil, available: plenty)
+        XCTAssertEqual(d?.model.id, heavy.id)
+        XCTAssertEqual(d?.onFast, false)
+    }
+
+    /// A heavy model that runs and leaves no room for the fast one: it writes the description itself.
+    func testARunningHeavyModelWithoutRoomWritesIt() {
+        let heavy = model("deepseek-v4.1-flash-compact")
+        let d = AppState.describer(heavy: heavy, downloaded: [heavy, model("ministral-3-8b-q4")], chosenFast: "",
+                                   heavyRunning: true, fastRunning: nil, available: 3_000_000_000)
+        XCTAssertEqual(d?.model.id, heavy.id)
+    }
+
+    func testAFastModelThatRunsWritesIt() {
+        let heavy = model("deepseek-v4.1-flash-compact"), qwen = model("qwen3.6-35b-a3b-q4")
+        let d = AppState.describer(heavy: heavy, downloaded: [heavy, model("ministral-3-8b-q4"), qwen], chosenFast: "",
+                                   heavyRunning: true, fastRunning: qwen, available: 0)
+        XCTAssertEqual(d?.model.id, qwen.id)
+    }
+
+    /// The steps name the model that does them, and end done.
+    @MainActor func testTheStepsNameTheModels() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let exe = folder.appendingPathComponent("engine.sh")
+        try "#!/bin/bash\nwhile [ $# -gt 0 ]; do case \"$1\" in -o) OUT=\"$2\"; shift;; esac; shift; done\necho 'sampling using Euler'\necho 'sampling completed'\necho png > \"$OUT\"\n"
+            .write(to: exe, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
+        let m = ImageMaker()
+        m.root = folder.appendingPathComponent("out")
+        m.executableOverride = exe
+        let system = SystemInfo(chip: "M1", physicalMemory: 32 << 30, performanceCores: 4, gpuWorkingSet: 21 << 30, wiredLimitMB: 0, freeDisk: 1 << 40)
+        _ = await m.make(prompt: "vos", size: ImageSize(width: 512, height: 512), system: system, files: ["a", "b", "c"], drawer: "FLUX.2",
+                         improve: { step in step("Ministral-3-8B (Snel) schrijft de beschrijving…"); return ("a fox", []) })
+        XCTAssertEqual(m.steps.first?.title, "Ministral-3-8B (Snel) schrijft de beschrijving…")
+        XCTAssertTrue(m.steps.contains { $0.title.hasPrefix("FLUX.2: ") }, "\(m.steps.map(\.title))")
+        XCTAssertTrue(m.steps.allSatisfy { $0.state == .done })
     }
 }

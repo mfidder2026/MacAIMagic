@@ -219,33 +219,55 @@ struct MiniSpark: View {
 }
 
 struct EngineStatusPill: View {
-    @EnvironmentObject var engine: EngineController
+    @EnvironmentObject var app: AppState
+    /// False: only the app's own engine, beside its Start and Stop.
+    var all = true
 
     var body: some View {
+        PillBody(engine: app.engine, fast: app.documentEngines.fast, images: app.images, all: all)
+    }
+}
+
+/// Every model that is in memory, with what it does: the chat engine (Zwaar), the second engine (Snel) and the image model
+/// while it draws. Green: runs; amber: loading; red: failed; grey: nothing in memory.
+private struct PillBody: View {
+    @ObservedObject var engine: EngineController
+    @ObservedObject var fast: EngineController
+    @ObservedObject var images: ImageMaker
+    let all: Bool
+    @EnvironmentObject var app: AppState
+
+    private struct Part { let text: String; let color: Color; let rank: Int }
+
+    private func part(_ e: EngineController, role: String) -> Part? {
+        let name = e.model?.shortName ?? L("Model")
+        switch e.state {
+        case .running: return Part(text: L("\(name) actief (\(role))"), color: Theme.mint, rank: 1)
+        case .starting: return Part(text: L("\(name) laden… (\(role))"), color: Theme.amber, rank: 2)
+        case .failed: return Part(text: L("\(name): fout"), color: .red, rank: 3)
+        case .stopped: return nil
+        }
+    }
+
+    private var parts: [Part] {
+        var list = [part(engine, role: L("Zwaar"))].compactMap { $0 }
+        guard all else { return list }
+        if let p = part(fast, role: L("Snel")) { list.append(p) }
+        if images.busy { list.append(Part(text: L("\(app.imageModel?.shortName ?? L("Beeld")) tekent"), color: Theme.mint, rank: 1)) }
+        return list
+    }
+
+    var body: some View {
+        let list = parts
+        let color = list.max { $0.rank < $1.rank }?.color ?? .gray
         HStack(spacing: 7) {
             Circle().fill(color).frame(width: 8, height: 8).shadow(color: color, radius: 4)
-            Text(label).font(.callout.weight(.medium))
+            Text(list.isEmpty ? L("Geen model geladen") : list.map(\.text).joined(separator: " · "))
+                .font(.callout.weight(.medium)).lineLimit(1)
         }
         .padding(.horizontal, 11).padding(.vertical, 5)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(color.opacity(0.4), lineWidth: 1))
-        .help(L("Engine-status: klik voor het live dashboard"))
-    }
-
-    private var color: Color {
-        switch engine.state {
-        case .running: return Theme.mint
-        case .starting: return Theme.amber
-        case .failed: return .red
-        case .stopped: return .gray
-        }
-    }
-    private var label: String {
-        switch engine.state {
-        case .running: return "\(engine.model?.shortName ?? "Model") actief"
-        case .starting(let s): return s
-        case .failed: return L("Engine fout")
-        case .stopped: return L("Engine uit")
-        }
+        .help(L("Welke modellen in het geheugen staan: klik voor het live dashboard"))
     }
 }

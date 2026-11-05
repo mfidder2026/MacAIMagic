@@ -217,7 +217,7 @@ private struct EngineCard: View {
     var body: some View {
         GlassCard(title: L("Engine"), icon: "bolt.horizontal.fill", glow: Theme.mint) {
             HStack {
-                EngineStatusPill()
+                EngineStatusPill(all: false)
                 Text(app.selectedModel?.name ?? "").foregroundStyle(.secondary)
                 Spacer()
                 EngineButton()

@@ -35,6 +35,14 @@ final class AppState: ObservableObject {
             default: metrics?.fast = false
             }
         }
+        // the second engine writes too (documents, a description for an image): the gauge counts it
+        let fastPort = documentEngines.fast.baseURL.port
+        documentEngines.fast.onStateChange = { [weak metrics] state in
+            switch state {
+            case .running, .starting: metrics?.fastPort = fastPort
+            default: metrics?.fastPort = nil
+            }
+        }
         images.onRate = { [weak metrics] rate in metrics?.imageRate = rate }
         loadIndex()
         documents.endpoint = { [weak self] role in
@@ -114,25 +122,62 @@ final class AppState: ObservableObject {
         Task { await makeImageNow(prompt: prompt, size: size, improve: Settings.shared.imageImprove) }
     }
 
-    /// The chat model writes a better description: started first when it does not run, and the engine makes room afterwards
+    /// The model that writes the better description, and on which engine.
+    struct Describer: Equatable {
+        let model: ModelInfo
+        /// On the second engine, the fast model's (Snel); else the app's own, the heavy model's (Zwaar).
+        let onFast: Bool
+        var role: String { onFast ? L("Snel") : L("Zwaar") }
+    }
+
+    /// The fast model (Snel) writes it: it is small, starts in seconds and can stay beside the image. The heavy model only
+    /// when there is no other, or when it runs already and the fast one would not fit beside it.
+    nonisolated static func describer(heavy: ModelInfo?, downloaded: [ModelInfo], chosenFast: String, heavyRunning: Bool,
+                                      fastRunning: ModelInfo?, available: UInt64) -> Describer? {
+        if let running = fastRunning { return Describer(model: running, onFast: true) }
+        func size(_ m: ModelInfo) -> UInt64 { m.memory ?? m.totalSize }
+        let others = downloaded.filter { $0.id != heavy?.id }
+        let chosen = others.first { $0.id == chosenFast }
+        let smallest = others.min { size($0) < size($1) }.flatMap { m in heavy.map { size(m) < size($0) } ?? true ? m : nil }
+        if let fast = chosen ?? smallest {
+            let fits = size(fast) + MemoryPlanner.minimumOverhead + MemoryPlanner.osHeadroom <= available
+            if !(heavyRunning && !fits) || heavy == nil { return Describer(model: fast, onFast: true) }
+        }
+        return heavy.map { Describer(model: $0, onFast: false) }
+    }
+
+    var describer: Describer? {
+        let downloaded = models.catalog.models.filter { models.status($0.id).isComplete }
+        let fast = documentEngines.fast
+        return Self.describer(heavy: selectedModel.flatMap { downloaded.contains($0) ? $0 : nil }, downloaded: downloaded,
+                              chosenFast: Settings.shared.fastModel, heavyRunning: engine.state.isRunning,
+                              fastRunning: fast.state.isRunning ? fast.model : nil, available: SystemInfo.availableMemory())
+    }
+
+    /// The chat model writes a better description: started first when it does not run, and afterwards the engines make room
     /// as for any image. Fails without a downloaded chat model.
     private func improveDescription(_ text: String, onStep: @escaping (String) -> Void) async throws -> (prompt: String, sources: [Source]) {
-        guard let model = selectedModel else { throw ImproveError(L("Er is geen chatmodel gekozen.")) }
-        if !engine.state.isRunning {
-            guard models.status(model.id).isComplete else { throw ImproveError(L("\(model.name) is nog niet gedownload.")) }
-            guard chatModelReady else { throw ImproveError(L("\(model.name) kan nu niet starten.")) }
-            onStep(L("\(model.shortName) starten…"))
-            startEngine(forImage: true)
-            let started = Date()
-            while !engine.state.isRunning {
-                if case .failed(let why) = engine.state { throw ImproveError(why) }
-                if Date().timeIntervalSince(started) > 1800 { throw ImproveError(L("\(model.name) startte niet.")) }
-                try await Task.sleep(for: .milliseconds(500))
+        guard let writer = describer else { throw ImproveError(L("Er is geen chatmodel gedownload.")) }
+        let model = writer.model
+        let target = writer.onFast ? documentEngines.fast : engine
+        if !(target.state.isRunning && target.model?.id == model.id) {
+            onStep(L("\(model.shortName) (\(writer.role)) laden…"))
+            if writer.onFast {
+                try await documentEngines.startForImage(model)
+            } else {
+                guard chatModelReady else { throw ImproveError(L("\(model.name) kan nu niet starten.")) }
+                startEngine(forImage: true)
+                let started = Date()
+                while !engine.state.isRunning {
+                    if case .failed(let why) = engine.state { throw ImproveError(why) }
+                    if Date().timeIntervalSince(started) > 1800 { throw ImproveError(L("\(model.name) startte niet.")) }
+                    try await Task.sleep(for: .milliseconds(500))
+                }
             }
         }
-        onStep(L("Beschrijving verbeteren…"))
-        let base = engine.baseURL
-        let result = try await ImagePrompt.improve(text, model: engine.model?.name ?? model.name, send: { body in
+        onStep(L("\(model.shortName) (\(writer.role)) schrijft de beschrijving…"))
+        let base = target.baseURL
+        let result = try await ImagePrompt.improve(text, model: model.name, send: { body in
             var req = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -143,7 +188,7 @@ final class AppState: ObservableObject {
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard status == 200 else { throw ImproveError(L("Engine gaf \(status): \(String(decoding: data.prefix(300), as: UTF8.self))")) }
             return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-        }, onStep: onStep)
+        }, onStep: { onStep(model.shortName + " " + $0) })
         return (result.prompt, result.sources)
     }
 
@@ -166,7 +211,8 @@ final class AppState: ObservableObject {
                 guard let self else { throw CancellationError() }
                 return try await self.improveDescription(prompt, onStep: step)
             } : nil
-        return await images.make(prompt: prompt, size: size, system: system, files: files, seed: seed, improve: rewrite) { [weak self] in
+        return await images.make(prompt: prompt, size: size, system: system, files: files, seed: seed, drawer: m.shortName,
+                                 improve: rewrite) { [weak self] in
                 guard let self else { return nil }
                 if !self.models.status(m.id).isComplete { return L("De bestanden voor afbeeldingen zijn er nog niet helemaal.") }
                 if !measuring && self.bench.running != nil { return L("Er loopt een meting. Wacht tot die klaar is.") }
@@ -174,10 +220,13 @@ final class AppState: ObservableObject {
                 // the engine says it is done a moment after the description came in
                 for _ in 0..<8 where self.metrics.engineBusy && !self.chat.busy { try? await Task.sleep(for: .milliseconds(500)) }
                 if self.chat.busy || self.metrics.engineBusy { return L("De engine werkt aan een antwoord. Wacht tot dat klaar is of stop het.") }
-                await self.documentEngines.fast.stopAndWait()
-                // a small chat model can stay beside the image when this Mac has the room for a whole one; else it makes room
+                // a model stays beside the image when this Mac has the room for a whole one; else it makes room, the largest first
                 let need = ImagePlanner.wholeBytes(size) + ImagePlanner.wholeMargin + MemoryPlanner.osHeadroom
-                if SystemInfo.availableMemory() < need { await self.engine.stopAndWait() }
+                for engine in [self.engine, self.documentEngines.fast] where SystemInfo.availableMemory() < need {
+                    guard engine.state != .stopped, let name = engine.model?.shortName else { continue }
+                    self.images.step(L("\(name) stopt om ruimte te maken voor de afbeelding"))
+                    await engine.stopAndWait()
+                }
                 self.refreshSystem()
                 return nil
             }

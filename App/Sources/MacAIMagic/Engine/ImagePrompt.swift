@@ -49,14 +49,24 @@ enum ImagePrompt {
                     args["query"] = SearchQuery.clean(query)
                     tool.arguments = String(decoding: (try? JSONSerialization.data(withJSONObject: args)) ?? Data("{}".utf8), as: UTF8.self)
                 }
-                onStep(WebTools.label(for: tool))
+                onStep(label(tool))
                 let out = await WebTools.run(tool)
                 for s in out.sources where !sources.contains(where: { $0.url == s.url }) { sources.append(s) }
-                messages.append(["role": "tool", "tool_call_id": tool.id, "content": String(out.text.prefix(6000))])
+                // the fast model has a context of 16K: a page is cut to what fits a few times
+                messages.append(["role": "tool", "tool_call_id": tool.id, "content": String(out.text.prefix(3000))])
             }
-            onStep(L("Beschrijving schrijven…"))
         }
         return Result(prompt: text, sources: sources)
+    }
+
+    /// What the model does, after its name: "zoekt: Rijksmuseum", "leest: rijksmuseum.nl".
+    static func label(_ call: ToolCall) -> String {
+        let args = (try? JSONSerialization.jsonObject(with: Data(call.arguments.utf8))) as? [String: Any] ?? [:]
+        switch call.name {
+        case "web_search": return L("zoekt: \(args["query"] as? String ?? "")")
+        case "fetch_url": return L("leest: \(URL(string: args["url"] as? String ?? "")?.host?.replacingOccurrences(of: "www.", with: "") ?? "…")")
+        default: return call.name
+        }
     }
 
     /// The description alone: no quotes, no label in front, no thinking left behind.

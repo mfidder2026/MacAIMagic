@@ -160,6 +160,8 @@ struct ImageProgress {
     }
 
     var isDrawing: Bool { stage == .drawing }
+    /// 0 reading the text, 1 drawing, 2 finishing: a new number is a new step on the page.
+    var stageIndex: Int { stage == .reading ? 0 : stage == .drawing ? 1 : 2 }
 
     var fraction: Double {
         switch stage {
@@ -197,9 +199,20 @@ struct ImageResult: Codable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey { case prompt, width, height, seed, seconds, onGPU, created, tokensPerSecond, usedPrompt }
 }
 
+/// One step of making an image, with the model that does it, as the page lists them.
+struct ImageStep: Identifiable, Equatable {
+    enum State { case running, done, failed }
+    let id = UUID()
+    var title: String
+    var state = State.running
+    var started = Date()
+}
+
 /// Makes one image at a time with the image engine.
 @MainActor
 final class ImageMaker: ObservableObject {
+    /// What happened, step by step; it stays on the page until the next image.
+    @Published private(set) var steps: [ImageStep] = []
     @Published private(set) var busy = false
     @Published private(set) var status = ""
     @Published private(set) var fraction = 0.0
@@ -219,14 +232,33 @@ final class ImageMaker: ObservableObject {
     var executableOverride: URL?
 
     private var running: Process?
+    private var drawer = ""
     private var stopped = false
     private var folder: URL { root ?? Paths.picturesFolder }
 
     /// Makes the image. `prepare` runs first with this maker already busy, so nothing starts beside it; what it returns is why not to
     /// go on. On return: the image, or nil with the reason in `error` (a stop leaves that empty).
     @discardableResult
+    /// A new step: the one before it is done.
+    func step(_ title: String) {
+        for i in steps.indices where steps[i].state == .running { steps[i].state = .done }
+        steps.append(ImageStep(title: title))
+        status = title
+    }
+
+    private func retitle(_ title: String) {
+        guard let i = steps.indices.last, steps[i].state == .running else { return step(title) }
+        steps[i].title = title
+        status = title
+    }
+
+    private func finishSteps(failed: Bool) {
+        for i in steps.indices where steps[i].state == .running { steps[i].state = failed ? .failed : .done }
+    }
+
     /// `improve` runs first: it gives the description for the image model and where it came from, and names its steps.
-    func make(prompt: String, size: ImageSize, system: SystemInfo, files: [String], seed: Int? = nil,
+    /// `drawer`: the image model's short name, for the steps.
+    func make(prompt: String, size: ImageSize, system: SystemInfo, files: [String], seed: Int? = nil, drawer: String = "",
               improve: ((@escaping (String) -> Void) async throws -> (prompt: String, sources: [Source]))? = nil,
               prepare: (() async -> String?)? = nil) async -> ImageResult? {
         guard !busy else { return nil }
@@ -236,9 +268,11 @@ final class ImageMaker: ObservableObject {
         note = nil
         fraction = 0
         status = L("Voorbereiden…")
+        steps = []
         started = Date()
+        self.drawer = drawer.isEmpty ? L("Het beeldmodel") : drawer
         onRate?(0)
-        defer { busy = false; status = ""; onRate?(nil) }
+        defer { finishSteps(failed: error != nil || stopped); busy = false; status = ""; onRate?(nil) }
         var awake: IOPMAssertionID = 0
         IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
                                     "MacAIMagic: een afbeelding maken" as CFString, &awake)
@@ -247,14 +281,14 @@ final class ImageMaker: ObservableObject {
         sources = []
         var drawn = prompt
         if let improve {
-            status = L("Beschrijving verbeteren…")
             do {
-                let better = try await improve { [weak self] step in self?.status = step }
+                let better = try await improve { [weak self] title in self?.step(title) }
                 drawn = better.prompt
                 sources = better.sources
             } catch is CancellationError {
                 return nil
             } catch {
+                for i in steps.indices where steps[i].state == .running { steps[i].state = .failed }
                 note = L("De beschrijving kon niet worden verbeterd (\(error.localizedDescription)); de afbeelding is met je eigen beschrijving gemaakt.")
             }
             if stopped { return nil }
@@ -309,7 +343,7 @@ final class ImageMaker: ObservableObject {
         log?.write(Data(("$ image-engine " + args.joined(separator: " ") + "\n").utf8))
 
         var progress = ImageProgress()
-        status = progress.status
+        step(drawer + ": " + progress.status)
         let p = Process()
         p.executableURL = exe
         p.arguments = args
@@ -333,11 +367,13 @@ final class ImageMaker: ObservableObject {
                         if !line.contains("it/s") && !line.contains("/it") && !line.contains("B/s") && EngineController.keepsInLog(line) {
                             log?.write(Data((ImageProgress.clean(line) + "\n").utf8))
                         }
-                        if progress.read(line) {
-                            self?.fraction = progress.fraction
-                            self?.status = progress.status
+                        let stage = progress.stageIndex
+                        if progress.read(line), let self {
+                            self.fraction = progress.fraction
+                            let title = self.drawer + ": " + progress.status
+                            if progress.stageIndex != stage { self.step(title) } else { self.retitle(title) }
                             // the steps draw image tokens; reading the text and finishing the image do not
-                            self?.onRate?(progress.isDrawing ? progress.secondsPerStep.map { tokens / $0 } ?? 0 : 0)
+                            self.onRate?(progress.isDrawing ? progress.secondsPerStep.map { tokens / $0 } ?? 0 : 0)
                         }
                     }
                 }
@@ -365,7 +401,7 @@ final class ImageMaker: ObservableObject {
         guard busy else { return }
         stopped = true
         running?.terminate()
-        status = L("Stoppen…")
+        step(L("Stoppen…"))
     }
 
     /// The images in the folder, newest first; nothing is created for this.

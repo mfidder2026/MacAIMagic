@@ -25,7 +25,7 @@ final class LiveMetrics: ObservableObject {
     private var lastStreamDate = Date.distantPast
 
     /// The engine's own count of tokens written in the current answer (llama-server /slots), whoever asked for it.
-    private var lastDecoded: Int?
+    private var lastDecoded: [Int: Int] = [:]
     /// The engine is answering a request (from this app or from another client, such as the API).
     @Published private(set) var engineBusy = false
     private var engineRate: Double?
@@ -43,6 +43,11 @@ final class LiveMetrics: ObservableObject {
     }
 
     /// Image tokens per second while an image is made (the image engine has no /slots); nil otherwise.
+    /// The port of the second engine while it runs (documents, a description for an image); nil otherwise.
+    var fastPort: Int? {
+        didSet { if (fastPort == nil) != (oldValue == nil) { schedule() } }
+    }
+
     var imageRate: Double? {
         didSet { if (imageRate == nil) != (oldValue == nil) { schedule() } }
     }
@@ -59,7 +64,7 @@ final class LiveMetrics: ObservableObject {
 
     private func schedule() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: fast || imageRate != nil ? 0.5 : 2, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: fast || fastPort != nil || imageRate != nil ? 0.5 : 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.sample() }
         }
     }
@@ -87,7 +92,7 @@ final class LiveMetrics: ObservableObject {
 
         // smooth the token rate a little; drop to zero shortly after the stream stops
         // the engine's own count when it answers (any client: this app, the API, tools), else the tokens this app streamed
-        if fast { pollEngine(dt: dt) }
+        if fast || fastPort != nil { pollEngine(dt: dt) } else { engineRate = nil; if engineBusy { engineBusy = false } }
         let inst = imageRate ?? engineRate ?? Double(tokenCount) / dt
         tokenCount = 0
         let idle = imageRate.map { $0 == 0 } ?? engineRate.map { $0 == 0 } ?? (now.timeIntervalSince(lastStreamDate) > 1.5)
@@ -102,33 +107,43 @@ final class LiveMetrics: ObservableObject {
         if let first = samples.firstIndex(where: { $0.t >= cutoff }), first > 0 { samples.removeFirst(first) }
     }
 
-    /// Reads n_decoded of the busy slot; the difference with the last sample is the writing speed.
+    /// Reads n_decoded of the busy slot of every engine that runs: the app's own, and the second one (documents, a description
+    /// for an image); the difference with the last sample is the writing speed. Only the app's own says whether it is busy.
     private func pollEngine(dt: Double) {
         guard !polling else { return }
-        polling = true
         let st = Settings.shared
-        var req = URLRequest(url: URL(string: "http://\(st.host):\(st.port)/slots")!)
-        req.timeoutInterval = 1
-        if !st.apiKey.isEmpty { req.setValue("Bearer \(st.apiKey)", forHTTPHeaderField: "Authorization") }
+        var ports: [(host: String, port: Int)] = []
+        if fast { ports.append((st.host == "0.0.0.0" ? "127.0.0.1" : st.host, st.port)) }
+        if let fastPort { ports.append(("127.0.0.1", fastPort)) }
+        guard !ports.isEmpty else { engineRate = nil; return }
+        polling = true
+        let mainPort = st.port, key = st.apiKey
         Task { [weak self] in
-            defer { Task { @MainActor in self?.polling = false } }
-            guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
-                  let slots = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                await MainActor.run { self?.engineRate = nil; self?.lastDecoded = nil }
-                return
+            var answered = false, mainBusy = false
+            var decodedNow: [Int: Int] = [:]
+            for (host, port) in ports {
+                var req = URLRequest(url: URL(string: "http://\(host):\(port)/slots")!)
+                req.timeoutInterval = 1
+                if !key.isEmpty { req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
+                guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+                      let slots = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { continue }
+                answered = true
+                let busy = slots.first { ($0["is_processing"] as? Bool) == true }
+                if port == mainPort { mainBusy = busy != nil }
+                if let busy { decodedNow[port] = ((busy["next_token"] as? [[String: Any]])?.first?["n_decoded"] as? Int) ?? 0 }
             }
-            let busy = slots.first { ($0["is_processing"] as? Bool) == true }
-            await MainActor.run { if self?.engineBusy != (busy != nil) { self?.engineBusy = busy != nil } }
-            let decoded = ((busy?["next_token"] as? [[String: Any]])?.first?["n_decoded"] as? Int) ?? 0
             await MainActor.run {
                 guard let self else { return }
-                if busy == nil {
-                    self.engineRate = 0
-                } else if let last = self.lastDecoded {
+                defer { self.polling = false }
+                if self.engineBusy != mainBusy { self.engineBusy = mainBusy }
+                guard answered else { self.engineRate = nil; self.lastDecoded = [:]; return }
+                var total = 0
+                for (port, decoded) in decodedNow {
                     // a new answer starts again from 0
-                    self.engineRate = Double(decoded >= last ? decoded - last : decoded) / dt
+                    if let last = self.lastDecoded[port] { total += decoded >= last ? decoded - last : decoded }
                 }
-                self.lastDecoded = busy == nil ? nil : decoded
+                self.engineRate = Double(total) / dt
+                self.lastDecoded = decodedNow
             }
         }
     }

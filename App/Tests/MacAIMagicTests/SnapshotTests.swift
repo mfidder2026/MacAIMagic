@@ -77,8 +77,20 @@ final class SnapshotTests: XCTestCase {
             try shot(withBackground(ChatView(conversationID: c.id, scrollToEnd: false), app: app), app: app, name: name, dark: true)
         }
 
+        // the status pill with every model in memory: nothing, then the heavy and the fast one
+        try shot(EngineStatusPill().padding(20), app: app, name: "pill-none", dark: true)
+        app.engine.previewState(.running, model: ModelCatalog.shared.model("deepseek-v4.1-flash-compact"))
+        app.documentEngines.fast.previewState(.starting(""), model: ModelCatalog.shared.model("ministral-3-8b-q4"))
+        try shot(EngineStatusPill().padding(20), app: app, name: "pill-two", dark: true)
+        app.engine.previewState(.stopped)
+        app.documentEngines.fast.previewState(.stopped)
+
         // the image page, before the model is there; an earlier image comes with the gallery
         app.images.root = dir.appendingPathComponent("images-sample")
+        Settings.shared.imageImprove = true
+        defer { Settings.shared.imageImprove = false }
+        for step in ["Ministral-3-8B (Snel) laden…", "Ministral-3-8B (Snel) schrijft de beschrijving…", "Ministral-3-8B zoekt: Rijksmuseum Amsterdam exterior",
+                     "Ministral-3-8B leest: rijksmuseum.nl", "FLUX.2: Tekst lezen…", "FLUX.2: Tekenen: stap 2 van 4"] { app.images.step(step) }
         let sidebar = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: { withBackground(ImagesView(), app: app) }
         try shot(sidebar, app: app, name: "images", dark: true)
 
