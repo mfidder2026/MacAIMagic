@@ -81,10 +81,20 @@ final class ConversationStore: ObservableObject {
     @Published var conversations: [Conversation] = []
     @Published var selection: Conversation.ID?
 
+    /// The file could not be read: it is kept as .bad and this says so to the user.
+    @Published private(set) var loadProblem: String?
+
     init() {
-        if let data = try? Data(contentsOf: Paths.conversationsFile),
-           let list = try? JSONDecoder().decode([Conversation].self, from: data) {
-            conversations = list.sorted { $0.updated > $1.updated }
+        if let data = try? Data(contentsOf: Paths.conversationsFile) {
+            if let list = try? JSONDecoder().decode([Conversation].self, from: data) {
+                conversations = list.sorted { $0.updated > $1.updated }
+            } else {
+                // the next save would overwrite it: what can still be rescued stays
+                let bad = Paths.conversationsFile.appendingPathExtension("bad")
+                try? FileManager.default.removeItem(at: bad)
+                try? FileManager.default.moveItem(at: Paths.conversationsFile, to: bad)
+                loadProblem = L("De gesprekken konden niet worden gelezen. Het bestand is bewaard als \(bad.lastPathComponent).")
+            }
         }
         if conversations.isEmpty { conversations = [Conversation()] }
         startInLastFolder()

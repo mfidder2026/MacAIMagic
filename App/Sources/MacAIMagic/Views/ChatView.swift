@@ -42,6 +42,9 @@ struct ChatView: View {
             } else {
                 EmptyChat(draft: $draft)
             }
+            if let problem = store.loadProblem {
+                Text(problem).font(.callout).foregroundStyle(Theme.amber).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 8)
+            }
             if !engine.state.isRunning { EngineBanner() }
             if engine.state.isRunning && metrics.engineBusy && !chat.busy { OtherRequestBanner() }
             if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }

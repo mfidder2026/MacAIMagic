@@ -86,7 +86,7 @@ final class GGUFIndexTests: XCTestCase {
 final class CatalogTests: XCTestCase {
     func testCatalogLoads() throws {
         let c = ModelCatalog.shared
-        XCTAssertEqual(c.models.count, 6)
+        XCTAssertEqual(c.models.count, 7)
         for m in c.models {
             XCTAssertFalse(m.files.isEmpty)
             XCTAssertNotNil(c.vision(for: m), m.id)
@@ -103,7 +103,7 @@ final class CatalogTests: XCTestCase {
     /// The names the user sees are our own: the model name starts with the base model, files are named after the id.
     func testNamesAreOurOwn() {
         for m in ModelCatalog.shared.models {
-            XCTAssertTrue(["DeepSeek-V4.1-Flash", "GLM-5.3-Flash", "Qwen3.8-Flash-Next", "Qwen3.6-35B-A3B"].contains { m.name.hasPrefix($0) }, m.name)
+            XCTAssertTrue(["DeepSeek-V4.1-Flash", "GLM-5.3-Flash", "Qwen3.8-Flash-Next", "Qwen3.6-35B-A3B", "Ministral-3-8B"].contains { m.name.hasPrefix($0) }, m.name)
             XCTAssertTrue(m.files.allSatisfy { $0.local.hasPrefix(m.id) })
         }
     }
@@ -383,7 +383,8 @@ final class MachineFitTests: XCTestCase {
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(32).physicalMemory)?.id, "qwen3.6-35b-a3b-q4")
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(96).physicalMemory)?.id, "qwen3.8-flash-next-q4")
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(128).physicalMemory)?.id, "deepseek-v4.1-flash-compact")
-        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(16).physicalMemory)?.id, "qwen3.6-35b-a3b-q4", "16 GB: it streams")
+        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(16).physicalMemory)?.id, "ministral-3-8b-q4", "16 GB: the model that fits whole")
+        XCTAssertEqual(SystemCheck.recommended(models, physical: mac(8).physicalMemory)?.id, "ministral-3-8b-q4", "8 GB: it streams")
     }
 
     func testFitPerMac() {
@@ -391,7 +392,7 @@ final class MachineFitTests: XCTestCase {
         let small = mac(32).physicalMemory, big = mac(128).physicalMemory
         XCTAssertEqual(MemoryPlanner.fit(byID["qwen3.6-35b-a3b-q4"]!, physical: small), .fits)
         // larger than memory is what the app is for: everything streams on 32 GB, nothing is too big
-        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" {
+        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" && !m.isPlain {
             XCTAssertEqual(MemoryPlanner.fit(m, physical: small), .streams, m.id)
         }
         XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-q4"]!, physical: mac(16).physicalMemory), .tooBig)
@@ -588,14 +589,14 @@ final class SmallMacTests: XCTestCase {
     private let sixteen: UInt64 = 16 << 30
     private func model(_ id: String) throws -> ModelInfo { try XCTUnwrap(ModelCatalog.shared.model(id)) }
 
-    func testQwen36StreamsOn16GBAndIsRecommended() throws {
+    func testQwen36StreamsOn16GB() throws {
         XCTAssertEqual(MemoryPlanner.fit(try model("qwen3.6-35b-a3b-q4"), physical: sixteen), .streams)
-        XCTAssertEqual(SystemCheck.recommended(ModelCatalog.shared.models, physical: sixteen)?.id, "qwen3.6-35b-a3b-q4")
+        XCTAssertEqual(SystemCheck.recommended(ModelCatalog.shared.models, physical: sixteen)?.id, "ministral-3-8b-q4", "the small model fits whole, and goes first")
     }
 
     func testAMacWithLessKeepsWarningInsteadOfCrashing() throws {
         XCTAssertEqual(MemoryPlanner.fit(try model("qwen3.6-35b-a3b-q4"), physical: 8 << 30), .tooBig)
-        XCTAssertNil(SystemCheck.recommended(ModelCatalog.shared.models, physical: 8 << 30))
+        XCTAssertEqual(SystemCheck.recommended(ModelCatalog.shared.models, physical: 8 << 30)?.id, "ministral-3-8b-q4")
     }
 
     func testLargerMacsKeepTheirMeasuredReserves() {

@@ -77,6 +77,11 @@ final class SnapshotTests: XCTestCase {
             try shot(withBackground(ChatView(conversationID: c.id, scrollToEnd: false), app: app), app: app, name: name, dark: true)
         }
 
+        // the image page, before the model is there; an earlier image comes with the gallery
+        app.images.root = dir.appendingPathComponent("images-sample")
+        let sidebar = NavigationSplitView { Sidebar(pane: .constant(nil)) } detail: { withBackground(ImagesView(), app: app) }
+        try shot(sidebar, app: app, name: "images", dark: true)
+
         // the documents module with a real draft in it
         let projects = dir.appendingPathComponent("project-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
@@ -141,6 +146,7 @@ final class SnapshotTests: XCTestCase {
             .environmentObject(app).environmentObject(app.engine).environmentObject(app.models)
             .environmentObject(app.store).environmentObject(app.chat).environmentObject(Settings.shared)
             .environmentObject(app.metrics).environmentObject(app.bench).environmentObject(app.cluster).environmentObject(app.check).environmentObject(app.documents)
+            .environmentObject(app.images)
             .tint(Theme.accent)
             .frame(width: size.width, height: size.height)
             .background(Color(nsColor: .windowBackgroundColor))

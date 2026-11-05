@@ -14,8 +14,9 @@ LIST="$(/usr/bin/osascript -l JavaScript - "$MANIFEST" "$ID" <<'JS'
 ObjC.import("Foundation")
 function run(argv) {
   const m = JSON.parse($.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js)
-  const model = m.models.find(x => x.id === argv[1])
-  if (!model) throw new Error("unknown model: " + argv[1] + " (known: " + m.models.map(x => x.id).join(", ") + ")")
+  const all = m.models.concat(m.images || [])
+  const model = all.find(x => x.id === argv[1])
+  if (!model) throw new Error("unknown model: " + argv[1] + " (known: " + all.map(x => x.id).join(", ") + ")")
   const rows = model.files.map(f => [model.id, f.local, f.size, f.sha256, f.url, (f.stamp || []).join(",")])
   const d = model.draft
   if (d) rows.push([model.id, d.local, d.size, d.sha256, d.url, ""])
@@ -50,6 +51,21 @@ function run(argv) {
 JS
 }
 
+# The server names a file's size before a byte is written: finding out after 111 GB helps nobody.
+# Exit 3: the maker replaced or removed a file, and no attempt changes that. No answer at all is no verdict: the download tries.
+preflight() {  # name size url
+  local head status linked
+  head="$(curl -sI --max-time 30 "$3" 2>/dev/null | tr -d '\r')" || return 0
+  status="$(printf '%s\n' "$head" | awk 'NR==1 {print $2}')"
+  case "$status" in
+    401|403|404|410) echo "$1: REPLACED (status $status)"; return 3 ;;
+  esac
+  linked="$(printf '%s\n' "$head" | awk -F': ' 'tolower($1)=="x-linked-size" {print $2}')"
+  [ -z "$linked" ] && [ "$status" = 200 ] && linked="$(printf '%s\n' "$head" | awk -F': ' 'tolower($1)=="content-length" {print $2}')"
+  if [ -n "$linked" ] && [ "$linked" != "$2" ]; then echo "$1: REPLACED (size $linked instead of $2)"; return 3; fi
+  return 0
+}
+
 fetch() {
   local dir="$ROOT/$1" name=$2 size=$3 sha=$4 url=$5 stamp=${6:-}
   local f="$dir/$name"
@@ -62,13 +78,18 @@ fetch() {
     echo "$name: retry $attempt"; sleep 5
   done
   have=$(stat -f %z "$f" 2>/dev/null || echo 0)
-  [ "$have" -eq "$size" ] || { echo "$name: size $have != $size"; return 1; }
+  [ "$have" -eq "$size" ] || { echo "FAILED $name: size $have != $size"; return 1; }
   echo "$name: verifying sha256"
   got=$(shasum -a 256 "$f" | cut -d' ' -f1)
-  [ "$got" = "$sha" ] || { echo "$name: CHECKSUM MISMATCH ($got)"; return 1; }
+  [ "$got" = "$sha" ] || { echo "FAILED $name: checksum mismatch ($got)"; return 1; }
   if [ -n "$stamp" ]; then stamp_split "$f" "${stamp%,*}" "${stamp#*,}" && echo "$name: stamped as shard ${stamp%,*} of ${stamp#*,}"; fi
   touch "$f.ok"; echo "$name: OK"
 }
+
+while IFS=$'\t' read -r dir name size sha url stamp; do
+  [ -f "$ROOT/$dir/$name.ok" ] && continue
+  preflight "$name" "$size" "$url" || exit 3
+done <<< "$LIST"
 
 pids=()
 while IFS=$'\t' read -r dir name size sha url stamp; do

@@ -97,6 +97,9 @@ private struct ModelCard: View {
                     Spacer()
                 }
             }
+            if let problem = models.lastError[model.id] {
+                Text(problem).font(.caption).foregroundStyle(Theme.pink).fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 if !status.isComplete {
                     if models.downloading.contains(model.id) {

@@ -31,6 +31,8 @@ final class ModelStore: ObservableObject {
     @Published private(set) var downloading: Set<String> = []
     @Published private(set) var speed: Double = 0          // bytes per second, all downloads together
     @Published private(set) var lastMessage: [String: String] = [:]
+    /// Why a download stopped, for the model card.
+    @Published private(set) var lastError: [String: String] = [:]
 
     let catalog = ModelCatalog.shared
     private var processes: [String: Process] = [:]
@@ -39,6 +41,7 @@ final class ModelStore: ObservableObject {
     private var lastTick = Date()
     private var lastExternalCheck = Date.distantPast
     private var external: Set<String> = []
+    private var failures: [String: String] = [:]
 
     init() {
         refresh()
@@ -62,7 +65,7 @@ final class ModelStore: ObservableObject {
             return FileStatus(name: name, expected: size, have: have, verified: fm.fileExists(atPath: url.path + ".ok"))
         }
         var next: [String: ModelStatus] = [:]
-        for m in catalog.models {
+        for m in catalog.all {
             var s = ModelStatus()
             s.files = m.files.map { file(Paths.modelDir(m.id), $0.local, $0.size) }
             if let v = catalog.vision(for: m) { s.vision = file(Paths.visionDir, v.local, v.size) }
@@ -87,7 +90,7 @@ final class ModelStore: ObservableObject {
             lastExternalCheck = now
             external = Self.externalDownloads()
         }
-        downloading = Set(processes.keys).union(catalog.models.map(\.id).filter { external.contains($0) })
+        downloading = Set(processes.keys).union(catalog.all.map(\.id).filter { external.contains($0) })
     }
 
     func shardURLs(_ model: ModelInfo) -> [URL] { model.files.map { Paths.modelDir(model.id).appendingPathComponent($0.local) } }
@@ -104,9 +107,10 @@ final class ModelStore: ObservableObject {
 
     func startDownload(_ id: String) {
         guard processes[id] == nil, !downloading.contains(id), let script = Paths.script("download_model.sh") else {
-            lastMessage[id] = L("download_model.sh niet gevonden")
+            lastError[id] = L("download_model.sh niet gevonden")
             return
         }
+        lastError[id] = nil
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/bash")
         p.arguments = [script.path, id, Paths.modelsRoot.path]
@@ -116,15 +120,33 @@ final class ModelStore: ObservableObject {
         pipe.fileHandleForReading.readabilityHandler = { [weak self] h in
             let s = String(decoding: h.availableData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !s.isEmpty else { return }
-            Task { @MainActor in self?.lastMessage[id] = s.components(separatedBy: "\n").last ?? s }
+            Task { @MainActor in
+                let lines = s.components(separatedBy: "\n")
+                self?.lastMessage[id] = lines.last ?? s
+                if let failed = lines.last(where: { $0.hasPrefix("FAILED ") }) { self?.failures[id] = String(failed.dropFirst(7)) }
+            }
         }
-        p.terminationHandler = { [weak self] _ in
+        p.terminationHandler = { [weak self] proc in
+            let code = proc.terminationReason == .exit ? proc.terminationStatus : 0     // a pause ends it with a signal
             Task { @MainActor in
                 self?.processes[id] = nil
+                self?.lastError[id] = Self.errorText(exitCode: code, failure: self?.failures[id])
+                self?.failures[id] = nil
                 self?.refresh()
             }
         }
-        do { try p.run(); processes[id] = p; downloading.insert(id) } catch { lastMessage[id] = error.localizedDescription }
+        do { try p.run(); processes[id] = p; downloading.insert(id) } catch { lastError[id] = error.localizedDescription }
+    }
+
+    /// What the card says when the download script ends. Exit 3: the server offers another file than the catalog names.
+    nonisolated static func errorText(exitCode: Int32, failure: String?) -> String? {
+        switch exitCode {
+        case 0: return nil
+        case 3: return L("De maker heeft dit model op de server vervangen of verwijderd, dus deze versie van MacAIMagic kan het niet meer downloaden. Kijk of er een nieuwere MacAIMagic is.")
+        default:
+            guard let failure else { return L("De download is niet gelukt. Probeer het opnieuw.") }
+            return L("De download is niet gelukt: \(failure). Verwijder het bestand en download het opnieuw.")
+        }
     }
 
     func stopDownload(_ id: String) {
@@ -151,7 +173,7 @@ final class ModelStore: ObservableObject {
         p.waitUntilExit()
         var ids = Set<String>()
         for line in out.split(separator: "\n") where line.contains("download_model.sh") || line.hasPrefix("curl") {
-            for m in ModelCatalog.shared.models where line.contains("/\(m.id)/") || line.hasSuffix(" \(m.id)") || line.contains(" \(m.id) ") {
+            for m in ModelCatalog.shared.all where line.contains("/\(m.id)/") || line.hasSuffix(" \(m.id)") || line.contains(" \(m.id) ") {
                 ids.insert(m.id)
             }
         }

@@ -27,6 +27,8 @@ final class ChatClient: ObservableObject {
     private var workspaceActive: Bool { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil }
     /// How many times in a row the model is told to go on without it doing anything in between.
     private static let maxNudges = 3
+    /// What the model gets for a tool call the user stopped.
+    static let stoppedResult = "Stopped by the user."
 
     /// A change the model wants to make (write a file, run a command), waiting for the user's yes or no.
     struct Approval: Identifiable {
@@ -55,6 +57,12 @@ final class ChatClient: ObservableObject {
             approvalContinuation = cont
             pendingApproval = Approval(conversation: conversation, call: call, title: text.title, detail: text.detail)
         }
+    }
+
+    /// The transcript's own labels at the start of a line: no summary but more of the conversation.
+    nonisolated static func looksLikeTranscript(_ text: String) -> Bool {
+        let result = L("Resultaat:"), user = L("Gebruiker:")
+        return text.split(separator: "\n").contains { $0.hasPrefix(result) || $0.hasPrefix(user) }
     }
 
     func stop() {
@@ -157,7 +165,7 @@ final class ChatClient: ObservableObject {
             nudges = 0
 
             // run the tools; the next round's message carries the activity list, this one folds away
-            for call in result.toolCalls {
+            for (place, call) in result.toolCalls.enumerated() {
                 let isWorkspace = WorkspaceTools.names.contains(call.name)
                 activities.append(ToolActivity(label: isWorkspace ? WorkspaceTools.label(for: call) : WebTools.label(for: call), done: false))
                 store.update(id) { c in
@@ -180,7 +188,18 @@ final class ChatClient: ObservableObject {
                     text = out.text
                     for s in out.sources where !sources.contains(where: { $0.url == s.url }) { sources.append(s) }
                 }
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    // the model asked for these: its next turn needs an answer to each, and no step keeps spinning
+                    activities[activities.count - 1].done = true
+                    let open = activities
+                    store.update(id) { c in
+                        if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = open }
+                        for unanswered in result.toolCalls[place...] {
+                            c.messages.append(ChatMessage(role: .tool, text: Self.stoppedResult, toolCallId: unanswered.id))
+                        }
+                    }
+                    return
+                }
                 // one result must not fill a small context: the start and the end, which usually matter most
                 let room = max(8_000, contextLimit * 3 / 4)
                 if text.count > room {
@@ -198,8 +217,11 @@ final class ChatClient: ObservableObject {
             }
         }
         // the steps ran out: say so, instead of just falling silent
+        // in a message of its own: the last one is usually a tool result, and the chat does not show those
         store.update(id) { c in
-            if let i = c.messages.indices.last { c.messages[i].error = L("Het model heeft \(maxToolRounds) stappen gezet en pauzeert. Zeg \"ga door\" om verder te gaan.") }
+            var pause = ChatMessage(role: .assistant, text: "")
+            pause.error = L("Het model heeft \(maxToolRounds) stappen gezet en pauzeert. Zeg \"ga door\" om verder te gaan.")
+            c.messages.append(pause)
         }
     }
 
@@ -340,7 +362,7 @@ final class ChatClient: ObservableObject {
             "model": modelName,
             "messages": [
                 ["role": "system", "content": L("Je vat een gesprek samen zodat het verder kan zonder de oorspronkelijke berichten. Houd vast: het doel van de gebruiker, beslissingen, namen en paden van bestanden, commando's die werkten of faalden, de stand van het werk en open vragen of taken. Schrijf beknopt, in het Nederlands, als lijst met kopjes.")],
-                ["role": "user", "content": L("Vat dit gesprek samen:") + "\n\n" + transcript],
+                ["role": "user", "content": L("Vat dit gesprek samen:") + "\n\n" + transcript + "\n\n" + L("Dit was het gesprek. Ga het niet voortzetten: schrijf nu de samenvatting.")],
             ],
             "stream": false,
             "temperature": 0.3,
@@ -354,10 +376,16 @@ final class ChatClient: ObservableObject {
         if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 1800
-        guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let message = (json["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any],
-              let summary = message["content"] as? String, !summary.isEmpty else { return }
+        func complete() async -> String? {
+            guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let message = (json["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any] else { return nil }
+            return message["content"] as? String
+        }
+        var answer = await complete()
+        // on a long transcript a model can carry on with the conversation instead: once more
+        if let first = answer, Self.looksLikeTranscript(first) { answer = await complete() }
+        guard let summary = answer, !summary.isEmpty else { return }
         store.update(id) { c in
             c.summary = summary
             c.summaryUpTo = last.id

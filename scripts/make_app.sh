@@ -14,6 +14,12 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/engine"
 cp "$BIN" "$APP/Contents/MacOS/MacAIMagic"
 cp "$ROOT/tools/download_model.sh" "$ROOT/tools/models.json" "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
 
+if [ -x "$ROOT/engine/bin/image-engine" ]; then
+  cp "$ROOT/engine/bin/image-engine" "$APP/Contents/Resources/engine/"
+else
+  echo "let op: engine/bin/image-engine ontbreekt; draai scripts/build_image_engine.sh, anders werkt de pagina Beeld niet"
+fi
+
 if [ -x "$ROOT/engine/bin/llama-server" ]; then
   cp "$ROOT"/engine/bin/llama-* "$ROOT"/engine/bin/ggml-rpc-server "$APP/Contents/Resources/engine/"
 else
@@ -42,6 +48,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSDocumentsFolderUsageDescription</key><string>MacAIMagic bewaart de concepten en documenten van een project in de map die je kiest.</string>
+  <key>NSPicturesFolderUsageDescription</key><string>MacAIMagic bewaart de afbeeldingen die je maakt in Afbeeldingen/MacAIMagic.</string>
   <key>NSAppleEventsUsageDescription</key><string>MacAIMagic vraagt je wachtwoord om de GPU-geheugenlimiet te verhogen.</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>

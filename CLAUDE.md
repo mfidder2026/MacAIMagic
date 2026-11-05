@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `2473cd4`** (the first complete Windows version, 0.1.0). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `6c51802`** (2026-11-05: images with FLUX.2 Klein 4B). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -36,12 +36,11 @@ Commit on `main` and push: the other machine only sees `main`.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
 
-**Open from Windows when this file was written,** so the first take-over knows where to look. None of this has been decided for the Mac:
+**Still open after the take-over of `6c51802`:**
 
-- `ab7c2c5`: the Documents button reads "Document voorbereiden". Here it still reads "Maak een document" (`DocumentsView.swift`). The button on the next screen, "Maak het document", stays.
-- `f47ce6d`: the version stands beside the name at the top of the sidebar. Here it only shows in the system check.
-- `d97fc36` and `de64e73`: a choice to skip experts on GLM, beside the Start button. It depends on the Windows main engine, so check first whether it means anything here.
-- The section "Mac gaps fixed here" in WinAIMagic's [docs/PARITY.md](https://github.com/mfidder2026/WinAIMagic/blob/main/docs/PARITY.md) lists faults Windows fixed that were still in this version at 1.9.5.
+- The image engine (`scripts/build_image_engine.sh`) was not built here: building code fetched from outside needs the owner's go-ahead in this session. Until it is built, `make_app.sh` says so and the Beeld page reports the engine missing.
+- Ministral-3-8B and FLUX.2 Klein 4B have not been downloaded or run on a Mac; their plans on a Mac are estimates from the Windows measurements.
+- `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
 
 ## Building and testing
 
@@ -49,4 +48,4 @@ Commit on `main` and push: the other machine only sees `main`.
 cd App && swift test
 ```
 
-`./scripts/make_app.sh` builds `dist/MacAIMagic.app`. The README explains the rest, including the engine tests. New texts need translations in `tools/i18n/{en,de,fr}.json`, and `python3 tools/i18n.py build` writes `Translations.swift` from them. Publish a release only when the owner asks.
+`./scripts/make_app.sh` builds `dist/MacAIMagic.app`. The README explains the rest, including the engine tests. `python3 tools/check_catalog.py` checks the model catalog against the server (headers only); every address in `tools/models.json` names one commit. New texts need translations in `tools/i18n/{en,de,fr}.json`, and `python3 tools/i18n.py build` writes `Translations.swift` from them. Publish a release only when the owner asks.

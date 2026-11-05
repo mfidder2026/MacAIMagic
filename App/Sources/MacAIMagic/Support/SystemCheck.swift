@@ -38,7 +38,7 @@ final class SystemCheck: ObservableObject {
 
     /// Which copy runs: an older one elsewhere on the Mac is easily started by accident.
     private func appItem() -> Item {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let version = Paths.appVersion ?? "?"
         return Item(id: "app", title: "MacAIMagic", detail: L("Versie \(version)") + " · " + Bundle.main.bundlePath, state: .ok)
     }
 

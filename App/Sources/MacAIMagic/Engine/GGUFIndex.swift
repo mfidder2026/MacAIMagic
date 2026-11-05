@@ -41,11 +41,16 @@ struct GGUFIndex {
         return 0
     }
     /// KV cache per token of context: measured for DeepSeek (compressed attention) and GLM, from the heads for Qwen
+    /// No routed experts at all (a small model).
+    var isPlain: Bool { !tensors.isEmpty && expertBytesPerLayer.isEmpty }
+
     var kvBytesPerToken: UInt64 {
         switch architecture {
         case "deepseek41", "deepseek4": return 5_600
         case "glm5-next": return 20_000
         case "qwen4exp": return 36_000
+        // 34 layers without compressed attention, measured on the Windows version's test PC
+        case "mistral3": return 142_000
         default: return 32_000
         }
     }

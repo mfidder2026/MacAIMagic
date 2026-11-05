@@ -21,6 +21,7 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
+| **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 8 or 16 GB | 6 GB | fits (5 GB) | not measured on a Mac yet | not measured on a Mac yet |
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
@@ -61,8 +62,15 @@ comes from the internal SSD.
 ## Features
 
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
-- **Six models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
-  says for this Mac whether the model fits in memory, streams from the SSD, or is too big.
+- **Seven models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
+  says for this Mac whether the model fits in memory, streams from the SSD, or is too big. Every download address names
+  one version of its file, and the size is checked before a byte comes down: when a maker replaces or removes a file,
+  the card says so at once. Every Monday a GitHub job (`tools/check_catalog.py`) checks that every file can still be
+  downloaded, reading headers only.
+- **Images** (sidebar → **Beeld**): describe what you want and FLUX.2 Klein 4B (5.3 GB, Apache 2.0) makes the image on
+  this Mac, with earlier ones below it. Images go to `~/Pictures/MacAIMagic` with their description in a file beside
+  them, not inside the image. A running chat model stops first. The image engine is built with
+  `scripts/build_image_engine.sh`; this page has not been run with the real engine on a Mac yet.
 - **Documents**: make Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with attachments
   (context and information), a house style (only the layout) and its documents. Say "make an AQS": the model looks in the
   attachments for what the document must consist of, searches the web for what they do not say, such as the subject and

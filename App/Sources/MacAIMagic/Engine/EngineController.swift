@@ -20,6 +20,7 @@ final class EngineController: ObservableObject {
     /// Keeps the Mac awake while the engine runs: during idle sleep a running answer or benchmark freezes for minutes.
     private var sleepAssertion: IOPMAssertionID = 0
     private var logHandle: FileHandle?
+    private var logPending = ""
     private var healthTask: Task<Void, Never>?
 
     /// A second engine next to the app's own: its own port, only reachable from this Mac, and its own log.
@@ -44,7 +45,7 @@ final class EngineController: ObservableObject {
             "--model", shards[0].path,
             "--host", host, "--port", String(port),
             "--ctx-size", String(plan.contextSize),
-            "--n-gpu-layers", "999",
+            "--n-gpu-layers", plan.gpuLayers.map(String.init) ?? "999",
             "--flash-attn", "on",
             // measured on an M3 Max: ubatch 1024 reads prompts ~20% faster than 512; for a model that fits, 2048 grows the
             // compute buffers past the wired limit and writing drops from 20 to 3 tok/s. A model larger than memory reads
@@ -71,7 +72,8 @@ final class EngineController: ObservableObject {
         }
         // larger than memory: the experts stay mapped from the file, never repacked into RAM, and the GPU caches the
         // ones the conversation uses most
-        if !plan.fitsInMemory { args += ["--no-repack"] }
+        // a model without experts neither: the same speed with less private memory (measured on the Windows version)
+        if !plan.fitsInMemory || plan.experts == 0 { args += ["--no-repack"] }
         if plan.expertCache > 0 { args += ["--moe-cache-mib", String(plan.expertCache >> 20)] }
         if let vision { args += ["--mmproj", vision.path] }
         // cluster: the helpers' GPUs join as RPC devices
@@ -85,7 +87,6 @@ final class EngineController: ObservableObject {
             if model.mtp == "file", let draft { args += ["--spec-type", "draft-mtp", "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
             else if model.mtp == "builtin" { args += ["--spec-type", "draft-mtp", "--spec-draft-n-max", "2"] }
         }
-        if !s.apiKey.isEmpty { args += ["--api-key", s.apiKey] }
         return args
     }
 
@@ -100,6 +101,8 @@ final class EngineController: ObservableObject {
         p.arguments = arguments(model: model, shards: shards, plan: plan, vision: vision, draft: draft, rpc: rpc)
         self.model = model
         var env = ProcessInfo.processInfo.environment
+        // not on the command line: the process list and the log would show it
+        if !Settings.shared.apiKey.isEmpty { env["LLAMA_API_KEY"] = Settings.shared.apiKey }
         env["LLAMA_ARG_LAZY_MODE"] = "auto"   // tables over 4 GB (DeepSeek's Engram) are read row by row from the SSD
         // larger than memory: reading the whole file ahead at load would take minutes and evict itself
         if !plan.fitsInMemory { env["LLAMA_MMAP_PREFETCH"] = "0" }
@@ -159,11 +162,23 @@ final class EngineController: ObservableObject {
         DispatchQueue.global().asyncAfter(deadline: .now() + 10) { if p?.isRunning == true { p?.terminate() } }
     }
 
+    /// The GGUF metadata dump is noise (hundreds of lines), and carries the file's original names: not in the log either.
+    nonisolated static func keepsInLog(_ line: some StringProtocol) -> Bool {
+        !(line.contains("llama_model_loader:") || line.contains("print_info: general.") || line.contains("quantize.")
+            || line.range(of: "maya", options: .caseInsensitive) != nil)
+    }
+
     private func consume(_ text: String, raw: Data) {
-        logHandle?.write(raw)
+        // whole lines only: a chunk can end halfway a line
+        logPending += text
+        if let end = logPending.lastIndex(of: "\n") {
+            let lines = logPending[...end].split(separator: "\n", omittingEmptySubsequences: false).dropLast()
+            let kept = lines.filter { Self.keepsInLog($0) }.joined(separator: "\n")
+            if !kept.isEmpty { logHandle?.write(Data((kept + "\n").utf8)) }
+            logPending = String(logPending[logPending.index(after: end)...])
+        }
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            // the GGUF metadata dump is noise here (hundreds of lines), and carries the file's original names
-            if line.contains("llama_model_loader:") || line.contains("print_info: general.") || line.contains("quantize.") { continue }
+            guard Self.keepsInLog(line) else { continue }
             logTail.append(String(line))
             // llama.cpp prints a dot per loaded chunk; the tensor loader also reports "loading tensors"
             if line.contains("load_tensors") { state = .starting(L("Gewichten laden…")) }
@@ -227,7 +242,9 @@ enum EngineOrphans {
     static func pids(inProcessList list: String) -> [Int32] {
         list.split(separator: "\n").compactMap { line in
             let parts = line.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
-            guard parts.count == 3, parts[1] == "1", parts[2].contains("/Contents/Resources/engine/llama-server") else { return nil }
+            guard parts.count == 3, parts[1] == "1",
+                  parts[2].contains("/Contents/Resources/engine/llama-server") || parts[2].contains("/Contents/Resources/engine/ggml-rpc-server")
+            else { return nil }
             return Int32(parts[0])
         }
     }

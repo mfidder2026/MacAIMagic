@@ -14,6 +14,7 @@ final class AppState: ObservableObject {
     let cluster = ClusterController()
     let check = SystemCheck()
     let documents = DocumentStudio()
+    let images = ImageMaker()
     private(set) lazy var documentEngines = DocumentEngines(app: self)
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
@@ -69,7 +70,7 @@ final class AppState: ObservableObject {
 
     var canStart: Bool {
         guard let m = selectedModel else { return false }
-        return models.status(m.id).isComplete && plan != nil && Paths.engineBinary("llama-server") != nil
+        return !images.busy && models.status(m.id).isComplete && plan != nil && Paths.engineBinary("llama-server") != nil
     }
 
     func loadIndex() {
@@ -88,7 +89,7 @@ final class AppState: ObservableObject {
 
     func startEngine() {
         if index == nil { loadIndex() }
-        guard let m = selectedModel, let index, var plan else { return }
+        guard !images.busy, let m = selectedModel, let index, var plan else { return }
         if !plan.fitsInMemory {
             // the expert cache leaves room for what other apps hold right now
             plan = MemoryPlanner.plan(index: index, system: system, contextSize: contextSize(index),
@@ -100,6 +101,26 @@ final class AppState: ObservableObject {
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
                      vision: useVision(index) ? models.visionURL(m) : nil, draft: models.draftURL(m),
                      rpc: cluster.rpcArgument)
+    }
+
+    /// One image. Next to a chat model there is rarely room, so what runs stops first: not an answer being written or a
+    /// measurement, those go first, and the chat engine is not started again by itself.
+    func makeImage(prompt: String, size: ImageSize) {
+        guard let m = models.catalog.images.first else { return }
+        let files = models.shardURLs(m).map(\.path)
+        Task {
+            await images.make(prompt: prompt, size: size, system: system, files: files) { [weak self] in
+                guard let self else { return nil }
+                if !self.models.status(m.id).isComplete { return L("De bestanden voor afbeeldingen zijn er nog niet helemaal.") }
+                if self.bench.running != nil { return L("Er loopt een meting. Wacht tot die klaar is.") }
+                if self.documents.busy { return L("De documentmodule is bezig. Wacht tot die klaar is of stop hem.") }
+                if self.chat.busy || self.metrics.engineBusy { return L("De engine werkt aan een antwoord. Wacht tot dat klaar is of stop het.") }
+                await self.documentEngines.fast.stopAndWait()
+                await self.engine.stopAndWait()
+                self.refreshSystem()
+                return nil
+            }
+        }
     }
 
     /// Switch to another model: stops the engine first when it runs a different one.

@@ -41,9 +41,10 @@ enum WebTools {
             switch call.name {
             case "web_search":
                 let q = args["query"] as? String ?? ""
-                let hits = try await search(q)
-                if hits.isEmpty { return Result(text: "No results for \"\(q)\".", sources: []) }
-                let text = hits.enumerated().map { i, h in "[\(i + 1)] \(h.title)\n\(h.url)\n\(h.snippet)" }.joined(separator: "\n\n")
+                let (hits, notice) = try await searchNoting(q)
+                let note = notice.map { $0 + "\n\n" } ?? ""
+                if hits.isEmpty { return Result(text: note + "No results for \"\(q)\".", sources: []) }
+                let text = note + hits.enumerated().map { i, h in "[\(i + 1)] \(h.title)\n\(h.url)\n\(h.snippet)" }.joined(separator: "\n\n")
                 return Result(text: text, sources: hits.map { Source(title: $0.title, url: $0.url) })
             case "fetch_url":
                 let u = args["url"] as? String ?? ""
@@ -70,9 +71,27 @@ enum WebTools {
 
     struct Hit { var title: String; var url: String; var snippet: String }
 
-    static func search(_ query: String) async throws -> [Hit] {
+    static func search(_ query: String) async throws -> [Hit] { try await searchNoting(query).hits }
+
+    /// A failing Brave is said out loud (no "no results"), and DuckDuckGo takes over.
+    private static func searchNoting(_ query: String) async throws -> (hits: [Hit], notice: String?) {
         let key = Settings.shared.braveKey
-        return key.isEmpty ? try await SearchRoute.shared.search(query, primary: duckDuckGo, fallback: bing) : try await brave(query, key: key)
+        var notice: String?
+        if !key.isEmpty {
+            do { return (try await brave(query, key: key), nil) }
+            catch is CancellationError { throw CancellationError() }
+            catch { notice = L("Brave Search gaf een fout (\(error.localizedDescription)); er wordt gezocht met DuckDuckGo.") }
+        }
+        return (try await SearchRoute.shared.search(query, primary: duckDuckGo, fallback: bing), notice)
+    }
+
+    /// The search region follows the language of the app.
+    static func duckDuckGoRegion(_ language: String) -> String {
+        switch language { case "nl": "nl-nl"; case "de": "de-de"; case "fr": "fr-fr"; default: "us-en" }
+    }
+
+    static func bingRegion(_ language: String) -> (language: String, country: String) {
+        switch language { case "nl": ("nl", "NL"); case "de": ("de", "DE"); case "fr": ("fr", "FR"); default: ("en", "US") }
     }
 
     /// DuckDuckGo answers with a page for bots after a few quick searches; that is no empty result.
@@ -91,7 +110,9 @@ enum WebTools {
         var req = URLRequest(url: c.url!)
         req.setValue(key, forHTTPHeaderField: "X-Subscription-Token")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, _) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 200
+        guard status == 200 else { throw NSError(domain: "Brave", code: status, userInfo: [NSLocalizedDescriptionKey: "HTTP \(status)"]) }
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let results = ((json?["web"] as? [String: Any])?["results"] as? [[String: Any]]) ?? []
         return results.map {
@@ -107,7 +128,7 @@ enum WebTools {
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         req.setValue(HTML.userAgent, forHTTPHeaderField: "User-Agent")
         let q = query.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? query
-        req.httpBody = Data("q=\(q)&kl=nl-nl".utf8)
+        req.httpBody = Data("q=\(q)&kl=\(duckDuckGoRegion(Settings.shared.language))".utf8)
         let (data, response) = try await URLSession.shared.data(for: req)
         let html = String(decoding: data, as: UTF8.self)
         if isBlocked(status: (response as? HTTPURLResponse)?.statusCode ?? 200, html: html) { throw Blocked() }
@@ -117,7 +138,8 @@ enum WebTools {
     /// Bing, for when DuckDuckGo refuses.
     private static func bing(_ query: String) async throws -> [Hit] {
         var c = URLComponents(string: "https://www.bing.com/search")!
-        c.queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "setlang", value: "nl"), URLQueryItem(name: "cc", value: "NL")]
+        let region = bingRegion(Settings.shared.language)
+        c.queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "setlang", value: region.language), URLQueryItem(name: "cc", value: region.country)]
         var req = URLRequest(url: c.url!)
         req.setValue(HTML.userAgent, forHTTPHeaderField: "User-Agent")
         let (data, response) = try await URLSession.shared.data(for: req)

@@ -36,7 +36,7 @@ struct DocumentsView: View {
             }
             projectMenu
             Button { studio.page = .newDocument } label: {
-                Label(L("Maak een document"), systemImage: "sparkles").frame(maxWidth: .infinity)
+                Label(L("Document voorbereiden"), systemImage: "sparkles").frame(maxWidth: .infinity)
             }
             .buttonStyle(DocumentActionStyle()).disabled(studio.busy)
             sideButton(L("Bijlagen, huisstijl en gegevens"), icon: "folder.badge.gearshape", active: studio.page == .project) { studio.page = .project }

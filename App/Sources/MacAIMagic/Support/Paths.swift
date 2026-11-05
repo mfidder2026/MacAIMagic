@@ -14,6 +14,13 @@ enum Paths {
         return dir
     }()
 
+    /// The version of the running app; nil when it runs from source, without a bundle.
+    static var appVersion: String? {
+        // (under the tests the bundle is the test runner's, with a version of its own)
+        guard Bundle.main.bundleIdentifier == "app.fremen.macaimagic" else { return nil }
+        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    }
+
     static var defaultModelsRoot: URL { appSupport.appendingPathComponent("models", isDirectory: true) }
     /// The folder that holds one subfolder per model: chosen by the user (Engine → Kies map), else the default.
     static var modelsRoot: URL {
@@ -28,6 +35,11 @@ enum Paths {
     static var conversationsFile: URL { appSupport.appendingPathComponent("conversations.json") }
     static var benchmarksFile: URL { appSupport.appendingPathComponent("benchmarks.json") }
     static var engineLog: URL { appSupport.appendingPathComponent("engine.log") }
+    static var imageLog: URL { appSupport.appendingPathComponent("image.log") }
+    /// ~/Pictures/MacAIMagic, where the images go; made when the first image is.
+    static var picturesFolder: URL {
+        FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask)[0].appendingPathComponent("MacAIMagic", isDirectory: true)
+    }
     /// The user's notes for the model in every conversation (a work folder can add its own MACAIMAGIC.md).
     static var generalNotes: URL {
         let current = appSupport.appendingPathComponent("MACAIMAGIC.md")

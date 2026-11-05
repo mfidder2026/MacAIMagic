@@ -19,6 +19,8 @@ final class ClusterController: NSObject, ObservableObject {
         var host: String
         var port: Int
         var manual = false
+        /// A helper added by hand that did not answer: it stays out of the next start, the engine would not start with it.
+        var unreachable = false
         var viaThunderbolt: Bool { host.hasPrefix("169.254.") }
     }
 
@@ -48,7 +50,7 @@ final class ClusterController: NSObject, ObservableObject {
     var role: Role { Role(rawValue: Settings.shared.clusterRole) ?? .main }
 
     /// The helpers that take part in the next engine start.
-    var active: [Helper] { role == .main ? helpers.filter { selected.contains($0.id) } : [] }
+    var active: [Helper] { role == .main ? helpers.filter { selected.contains($0.id) && !$0.unreachable } : [] }
 
     /// Extra GPU memory the active helpers bring (minus room for their own macOS and buffers).
     var extraGPU: UInt64 { UInt64(active.reduce(0) { $0 + max($1.gpuGB - 3, 0) } * 1e9) }
@@ -75,6 +77,37 @@ final class ClusterController: NSObject, ObservableObject {
         if !helpers.contains(where: { $0.id == h.id }) { helpers.append(h) }
         selected.insert(h.id)
         if save { saveManual() }
+        probe(h)
+    }
+
+    /// Tests: what a helper added by hand reports, in MiB; nil when it cannot be reached.
+    var probeOverride: ((String) -> Int64?)?
+
+    /// Ask the helpers added by hand again: one may have been turned on since.
+    func recheckManual() { for h in helpers where h.manual { probe(h) } }
+
+    /// A helper added by hand announces nothing: ask it what it can hold, as the engine would see it.
+    private func probe(_ h: Helper) {
+        let override = probeOverride
+        let binary = Paths.engineBinary("llama-server")
+        guard override != nil || binary != nil else { return }
+        Task { [weak self] in
+            let mib: Int64?
+            if let override { mib = override(h.id) }
+            else if let r = await SystemCheck.run(binary!.path, ["--rpc", h.id, "--list-devices"]) { mib = Self.helperMemory(r.output) }
+            else { mib = nil }
+            guard let self, let i = self.helpers.firstIndex(where: { $0.id == h.id }) else { return }
+            self.helpers[i].gpuGB = Double(mib ?? 0) * 1_048_576 / 1e9
+            self.helpers[i].unreachable = mib == nil
+        }
+    }
+
+    /// The MiB of the first RPC device in --list-devices: "RPC0: 10.0.0.2:50052 (16310 MiB, 15172 MiB free)".
+    nonisolated static func helperMemory(_ output: String) -> Int64? {
+        guard let match = output.range(of: #"RPC\d*:\s+\S+\s+\(\d+ MiB"#, options: .regularExpression) else { return nil }
+        let text = output[match]
+        guard let open = text.lastIndex(of: "(") else { return nil }
+        return Int64(text[text.index(after: open)...].prefix { $0.isNumber })
     }
 
     func remove(_ helper: Helper) {

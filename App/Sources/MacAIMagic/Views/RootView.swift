@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Pane: Hashable { case live, models, documents, compare, cluster, system, chat(Conversation.ID) }
+enum Pane: Hashable { case live, models, documents, images, compare, cluster, system, chat(Conversation.ID) }
 
 struct RootView: View {
     @EnvironmentObject var app: AppState
@@ -21,6 +21,7 @@ struct RootView: View {
                     case .live?: LiveView()
                     case .models?, nil: ModelsView()
                     case .documents?: DocumentsView()
+                    case .images?: ImagesView()
                     case .compare?: CompareView()
                     case .cluster?: ClusterView()
                     case .system?: SystemView { pane = $0 }
@@ -74,7 +75,10 @@ struct Sidebar: View {
             HStack(spacing: 10) {
                 BrandMark(size: 30, active: (metrics.current?.tokensPerSec ?? 0) > 0)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(L("MacAIMagic")).font(.system(.headline, design: .rounded).weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(L("MacAIMagic")).font(.system(.headline, design: .rounded).weight(.bold)).lineLimit(1).fixedSize()
+                        if let version = Paths.appVersion { Text("v" + version).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                    }
                     Text(app.selectedModel?.name ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
@@ -92,6 +96,7 @@ struct Sidebar: View {
                 Label(L("Live"), systemImage: "waveform.path.ecg").tag(Pane.live)
                 Label(L("Modellen"), systemImage: "square.stack.3d.up").tag(Pane.models)
                 Label(L("Documenten"), systemImage: "doc.richtext").tag(Pane.documents)
+                Label(L("Beeld"), systemImage: "photo").tag(Pane.images)
                 Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
                 Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
                 Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)

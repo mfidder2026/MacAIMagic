@@ -228,7 +228,8 @@ enum WorkspaceTools {
     /// Runs in the workspace with the user's login shell environment; output is capped so it fits the context.
     @MainActor static func runCommand(_ command: String, timeout: Int) async throws -> String {
         guard let root = workspace else { throw ToolError.noWorkspace }
-        return await withCheckedContinuation { cont in
+        let stopped = StopFlag()
+        return await withTaskCancellationHandler(operation: { await withCheckedContinuation { cont in
             DispatchQueue.global().async {
                 let p = Process()
                 p.executableURL = URL(fileURLWithPath: "/bin/zsh")
@@ -251,19 +252,48 @@ enum WorkspaceTools {
                 let deadline = Date().addingTimeInterval(TimeInterval(timeout))
                 var timedOut = false
                 while p.isRunning {
-                    if Date() > deadline { timedOut = true; p.terminate(); break }
+                    if Date() > deadline { timedOut = true; stopTree(p.processIdentifier); break }
+                    if stopped.isSet { stopTree(p.processIdentifier); break }
                     Thread.sleep(forTimeInterval: 0.1)
                 }
                 p.waitUntilExit()
-                pipe.fileHandleForReading.readabilityHandler = nil
+                // a program started with & keeps this pipe open: what it writes later is read and dropped, so it keeps
+                // running and the command is over now
+                Thread.sleep(forTimeInterval: 0.1)
+                pipe.fileHandleForReading.readabilityHandler = { h in
+                    if h.availableData.isEmpty { h.readabilityHandler = nil }
+                }
                 lock.lock()
-                output.append(pipe.fileHandleForReading.readDataToEndOfFile())
                 var text = String(decoding: output, as: UTF8.self)
                 lock.unlock()
                 if text.count > 30_000 { text = String(text.prefix(12_000)) + "\n… (\(text.count - 24_000) characters cut) …\n" + String(text.suffix(12_000)) }
-                let status = timedOut ? "stopped after \(timeout) s (timeout)" : "exit code \(p.terminationStatus)"
+                let status = timedOut ? "stopped after \(timeout) s (timeout)" : stopped.isSet ? "stopped by the user" : "exit code \(p.terminationStatus)"
                 cont.resume(returning: (text.isEmpty ? "(no output)" : text) + "\n[\(status)]")
             }
+        } }, onCancel: { stopped.set() })
+    }
+
+    /// Stop pressed while a command runs.
+    private final class StopFlag: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = false
+        var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
+        func set() { lock.lock(); value = true; lock.unlock() }
+    }
+
+    /// The command and everything it started, children first. Programs detached with `open` are not among them.
+    private static func stopTree(_ pid: pid_t) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        p.arguments = ["-P", String(pid)]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = FileHandle.nullDevice
+        if (try? p.run()) != nil {
+            let out = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            p.waitUntilExit()
+            for child in out.split(separator: "\n").compactMap({ pid_t($0) }) { stopTree(child) }
         }
+        kill(pid, SIGTERM)
     }
 }

@@ -27,3 +27,8 @@ SOFTWARE.
 ```
 
 The models are not included. They are downloaded from Hugging Face from their publishers (see `tools/models.json`), under their own licenses: DeepSeek-V4.1-Flash-1017 and GLM-5.3-Flash are MIT-licensed, as are their quantized files; Qwen3.8-Flash-Next and its quantized files are under the Qwen license (see the model page on Hugging Face).
+
+When it is built with `scripts/build_image_engine.sh`, the release build also bundles the image engine, built from
+stable-diffusion.cpp (commit `58bb3c1b1cd4749e94e39f537e9adfce295dcaee`, MIT License, Copyright (c) 2023 leejet), which
+includes ggml under the license above. Ministral-3-8B, FLUX.2 Klein 4B and the Qwen3-4B text model it uses are
+Apache 2.0, from their publishers on Hugging Face.

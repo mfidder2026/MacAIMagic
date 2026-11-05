@@ -28,6 +28,8 @@ struct MemoryPlan {
     var expertCache: UInt64
     /// Cluster: layers per device in llama.cpp's order (the helpers in `--rpc` order, then this Mac with the output layer).
     var tensorSplit: [Int]
+    /// A model without experts that does not fit under the GPU limit: this many layers on the GPU, the rest on the processor. Nil: all.
+    var gpuLayers: Int? = nil
     var threads: Int
     var contextSize: Int
     var warnings: [String]
@@ -48,6 +50,8 @@ enum MemoryPlanner {
     static func fit(_ model: ModelInfo, physical: UInt64) -> Fit {
         let memory = model.memory ?? model.totalSize
         if memory + minimumOverhead + osHeadroom <= physical { return .fits }
+        // no experts to keep behind: what does not stay in memory is read back by macOS, whatever the size of this Mac
+        if model.isPlain { return .streams }
         // streaming: the dense weights, the prompt buffers and an expert cache on the GPU, plus the staging reserve
         let dense = model.dense ?? memory / 10
         let buffers: UInt64 = isSmallMac(physical) ? 2_500_000_000 : 6_000_000_000
@@ -65,6 +69,10 @@ enum MemoryPlanner {
     /// Kept low on purpose: wired memory cannot be reclaimed, and a Mac without free memory locks up.
     static let largestCacheOnSmallMac: UInt64 = 3_000_000_000
     static let tinyMacContext = 16_384
+    /// A model without experts pays for every token of context in all its layers: this much where memory is short.
+    static let plainMinimumContext = 8_192
+    /// The compute buffers of a model without experts: 7050 MiB in all at 8K, measured on the Windows version's test PC.
+    static let plainBuffers: UInt64 = 1_000_000_000
     /// What a model that streams leaves for macOS and the apps.
     static func streamingHeadroom(_ physical: UInt64) -> UInt64 { isSmallMac(physical) ? 5_000_000_000 : osHeadroom }
 
@@ -84,6 +92,7 @@ enum MemoryPlanner {
     /// memory, and on a small Mac what leaves a model that streams its expert cache. Nil: the setting decides.
     static func contextRoom(index: GGUFIndex, system: SystemInfo, vision: Bool) -> Int? {
         guard fitsWhole(index: index, system: system) else {
+            if index.isPlain { return plainMinimumContext }
             if isSmallMac(system.physicalMemory) { return tinyMacContext }
             return system.physicalMemory < roomyMemory ? smallMacContext : nil
         }
@@ -91,7 +100,7 @@ enum MemoryPlanner {
         let fixed = weights + minimumOverhead + osHeadroom + (vision ? 1_500_000_000 : 0)
         guard fixed < system.physicalMemory, index.kvBytesPerToken > 0 else { return 0 }
         let tokens = Int((system.physicalMemory - fixed) / index.kvBytesPerToken)
-        return max(4096, tokens / 4096 * 4096)
+        return max(index.isPlain ? plainMinimumContext : 4096, tokens / 4096 * 4096)
     }
 
     /// Left for macOS, the app and a browser; less than this and the system starts swapping.
@@ -121,7 +130,7 @@ enum MemoryPlanner {
         let layers = max(index.layerCount, (perLayer.keys.max() ?? -1) + 1)
         // KV per model (DeepSeek's compressed attention ~0.7 GB per 128K, GLM ~2.6 GB); compute buffers ~2.5 GB at ubatch 1024
         let kv = index.kvBytesPerToken * UInt64(contextSize) + 400_000_000
-        let overhead = kv + 2_500_000_000 + (vision ? 1_500_000_000 : 0)
+        let overhead = kv + (index.isPlain ? plainBuffers : 2_500_000_000) + (vision ? 1_500_000_000 : 0)
         let physical = system.physicalMemory
         let gpuLimit = gpuLimitOverride ?? system.effectiveGPULimit
         let suggestedMB = Int((system.physicalMemory - osHeadroom) >> 20)
@@ -153,11 +162,17 @@ enum MemoryPlanner {
         var onGPU = experts
         var cache: UInt64 = 0
         var warnings: [String] = []
-        let fits = dense + experts + overhead + osHeadroom <= physical
+        var gpuLayers: Int?
+        // no experts: where its layers go is all there is to decide, and an expert cache has nothing to hold
+        if index.isPlain, dense + overhead > gpuLimit {
+            let room = gpuLimit > overhead ? gpuLimit - overhead : 0
+            gpuLayers = max(0, min(layers, Int(Double(layers) * Double(room) / Double(max(dense, 1)))))
+        }
+        let fits = index.isPlain || dense + experts + overhead + osHeadroom <= physical
         if fits {
             // the fewest layers with their experts in memory whose remainder fits on the GPU
             let budget = Int64(gpuLimit) - Int64(dense) - Int64(overhead)
-            for il in local where Int64(onGPU) > budget {
+            for il in local where Int64(onGPU) > budget && onGPU > 0 {
                 onGPU -= perLayer[il] ?? 0
                 hostLayers.append(il)
             }
@@ -183,7 +198,7 @@ enum MemoryPlanner {
                 warnings.append(L("Verhoog de GPU-limiet naar \((UInt64(suggestedMB) << 20).gb) met de knop hieronder: dan krijgt de expert-cache \((min(room, UInt64(suggestedMB) << 20) - min(room, gpuLimit)).gb) meer."))
             }
         }
-        if Int64(dense) + Int64(overhead) > Int64(gpuLimit) {
+        if !index.isPlain && Int64(dense) + Int64(overhead) > Int64(gpuLimit) {
             warnings.append(L("Zelfs de vaste gewichten passen niet onder de GPU-limiet; verhoog de limiet of verklein de context."))
         }
 
@@ -191,7 +206,7 @@ enum MemoryPlanner {
             physical: physical, gpuLimit: gpuLimit, suggestedWiredLimitMB: suggestedMB,
             dense: dense, experts: experts, engram: index.engramBytes, overhead: overhead,
             layers: layers, hostExpertLayers: hostLayers, gpuExperts: onGPU, cpuExperts: experts - onGPU,
-            expertCache: cache, tensorSplit: split,
+            expertCache: cache, tensorSplit: split, gpuLayers: gpuLayers,
             threads: max(4, system.performanceCores), contextSize: contextSize, warnings: warnings)
     }
 }

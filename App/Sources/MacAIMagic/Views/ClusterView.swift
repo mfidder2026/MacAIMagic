@@ -46,6 +46,7 @@ struct ClusterView: View {
             }
             .padding(28)
         }
+        .onAppear { cluster.recheckManual() }
     }
 }
 
@@ -70,8 +71,9 @@ private struct MainSide: View {
                     Image(systemName: "desktopcomputer").foregroundStyle(Theme.mint)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(h.name).font(.headline)
-                        Text(h.manual ? L("\(h.host):\(h.port) · handmatig toegevoegd")
-                                      : L("\(h.chip) · \(Int(h.memoryGB)) GB · GPU \(Int(h.gpuGB)) GB · \(h.host)"))
+                        Text(h.unreachable ? L("\(h.host):\(h.port) · niet bereikbaar: staat de helper aan?")
+                             : h.manual ? L("\(h.host):\(h.port) · handmatig toegevoegd · \(Int(h.gpuGB)) GB")
+                                        : L("\(h.chip) · \(Int(h.memoryGB)) GB · GPU \(Int(h.gpuGB)) GB · \(h.host)"))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
