@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.7 (macOS, Apple Silicon)
+# MacAIMagic 1.9.8 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.7-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.8-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,15 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.7-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.8-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.9.8:
+- **FLUX stands among the models.** Choose it under Modellen with **Kies voor afbeeldingen**, apart from the chat model. Compare measures it too: the same 1024 × 1024 image on every Mac (46 s on an M3 Max).
+- **The speed gauge counts image tokens** while an image is drawn (about 450 per second on an M3 Max), and its scale grows with them.
+- **Verbeteren met web** on the Beeld page: the chat model first writes a better English description and looks up on the web what something looks like, then the image is made. With Ministral, "het Rijksmuseum in Amsterdam bij avondlicht" became the real red-brick building with its towers. What goes to the search engine is cleaned of e-mail addresses, numbers and amounts.
+- **Faster images on a Mac with room:** the last step works in parts only where memory is short. On an M3 Max 1024 × 1024 now takes 42-46 s instead of 61 s; a Mac with 8 or 16 GB still works in parts where it must.
 
 New in 1.9.7:
 - **Make images on the Mac** (sidebar → Beeld) with FLUX.2 Klein 4B (5.3 GB). Measured on an M3 Max: 512 × 512 in 16-20 s, 1024 × 1024 in 60 s on the GPU. A description in English works best. Images go to Pictures/MacAIMagic, with the description in a file beside them, not inside the image.
