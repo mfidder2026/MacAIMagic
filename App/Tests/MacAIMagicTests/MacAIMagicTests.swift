@@ -427,7 +427,7 @@ final class MachineFitTests: XCTestCase {
         let store = ModelStore()
         let m1 = mac(32, gpuShare: 0.67)
         var checked = 0
-        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" && store.status(m.id).isComplete {
+        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" && !m.isPlain && store.status(m.id).isComplete {
             let index = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))
             XCTAssertFalse(MemoryPlanner.fitsWhole(index: index, system: m1), m.id)
             let context = try XCTUnwrap(MemoryPlanner.contextRoom(index: index, system: m1, vision: false))

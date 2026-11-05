@@ -21,7 +21,7 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
-| **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 8 or 16 GB | 6 GB | fits (5 GB) | not measured on a Mac yet | not measured on a Mac yet |
+| **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 8 or 16 GB | 6 GB | fits (5 GB) | **51 tok/s** | ~630 tok/s |
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
@@ -68,8 +68,10 @@ comes from the internal SSD.
   the card says so at once. `tools/check_catalog.py` checks that every file can still be downloaded, reading headers only.
 - **Images** (sidebar → **Beeld**): describe what you want and FLUX.2 Klein 4B (5.3 GB, Apache 2.0) makes the image on
   this Mac, with earlier ones below it. Images go to `~/Pictures/MacAIMagic` with their description in a file beside
-  them, not inside the image. A running chat model stops first. The image engine is built with
-  `scripts/build_image_engine.sh`; this page has not been run with the real engine on a Mac yet.
+  them, not inside the image. A running chat model stops first. Measured on the M3 Max, at 4 steps with loading: 512 × 512
+  in 17-20 s, 768 × 768 in 34 s, 1024 × 1024 in 60 s on the GPU (6.8 GB extra memory; the app gives a Mac with 8 GB a
+  smaller budget and size); 512 × 512 in 78 s on the processor. A description in English works best: a Dutch one drew a
+  man where the English one drew the fox. The image engine is built with `scripts/build_image_engine.sh`.
 - **Documents**: make Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with attachments
   (context and information), a house style (only the layout) and its documents. Say "make an AQS": the model looks in the
   attachments for what the document must consist of, searches the web for what they do not say, such as the subject and

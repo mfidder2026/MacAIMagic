@@ -112,7 +112,7 @@ struct ImagesView: View {
                 }
             }
             let plan = ImagePlanner.plan(size, app.system)
-            Text(plan.onGPU ? L("Op de GPU van deze Mac. Hoe lang het duurt is hier nog niet gemeten.")
+            Text(plan.onGPU ? L("Op de GPU duurt een afbeelding seconden tot een minuut.")
                             : L("Op de processor duurt een afbeelding minuten. Hoe lang precies hangt af van deze Mac en de grootte.")
                                 + (plan.tiling ? " " + L("Op dit geheugen werkt de laatste stap in delen, en dat duurt langer.") : ""))
                 .font(.caption).foregroundStyle(.secondary)
@@ -120,6 +120,8 @@ struct ImagesView: View {
                 Text(L("\(running.shortName) stopt zolang er een afbeelding wordt gemaakt: daarnaast is meestal geen ruimte. Start het daarna weer in een gesprek."))
                     .font(.caption).foregroundStyle(Theme.amber)
             }
+            Text(L("Het model volgt een beschrijving in het Engels het best: in het Nederlands mist het soms waar het om gaat."))
+                .font(.caption).foregroundStyle(.secondary)
             if let note = images.note { Text(note).font(.caption).foregroundStyle(Theme.amber) }
             if let error = images.error { Text(error).font(.caption).foregroundStyle(Theme.pink) }
         }

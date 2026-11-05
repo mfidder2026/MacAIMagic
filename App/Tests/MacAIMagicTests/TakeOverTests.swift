@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import MacAIMagic
 
@@ -57,6 +58,17 @@ final class PlainModelTests: XCTestCase {
         XCTAssertNotNil(small.gpuLayers)
         XCTAssertLessThan(small.gpuLayers!, 34)
         XCTAssertNil(MemoryPlanner.plan(index: ministral(), system: mac(32), contextSize: 8192, vision: false).gpuLayers)
+    }
+
+    /// From the real file, when it is downloaded: no experts, and the architecture the KV cost is known for.
+    @MainActor func testTheRealFileIsPlain() throws {
+        let m = try XCTUnwrap(ModelCatalog.shared.model("ministral-3-8b-q4"))
+        let store = ModelStore()
+        guard store.status(m.id).isComplete else { throw XCTSkip("Ministral not downloaded") }
+        let index = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))
+        XCTAssertTrue(index.isPlain)
+        XCTAssertEqual(index.kvBytesPerToken, 142_000)
+        XCTAssertEqual(MemoryPlanner.plan(index: index, system: mac(16), contextSize: 8192, vision: false).expertCache, 0)
     }
 
     func testContextIsAtLeast8KWhereMemoryIsShort() {
@@ -285,5 +297,25 @@ final class ImagePlannerTests: XCTestCase {
         let r = await task.value
         XCTAssertNil(r)
         XCTAssertNil(m.error)
+    }
+}
+
+/// MACAIMAGIC_IMAGE_TEST=1: one real image with the real engine and the downloaded model, through the app's own path.
+@MainActor final class ImageEngineIntegrationTests: XCTestCase {
+    func testARealImage() async throws {
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_IMAGE_TEST"] == "1" else { throw XCTSkip("no image test") }
+        let app = AppState()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        app.images.root = folder
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let model = try XCTUnwrap(app.models.catalog.images.first)
+        XCTAssertTrue(app.models.status(model.id).isComplete, "download the image model first")
+        let made = await app.images.make(prompt: "a red fox reading a newspaper on a bench in Amsterdam, autumn light, photo",
+                                         size: ImageSize(width: 512, height: 512), system: app.system,
+                                         files: app.models.shardURLs(model).map(\.path), seed: 7)
+        let r = try XCTUnwrap(made, app.images.error ?? "")
+        XCTAssertTrue(r.onGPU)
+        XCTAssertNotNil(NSImage(contentsOfFile: r.path))
+        print(String(format: "IMAGE 512 on the GPU: %.1f s", r.seconds))
     }
 }

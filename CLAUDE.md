@@ -36,11 +36,7 @@ Commit on `main` and push: the other machine only sees `main`.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
 
-**Still open after the take-over of `6c51802`:**
-
-- The image engine (`scripts/build_image_engine.sh`) was not built here: building code fetched from outside needs the owner's go-ahead in this session. Until it is built, `make_app.sh` says so and the Beeld page reports the engine missing.
-- Ministral-3-8B and FLUX.2 Klein 4B have not been downloaded or run on a Mac; their plans on a Mac are estimates from the Windows measurements.
-- `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
+**Still open after the take-over of `6c51802`:** `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine. Ministral and FLUX were measured on the M3 Max only, not on a Mac with 8 or 16 GB. `.github/workflows/check-models.yml` could not be pushed (the token has no `workflow` scope).
 
 ## Building and testing
 

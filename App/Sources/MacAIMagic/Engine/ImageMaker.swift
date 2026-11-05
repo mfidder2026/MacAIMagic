@@ -31,8 +31,11 @@ struct ImagePlan: Equatable {
 
 /// A pure function of the Mac, as MemoryPlanner is. The engine runs once per image, so all its memory is free again afterwards.
 ///
-/// The limits come from measurements on a Windows PC with limits on its card and memory, and are not measured on a Mac yet.
 /// On a Mac the GPU and everything else share one pool, so what the GPU may use leaves macOS its room as well.
+///
+/// Measured on an M3 Max (128 GB), FLUX.2 Klein 4B at 4 steps, the whole run with loading: on the GPU 512 in 17-20 s, 768 in 34 s,
+/// 1024 in 60 s; extra wired memory 6.8 GB at 1024 without a limit, 4.1 GB with a budget of 5.2 GiB, 3.8 GB at 768 with 1.2 GiB
+/// (as small a budget at 1024 fails cleanly, as on Windows). The processor, 12 threads: 512 in 78 s. Smaller Macs: not measured.
 enum ImagePlanner {
     static let sizes = [ImageSize(width: 512, height: 512), ImageSize(width: 768, height: 768), ImageSize(width: 1024, height: 1024),
                         ImageSize(width: 1024, height: 768), ImageSize(width: 768, height: 1024)]

@@ -543,7 +543,6 @@
  "Grootte": "Größe",
  "Maak afbeelding": "Bild erstellen",
  "Maakt afbeeldingen op deze Mac. Je beschrijving gaat niet naar buiten.": "Erstellt Bilder auf diesem Mac. Deine Beschreibung verlässt ihn nicht.",
- "Op de GPU van deze Mac. Hoe lang het duurt is hier nog niet gemeten.": "Auf der GPU dieses Mac. Wie lange es dauert, wurde hier noch nicht gemessen.",
  "Op de processor duurt een afbeelding minuten. Hoe lang precies hangt af van deze Mac en de grootte.": "Auf dem Prozessor dauert ein Bild Minuten. Wie lange genau, hängt von diesem Mac und der Größe ab.",
  "Op deze schijf is %@ vrij; %@ heeft nog %@ nodig.": "Auf diesem Laufwerk sind %@ frei; %@ braucht noch %@.",
  "Op dit geheugen werkt de laatste stap in delen, en dat duurt langer.": "Bei diesem Speicher läuft der letzte Schritt in Teilen, und das dauert länger.",
@@ -553,5 +552,7 @@
  "Voorbereiden…": "Wird vorbereitet…",
  "4B · 4 bit · maakt afbeeldingen van een beschrijving · Apache 2.0": "4B · 4 Bit · erstellt Bilder aus einer Beschreibung · Apache 2.0",
  "op de GPU": "auf der GPU",
- "op de processor": "auf dem Prozessor"
+ "op de processor": "auf dem Prozessor",
+ "Op de GPU duurt een afbeelding seconden tot een minuut.": "Auf der GPU dauert ein Bild Sekunden bis eine Minute.",
+ "Het model volgt een beschrijving in het Engels het best: in het Nederlands mist het soms waar het om gaat.": "Das Modell folgt einer Beschreibung auf Englisch am besten: in anderen Sprachen verfehlt es manchmal das Wesentliche."
 }
