@@ -74,8 +74,9 @@ Nog niet in deze versie: vertalen en corrigeren in het Word-bestand zelf met bij
 
 Maak afbeeldingen op de Mac zelf (zijbalk → **Beeld**): beschrijf wat je wilt zien en FLUX.2 Klein 4B (5,3 GB, Apache 2.0)
 maakt het. De afbeeldingen komen in `~/Pictures/MacAIMagic`, met de beschrijving in een bestand ernaast, niet in de afbeelding.
-Een draaiend chatmodel stopt eerst. Gemeten op de M3 Max, 4 stappen met laden: 512 × 512 in 17-20 s, 768 × 768 in 34 s,
-1024 × 1024 in 60 s op de GPU; 512 × 512 in 78 s op de processor. Een Engelse beschrijving werkt het best: een Nederlandse
+Een draaiend chatmodel stopt eerst. Gemeten op de M3 Max, 4 stappen met laden: 512 × 512 in 14 s en 1024 × 1024 in 42-46 s
+op de GPU, ongeveer 450 beeldtokens per seconde; 512 × 512 in 78 s op de processor. FLUX staat bij de modellen
+(**Kies voor afbeeldingen**) en bij **Vergelijken**, en de snelheidsmeter telt de beeldtokens terwijl het tekent. Een Engelse beschrijving werkt het best: een Nederlandse
 tekende een man waar de Engelse de vos tekende. De beeldengine bouw je met `scripts/build_image_engine.sh`.
 
 ## Cluster

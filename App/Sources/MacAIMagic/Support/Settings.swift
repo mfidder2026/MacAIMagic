@@ -29,6 +29,8 @@ final class Settings: ObservableObject {
     @AppStorage("vision") var vision = true
     /// The size chosen on the image page, "768x768"; empty: what suits this Mac.
     @AppStorage("imageSize") var imageSize = ""
+    /// The model that makes images (Modellen → Kies voor afbeeldingen); empty: the first in the catalog.
+    @AppStorage("imageModel") var imageModel = ""
     @AppStorage("thinking") var thinking = true
     @AppStorage("reasoningEffort") var reasoningEffort = "high"
     /// At most this many tokens of thinking, then the model writes its answer (0: no limit).

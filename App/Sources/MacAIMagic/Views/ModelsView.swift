@@ -18,7 +18,7 @@ struct ModelsView: View {
                     }
                 }
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)], spacing: 18) {
-                    ForEach(models.catalog.models) { m in ModelCard(model: m) }
+                    ForEach(models.catalog.all) { m in ModelCard(model: m) }
                 }
                 if let plan = app.plan {
                     PlanStrip(plan: plan)
@@ -43,7 +43,9 @@ private struct ModelCard: View {
     @State private var hover = false
 
     private var status: ModelStore.ModelStatus { models.status(model.id) }
-    private var selected: Bool { app.selectedModelID == model.id }
+    /// Makes images instead of chatting: chosen apart, for the page Beeld.
+    private var makesImages: Bool { models.catalog.images.contains(model) }
+    private var selected: Bool { makesImages ? app.imageModel?.id == model.id : app.selectedModelID == model.id }
     private var running: Bool { engine.model?.id == model.id && engine.state.isRunning }
     /// Does the model fit in this Mac's memory, stream from the SSD, or not run here at all?
     private var fit: MemoryPlanner.Fit { MemoryPlanner.fit(model, physical: app.system.physicalMemory) }
@@ -84,6 +86,7 @@ private struct ModelCard: View {
                     }
                 case .tooBig: Badge(text: L("Waarschijnlijk te krap voor deze Mac, niet gemeten"), icon: "exclamationmark.triangle", color: Theme.amber)
                 }
+                if makesImages { Badge(text: L("Afbeeldingen"), icon: "photo", color: Theme.violet) }
                 if status.vision?.complete == true { Badge(text: L("Vision"), icon: "eye") }
                 if model.hasMTP { Badge(text: "MTP", icon: "forward.fill", color: Theme.violet) }
             }
@@ -111,7 +114,10 @@ private struct ModelCard: View {
                 }
                 Spacer()
                 if selected {
-                    Label(L("Gekozen"), systemImage: "checkmark.circle.fill").font(.callout).foregroundStyle(Theme.family(model.family))
+                    Label(makesImages ? L("Gekozen voor afbeeldingen") : L("Gekozen"), systemImage: "checkmark.circle.fill")
+                        .font(.callout).foregroundStyle(Theme.family(model.family))
+                } else if makesImages {
+                    Button(L("Kies voor afbeeldingen")) { Settings.shared.imageModel = model.id; app.objectWillChange.send() }
                 } else {
                     Button(L("Kies")) { Task { await app.select(model.id) } }.disabled(!status.headersAvailable)
                 }

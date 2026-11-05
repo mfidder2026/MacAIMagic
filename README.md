@@ -69,8 +69,10 @@ comes from the internal SSD.
 - **Images** (sidebar → **Beeld**): describe what you want and FLUX.2 Klein 4B (5.3 GB, Apache 2.0) makes the image on
   this Mac, with earlier ones below it. Images go to `~/Pictures/MacAIMagic` with their description in a file beside
   them, not inside the image. A running chat model stops first. Measured on the M3 Max, at 4 steps with loading: 512 × 512
-  in 17-20 s, 768 × 768 in 34 s, 1024 × 1024 in 60 s on the GPU (6.8 GB extra memory; the app gives a Mac with 8 GB a
-  smaller budget and size); 512 × 512 in 78 s on the processor. A description in English works best: a Dutch one drew a
+  in 14 s and 1024 × 1024 in 42-46 s on the GPU, about 450 image tokens per second (12.6 GB extra memory; a Mac with less
+  memory works in parts, 1024 × 1024 then takes 61 s on 7 GB, and a Mac with 8 GB gets a smaller budget and size);
+  512 × 512 in 78 s on the processor. FLUX stands among the models (**Kies voor afbeeldingen**) and in **Vergelijken**,
+  and the speed gauge counts its image tokens while it draws. A description in English works best: a Dutch one drew a
   man where the English one drew the fox. The image engine is built with `scripts/build_image_engine.sh`.
 - **Documents**: make Word documents without cloud AI (sidebar → **Documenten**). A project is a folder with attachments
   (context and information), a house style (only the layout) and its documents. Say "make an AQS": the model looks in the

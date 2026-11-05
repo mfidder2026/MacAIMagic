@@ -10,7 +10,7 @@ struct ImagesView: View {
     @State private var prompt = ""
     @State private var shown: ImageResult?
 
-    private var model: ModelInfo? { models.catalog.images.first }
+    private var model: ModelInfo? { app.imageModel }
     private var status: ModelStore.ModelStatus { model.map { models.status($0.id) } ?? ModelStore.ModelStatus() }
     private var size: ImageSize {
         if let chosen = ImageSize(key: settings.imageSize), ImagePlanner.sizes.contains(chosen) { return chosen }

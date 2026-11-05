@@ -299,3 +299,16 @@ with 768 × 768 as the largest size on the GPU and 1024 on the processor. A Dutc
 leest op een bankje in Amsterdam") drew a man reading the paper; the same in English drew the fox. The text model reads
 English best, so the page says so.
 
+**Working in parts costs a third on a Mac** (1.9.8). The Windows version always lets the last stage work in parts, because
+on a card that costs next to nothing. Measured here at 4 steps:
+
+| Image | Whole | In parts |
+|---|---|---|
+| 512 × 512 | 14 s, 7.3 GB extra | 16 s, 6.0 GB |
+| 1024 × 1024 | 42 s (last stage 9 s), 12.6 GB | 61 s (last stage 26 s), 7.0 GB |
+
+So the app works in parts only where a whole image would not leave the GPU 2 GB beside it: on a Mac with 16 GB at
+1024 × 1024, on 8 GB always. Through Compare, which measures the same image on every Mac (a lighthouse, seed 7,
+1024 × 1024, with loading): 46 s and 450 image tokens per second. An image token is a patch of 16 × 16 pixels, and the
+model works on all of them in every step (4,096 per step at 1024 × 1024); the speed gauge shows them while it draws.
+

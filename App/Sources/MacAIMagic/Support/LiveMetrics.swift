@@ -42,11 +42,24 @@ final class LiveMetrics: ObservableObject {
         didSet { if fast != oldValue { schedule() } }
     }
 
+    /// Image tokens per second while an image is made (the image engine has no /slots); nil otherwise.
+    var imageRate: Double? {
+        didSet { if (imageRate == nil) != (oldValue == nil) { schedule() } }
+    }
+    var makingImage: Bool { imageRate != nil }
+
+    /// The top of a speed scale: `base` for text, a round number above the speeds of the last minute and a half otherwise.
+    func scale(base: Double) -> Double {
+        let top = max(samples.map(\.tokensPerSec).max() ?? 0, current?.tokensPerSec ?? 0)
+        guard top > base * 0.95 else { return base }
+        return [100.0, 250, 500, 1000, 2500, 5000].first { top <= $0 * 0.95 } ?? 10000
+    }
+
     init() { schedule() }
 
     private func schedule() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: fast ? 0.5 : 2, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: fast || imageRate != nil ? 0.5 : 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.sample() }
         }
     }
@@ -75,9 +88,9 @@ final class LiveMetrics: ObservableObject {
         // smooth the token rate a little; drop to zero shortly after the stream stops
         // the engine's own count when it answers (any client: this app, the API, tools), else the tokens this app streamed
         if fast { pollEngine(dt: dt) }
-        let inst = engineRate ?? Double(tokenCount) / dt
+        let inst = imageRate ?? engineRate ?? Double(tokenCount) / dt
         tokenCount = 0
-        let idle = engineRate.map { $0 == 0 } ?? (now.timeIntervalSince(lastStreamDate) > 1.5)
+        let idle = imageRate.map { $0 == 0 } ?? engineRate.map { $0 == 0 } ?? (now.timeIntervalSince(lastStreamDate) > 1.5)
         lastTokenRate = idle ? 0 : (lastTokenRate * 0.6 + inst * 0.4)
 
         let mem = Self.memory()

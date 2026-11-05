@@ -554,5 +554,12 @@
  "op de GPU": "auf der GPU",
  "op de processor": "auf dem Prozessor",
  "Op de GPU duurt een afbeelding seconden tot een minuut.": "Auf der GPU dauert ein Bild Sekunden bis eine Minute.",
- "Het model volgt een beschrijving in het Engels het best: in het Nederlands mist het soms waar het om gaat.": "Das Modell folgt einer Beschreibung auf Englisch am besten: in anderen Sprachen verfehlt es manchmal das Wesentliche."
+ "Het model volgt een beschrijving in het Engels het best: in het Nederlands mist het soms waar het om gaat.": "Das Modell folgt einer Beschreibung auf Englisch am besten: in anderen Sprachen verfehlt es manchmal das Wesentliche.",
+ "BEELDTOKENS": "BILD-TOKENS",
+ "Afbeeldingen": "Bilder",
+ "Gekozen voor afbeeldingen": "Für Bilder gewählt",
+ "Kies voor afbeeldingen": "Für Bilder wählen",
+ "Afbeelding van 1024 × 1024, met laden": "Bild mit 1024 × 1024, mit Laden",
+ "Beeldtokens": "Bild-Tokens",
+ "Dezelfde meting op elk model: een prompt van ~2.500 tokens lezen en 300 tokens schrijven, of een afbeelding van 1024 × 1024 maken.": "Dieselbe Messung für jedes Modell: einen Prompt von ~2.500 Tokens lesen und 300 Tokens schreiben, oder ein Bild mit 1024 × 1024 erstellen."
 }

@@ -15,6 +15,12 @@ struct BenchResult: Codable, Identifiable, Hashable {
     var cpuMoELayers: Int
     /// Larger than memory: the GPU expert cache (nil in results from before 1.4)
     var expertCacheGB: Double?
+    /// A model that makes images: the seconds for one image of `imageSize`, with loading; the image tokens per second go in
+    /// decodeTPS. Nil for a model that chats.
+    var imageSeconds: Double?
+    var imageSize: String?
+    var makesImage: Bool { imageSeconds != nil }
+    var imageSecondsOrZero: Double { imageSeconds ?? 0 }
 }
 
 /// Runs the same measurement on each model in turn: start it, read a ~2.5K-token prompt, write 300 tokens.
@@ -33,13 +39,17 @@ final class BenchmarkRunner: ObservableObject {
 
     /// The latest result per model, in catalog order.
     var latest: [BenchResult] {
-        ModelCatalog.shared.models.compactMap { m in results.last { $0.modelID == m.id } }
+        ModelCatalog.shared.all.compactMap { m in results.last { $0.modelID == m.id } }
     }
 
     func run(_ ids: [String], app: AppState) async {
         for id in ids {
             guard let model = ModelCatalog.shared.model(id), app.models.status(id).isComplete else { continue }
             running = model.name
+            if ModelCatalog.shared.images.contains(model) {
+                await measureImage(model, app: app)
+                continue
+            }
             step = "Engine starten…"
             if app.engine.model?.id != id || !app.engine.state.isRunning {
                 await app.engine.stopAndWait()
@@ -75,6 +85,33 @@ final class BenchmarkRunner: ObservableObject {
         }
         running = nil
         step = ""
+    }
+
+    /// The same image every time: a fixed description and seed, at the size measured on every Mac. The chat engine stops first.
+    static let imagePrompt = "a lighthouse on a rocky coast at dusk, waves, photo"
+    static let imageSize = ImageSize(width: 1024, height: 1024)
+
+    private func measureImage(_ model: ModelInfo, app: AppState) async {
+        step = "Afbeelding maken…"
+        let saved = Settings.shared.imageModel
+        Settings.shared.imageModel = model.id
+        defer { Settings.shared.imageModel = saved }
+        let root = app.images.root
+        app.images.root = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-measure")
+        defer { app.images.root = root }
+        let t0 = Date()
+        guard let r = await app.makeImageNow(prompt: Self.imagePrompt, size: Self.imageSize, seed: 7, measuring: true) else {
+            step = "Fout: \(app.images.error ?? "")"
+            return
+        }
+        try? FileManager.default.removeItem(atPath: r.path)
+        let during = app.metrics.samples.filter { $0.t >= t0 }
+        results.append(BenchResult(modelID: model.id, modelName: model.name, loadSeconds: 0, promptTPS: 0, promptTokens: 0,
+                                   decodeTPS: r.tokensPerSecond ?? 0, decodeTokens: ImagePlanner.tokensPerStep(Self.imageSize) * 4,
+                                   ssdMBs: during.isEmpty ? 0 : during.map(\.ssdMBs).reduce(0, +) / Double(during.count),
+                                   wiredGB: during.map(\.wiredGB).max() ?? 0, cpuMoELayers: 0, expertCacheGB: nil,
+                                   imageSeconds: r.seconds, imageSize: Self.imageSize.key))
+        save()
     }
 
     private struct Timings { var promptTPS = 0.0, promptTokens = 0, decodeTPS = 0.0, decodeTokens = 0 }

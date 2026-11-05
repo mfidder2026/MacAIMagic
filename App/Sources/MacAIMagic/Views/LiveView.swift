@@ -14,7 +14,8 @@ struct LiveView: View {
                 HStack(alignment: .top, spacing: 18) {
                     GlassCard(glow: Theme.violet) {
                         VStack(spacing: 14) {
-                            GaugeRing(value: metrics.current?.tokensPerSec ?? 0, maximum: 30, label: L("SCHRIJFSNELHEID"), unit: L("tokens / s"), size: 210)
+                            GaugeRing(value: metrics.current?.tokensPerSec ?? 0, maximum: metrics.scale(base: 30),
+                                      label: metrics.makingImage ? L("BEELDTOKENS") : L("SCHRIJFSNELHEID"), unit: L("tokens / s"), size: 210)
                             HStack(spacing: 18) {
                                 MiniStat(label: "GPU", value: metrics.current?.gpu ?? 0, unit: "%", color: Theme.accent)
                                 MiniStat(label: "CPU", value: metrics.current?.cpu ?? 0, unit: "%", color: Theme.cyan)
@@ -27,7 +28,7 @@ struct LiveView: View {
                     VStack(spacing: 18) {
                         ChartCard(title: L("Tokens per seconde"), icon: "bolt.fill", color: Theme.violet,
                                   value: String(format: "%.1f tok/s", metrics.current?.tokensPerSec ?? 0)) {
-                            AreaSeries(samples: metrics.samples, value: \.tokensPerSec, color: Theme.violet, maxY: 30)
+                            AreaSeries(samples: metrics.samples, value: \.tokensPerSec, color: Theme.violet, maxY: metrics.scale(base: 30))
                         }
                         ChartCard(title: L("GPU en CPU"), icon: "cpu", color: Theme.accent,
                                   value: String(format: "GPU %.0f%% · CPU %.0f%%", metrics.current?.gpu ?? 0, metrics.current?.cpu ?? 0)) {

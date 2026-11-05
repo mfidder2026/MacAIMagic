@@ -60,6 +60,15 @@ enum ImagePlanner {
         return room >= largeBudget || (room >= smallBudget && size.megapixels <= smallMegapixels)
     }
 
+    /// The image model works on the picture as tokens of 16 × 16 pixels, all of them in every step.
+    static func tokensPerStep(_ size: ImageSize) -> Int { (size.width / 16) * (size.height / 16) }
+
+    /// What a whole image takes on the GPU when the last stage works in one piece, a line through two measurements on the
+    /// M3 Max: 7.3 GB at 512 × 512, 12.6 GB at 1024 × 1024. In parts it is ~6-7 GB and 1024 takes 61 s instead of 42 s.
+    static func wholeBytes(_ size: ImageSize) -> UInt64 { 5_300_000_000 + UInt64(size.megapixels * 7_000_000_000) }
+    /// Room the GPU keeps beside a whole image.
+    static let wholeMargin: UInt64 = 2_000_000_000
+
     /// Own memory of the last stage on the processor, a line through three measurements on the Windows PC.
     static func decoderBytes(_ size: ImageSize) -> UInt64 { 400_000_000 + UInt64(size.megapixels * 6_840_000_000) }
 
@@ -74,7 +83,9 @@ enum ImagePlanner {
         guard fitsOnGPU(size, s) else { return planForProcessor(size, s) }
         let room = gpuRoom(s)
         let budget = room >= largeBudget ? (Double(room) / Double(1 << 30) * 10).rounded(.down) / 10 : smallBudgetGiB
-        return ImagePlan(size: size, onGPU: true, gpuBudgetGiB: budget, tiling: true, threads: max(4, s.performanceCores))
+        // in parts only where a whole image would not leave the GPU its margin: on a roomy Mac that saves a third of the time
+        return ImagePlan(size: size, onGPU: true, gpuBudgetGiB: budget, tiling: wholeBytes(size) + wholeMargin > room,
+                         threads: max(4, s.performanceCores))
     }
 
     /// The last stage may take half the memory; beyond that it works in parts.
@@ -110,6 +121,8 @@ struct ImageProgress {
     private var stage = Stage.reading
     private var step = 0
     private(set) var lastError: String?
+    /// Seconds per step, as the engine's progress bar says; nil before the first step.
+    private(set) var secondsPerStep: Double?
 
     static func clean(_ line: String) -> String {
         line.replacingOccurrences(of: #"\x1b\[[0-9;]*[A-Za-z]"#, with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
@@ -130,10 +143,23 @@ struct ImageProgress {
         // the same kind of bar goes with reading weights, with hundreds of parts
         if let bar = line.range(of: #"\|[^|]*\|\s*\d+/\d+\s*-"#, options: .regularExpression) {
             let numbers = line[bar].split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }.suffix(2)
-            if numbers.count == 2, numbers.last == Self.steps, let n = numbers.first, n != step { step = n; return true }
+            if numbers.count == 2, numbers.last == Self.steps, let n = numbers.first, n != step {
+                step = n
+                secondsPerStep = Self.stepSeconds(line) ?? secondsPerStep
+                return true
+            }
         }
         return false
     }
+
+    /// "8.49s/it" or "1.08it/s" in a progress bar.
+    static func stepSeconds(_ line: String) -> Double? {
+        if let r = line.range(of: #"[0-9.]+s/it"#, options: .regularExpression) { return Double(line[r].dropLast(4)) }
+        if let r = line.range(of: #"[0-9.]+it/s"#, options: .regularExpression), let n = Double(line[r].dropLast(4)), n > 0 { return 1 / n }
+        return nil
+    }
+
+    var isDrawing: Bool { stage == .drawing }
 
     var fraction: Double {
         switch stage {
@@ -161,10 +187,12 @@ struct ImageResult: Codable, Identifiable, Equatable {
     var seconds = 0.0
     var onGPU = false
     var created = Date()
+    /// Image tokens the model drew per second, over the steps.
+    var tokensPerSecond: Double?
     var path = ""
     var id: String { path }
 
-    private enum CodingKeys: String, CodingKey { case prompt, width, height, seed, seconds, onGPU, created }
+    private enum CodingKeys: String, CodingKey { case prompt, width, height, seed, seconds, onGPU, created, tokensPerSecond }
 }
 
 /// Makes one image at a time with the image engine.
@@ -178,6 +206,9 @@ final class ImageMaker: ObservableObject {
     @Published private(set) var note: String?
     @Published private(set) var last: ImageResult?
     @Published private(set) var started = Date()
+
+    /// The image tokens per second while the model draws, for the live meters; nil when no image is being made.
+    var onRate: ((Double?) -> Void)?
 
     /// Tests: a folder of their own, and a stand-in for the engine.
     var root: URL?
@@ -199,7 +230,8 @@ final class ImageMaker: ObservableObject {
         fraction = 0
         status = L("Voorbereiden…")
         started = Date()
-        defer { busy = false; status = "" }
+        onRate?(0)
+        defer { busy = false; status = ""; onRate?(nil) }
         var awake: IOPMAssertionID = 0
         IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
                                     "MacAIMagic: een afbeelding maken" as CFString, &awake)
@@ -236,7 +268,8 @@ final class ImageMaker: ObservableObject {
             return nil
         }
         var result = ImageResult(prompt: prompt, width: size.width, height: size.height, seed: chosen,
-                                 seconds: Date().timeIntervalSince(begin), onGPU: plan.onGPU, created: Date())
+                                 seconds: Date().timeIntervalSince(begin), onGPU: plan.onGPU, created: Date(),
+                                 tokensPerSecond: outcome.secondsPerStep.map { Double(ImagePlanner.tokensPerStep(size)) / $0 })
         result.path = output.path
         // the image itself is there, also when this fails
         if let data = try? JSONEncoder().encode(result) { try? data.write(to: output.deletingPathExtension().appendingPathExtension("json")) }
@@ -244,7 +277,8 @@ final class ImageMaker: ObservableObject {
         return result
     }
 
-    private func run(_ exe: URL, _ plan: ImagePlan, _ files: [String], _ prompt: String, _ seed: Int, _ output: URL, appendLog: Bool) async -> (failed: Bool, reason: String?) {
+    private func run(_ exe: URL, _ plan: ImagePlan, _ files: [String], _ prompt: String, _ seed: Int, _ output: URL, appendLog: Bool) async -> (failed: Bool, reason: String?, secondsPerStep: Double?) {
+        let tokens = Double(ImagePlanner.tokensPerStep(plan.size))
         let args = ImagePlanner.arguments(plan, files: files, prompt: prompt, seed: seed, output: output.path)
         if !appendLog { FileManager.default.createFile(atPath: Paths.imageLog.path, contents: nil) }
         let log = try? FileHandle(forWritingTo: Paths.imageLog)
@@ -279,6 +313,8 @@ final class ImageMaker: ObservableObject {
                         if progress.read(line) {
                             self?.fraction = progress.fraction
                             self?.status = progress.status
+                            // the steps draw image tokens; reading the text and finishing the image do not
+                            self?.onRate?(progress.isDrawing ? progress.secondsPerStep.map { tokens / $0 } ?? 0 : 0)
                         }
                     }
                 }
@@ -298,7 +334,7 @@ final class ImageMaker: ObservableObject {
         pipe.fileHandleForReading.readabilityHandler = nil
         try? log?.close()
         let made = done == 0 && FileManager.default.fileExists(atPath: output.path)
-        return (!made, progress.lastError)
+        return (!made, progress.lastError, progress.secondsPerStep)
     }
 
     /// Stops the image being made; what the engine had done is gone.

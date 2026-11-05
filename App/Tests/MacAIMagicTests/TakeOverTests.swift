@@ -86,6 +86,17 @@ final class PlainModelTests: XCTestCase {
     }
 }
 
+final class MeterScaleTests: XCTestCase {
+    @MainActor func testTheScaleGrowsWithImageTokens() {
+        let m = LiveMetrics()
+        XCTAssertEqual(m.scale(base: 30), 30)
+        XCTAssertFalse(m.makingImage)
+        m.imageRate = 0
+        XCTAssertTrue(m.makingImage)
+        m.imageRate = nil
+    }
+}
+
 final class GapTests: XCTestCase {
     /// The transcript's own labels at the start of a line: no summary but more of the conversation.
     func testAContinuationOfTheConversationIsNoSummary() {
@@ -213,6 +224,24 @@ final class ImagePlannerTests: XCTestCase {
         XCTAssertTrue(ImagePlanner.arguments(ImagePlanner.planForProcessor(gpu.size, mac(8)), files: ["a", "b", "c"], prompt: "", seed: 1, output: "o").contains("cpu"))
     }
 
+    /// In parts only where a whole image does not fit beside macOS: measured on the M3 Max, 42 s whole against 61 s in parts.
+    func testWorkingInPartsOnlyWhereMemoryIsShort() {
+        XCTAssertFalse(ImagePlanner.plan(ImageSize(width: 1024, height: 1024), mac(128)).tiling)
+        XCTAssertFalse(ImagePlanner.plan(ImageSize(width: 512, height: 512), mac(32)).tiling)
+        XCTAssertTrue(ImagePlanner.plan(ImageSize(width: 1024, height: 1024), mac(16)).tiling)
+        XCTAssertTrue(ImagePlanner.plan(ImageSize(width: 768, height: 768), mac(8)).tiling)
+    }
+
+    func testImageTokens() {
+        XCTAssertEqual(ImagePlanner.tokensPerStep(ImageSize(width: 1024, height: 1024)), 4096)
+        XCTAssertEqual(ImageProgress.stepSeconds("|====|  2/4 -   8.62s/it - ETA 00:17"), 8.62)
+        XCTAssertEqual(ImageProgress.stepSeconds("|=| 1/4 - 2.00it/s"), 0.5)
+        var p = ImageProgress()
+        _ = p.read("[INFO] sampling using Euler method")
+        _ = p.read("|============>   | 1/4 -   8.49s/it - ETA 00:25")
+        XCTAssertEqual(p.secondsPerStep, 8.49)
+    }
+
     func testProgressFollowsTheStages() {
         var p = ImageProgress()
         XCTAssertEqual(p.fraction, 0.03)
@@ -279,6 +308,17 @@ final class ImagePlannerTests: XCTestCase {
         let r = await m.make(prompt: "x", size: size, system: mac(), files: ["a", "b", "c"])
         XCTAssertNil(r)
         XCTAssertTrue(m.error?.contains("kapot") == true, m.error ?? "")
+    }
+
+    func testTheMetersFollowTheImageTokens() async throws {
+        let m = try maker("echo '[INFO] sampling using Euler'\nprintf '|==| 1/4 - 2.00s/it\\n'\nsleep 0.3\necho png > \"$OUT\"\n")
+        var rates: [Double?] = []
+        m.onRate = { rates.append($0) }
+        let made = await m.make(prompt: "x", size: ImageSize(width: 512, height: 512), system: mac(), files: ["a", "b", "c"])
+        XCTAssertEqual(rates.first ?? nil, 0)
+        XCTAssertTrue(rates.contains { $0 == 512 }, "\(rates)")   // 1024 tokens a step, 2 s a step
+        XCTAssertNil(rates.last ?? 0)
+        XCTAssertEqual(made?.tokensPerSecond, 512)
     }
 
     func testPrepareCanSayNo() async throws {

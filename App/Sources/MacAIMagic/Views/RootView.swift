@@ -134,7 +134,7 @@ struct MiniDashboard: View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
-                    GaugeRing(value: now?.tokensPerSec ?? 0, maximum: 60, label: "", unit: "tok/s", size: 50)
+                    GaugeRing(value: now?.tokensPerSec ?? 0, maximum: metrics.scale(base: 60), label: "", unit: "tok/s", size: 50)
                     MiniSpark(values: recent.map(\.tokensPerSec), color: Theme.violet, maxY: nil)
                         .frame(height: 34)
                 }

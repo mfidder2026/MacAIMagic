@@ -35,6 +35,7 @@ final class AppState: ObservableObject {
             default: metrics?.fast = false
             }
         }
+        images.onRate = { [weak metrics] rate in metrics?.imageRate = rate }
         loadIndex()
         documents.endpoint = { [weak self] role in
             guard let self else { throw CancellationError() }
@@ -106,13 +107,22 @@ final class AppState: ObservableObject {
     /// One image. Next to a chat model there is rarely room, so what runs stops first: not an answer being written or a
     /// measurement, those go first, and the chat engine is not started again by itself.
     func makeImage(prompt: String, size: ImageSize) {
-        guard let m = models.catalog.images.first else { return }
+        Task { await makeImageNow(prompt: prompt, size: size) }
+    }
+
+    /// The model that makes images: chosen under Modellen, else the first.
+    var imageModel: ModelInfo? {
+        models.catalog.images.first { $0.id == Settings.shared.imageModel } ?? models.catalog.images.first
+    }
+
+    @discardableResult
+    func makeImageNow(prompt: String, size: ImageSize, seed: Int? = nil, measuring: Bool = false) async -> ImageResult? {
+        guard let m = imageModel else { return nil }
         let files = models.shardURLs(m).map(\.path)
-        Task {
-            await images.make(prompt: prompt, size: size, system: system, files: files) { [weak self] in
+        return await images.make(prompt: prompt, size: size, system: system, files: files, seed: seed) { [weak self] in
                 guard let self else { return nil }
                 if !self.models.status(m.id).isComplete { return L("De bestanden voor afbeeldingen zijn er nog niet helemaal.") }
-                if self.bench.running != nil { return L("Er loopt een meting. Wacht tot die klaar is.") }
+                if !measuring && self.bench.running != nil { return L("Er loopt een meting. Wacht tot die klaar is.") }
                 if self.documents.busy { return L("De documentmodule is bezig. Wacht tot die klaar is of stop hem.") }
                 if self.chat.busy || self.metrics.engineBusy { return L("De engine werkt aan een antwoord. Wacht tot dat klaar is of stop het.") }
                 await self.documentEngines.fast.stopAndWait()
@@ -120,7 +130,6 @@ final class AppState: ObservableObject {
                 self.refreshSystem()
                 return nil
             }
-        }
     }
 
     /// Switch to another model: stops the engine first when it runs a different one.
