@@ -1,16 +1,14 @@
 #!/bin/bash
 # Download one model from models.json (all shards in parallel, resumable) plus its vision projector, and verify sha256.
-# Usage: download_model.sh <model-id> [models-folder] [--verify]
+# Usage: download_model.sh <model-id> [models-folder]
 #   An .ok beside a file holds the sha256 of that file as it is on disk. One that differs from the catalog's means another
-#   version: it is downloaded again. An empty .ok (before 1.9.12) is checked once. --verify only checks, and downloads nothing.
-#   default folder: ~/Library/Application Support/MacAIMagic/models   (the model lands in <folder>/<model-id>/)
+#   version: it is downloaded again. An empty .ok (before 1.9.12) is trusted on the file's size: reading hundreds of GB to
+#   check them made a Mac unusable for minutes.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MANIFEST="$HERE/models.json"
 ID="${1:?usage: download_model.sh <model-id> [models-folder]}"
 ROOT="${2:-$HOME/Library/Application Support/MacAIMagic/models}"
-VERIFY=0
-[ "${3:-}" = "--verify" ] && VERIFY=1
 
 # "<folder>\t<local>\t<size>\t<sha256>\t<url>\t<stamp>" per file, from the manifest.
 # JavaScript through osascript, which every Mac has (python3 needs the developer tools on a clean Mac).
@@ -78,25 +76,10 @@ fetch() {
     ok="$(cat "$f.ok")"
     if [ "$ok" = "$sha" ]; then echo "$name: already verified"; return 0; fi
     have=$(stat -f %z "$f" 2>/dev/null || echo 0)
-    if [ -z "$ok" ] && [ "$have" -eq "$size" ]; then
-      # stamped after hashing: its own sha256 changed, its size says enough
-      if [ -n "$stamp" ]; then echo "$sha" > "$f.ok"; echo "$name: OK (size)"; return 0; fi
-      echo "$name: checking the version on disk"
-      got=$(shasum -a 256 "$f" | cut -d' ' -f1)
-      echo "$got" > "$f.ok"
-      [ "$got" = "$sha" ] && { echo "$name: OK"; return 0; }
-    fi
-    if [ $VERIFY -eq 1 ]; then echo "$name: another version than the catalog's"; return 0; fi
+    # checked before 1.9.12, when the .ok stayed empty: its size says it is the catalog's file
+    if [ -z "$ok" ] && [ "$have" -eq "$size" ]; then echo "$sha" > "$f.ok"; echo "$name: OK (checked before)"; return 0; fi
     echo "$name: another version on disk; downloading the catalog's"
     rm -f "$f" "$f.ok"
-  fi
-  if [ $VERIFY -eq 1 ]; then
-    have=$(stat -f %z "$f" 2>/dev/null || echo 0)
-    if [ "$have" -eq "$size" ]; then
-      echo "$name: checking the version on disk"
-      if [ -n "$stamp" ]; then echo "$sha" > "$f.ok"; else shasum -a 256 "$f" | cut -d' ' -f1 > "$f.ok"; fi
-    fi
-    return 0
   fi
   for attempt in 1 2 3 4 5 6 7 8 9 10; do
     have=$(stat -f %z "$f" 2>/dev/null || echo 0)
@@ -113,17 +96,15 @@ fetch() {
   echo "$sha" > "$f.ok"; echo "$name: OK"
 }
 
-if [ $VERIFY -eq 0 ]; then
-  while IFS=$'\t' read -r dir name size sha url stamp; do
-    [ "$(cat "$ROOT/$dir/$name.ok" 2>/dev/null)" = "$sha" ] && continue
-    preflight "$name" "$size" "$url" || exit 3
-  done <<< "$LIST"
-fi
+while IFS=$'\t' read -r dir name size sha url stamp; do
+  [ "$(cat "$ROOT/$dir/$name.ok" 2>/dev/null)" = "$sha" ] && continue
+  preflight "$name" "$size" "$url" || exit 3
+done <<< "$LIST"
 
 pids=()
 while IFS=$'\t' read -r dir name size sha url stamp; do
   fetch "$dir" "$name" "$size" "$sha" "$url" "$stamp" & pids+=($!)
 done <<< "$LIST"
 rc=0; for p in "${pids[@]}"; do wait "$p" || rc=1; done
-if [ $VERIFY -eq 1 ]; then echo "CHECKED: $ID"; else [ $rc -eq 0 ] && echo "ALL FILES VERIFIED: $ID" || echo "DOWNLOAD INCOMPLETE: $ID"; fi
+[ $rc -eq 0 ] && echo "ALL FILES VERIFIED: $ID" || echo "DOWNLOAD INCOMPLETE: $ID"
 exit $rc

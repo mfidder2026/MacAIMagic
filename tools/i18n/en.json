@@ -618,5 +618,12 @@
  "De map van dit model met alle bestanden (%@) wordt van de schijf verwijderd: %@. Je kunt het model later opnieuw downloaden.": "This model's folder with all its files (%@) is removed from the disk: %@. You can download the model again later.",
  "Dit model staat niet in de catalogus.": "This model is not in the catalog.",
  "Dit model wordt nog gedownload. Pauzeer de download eerst.": "This model is still downloading. Pause the download first.",
- "Kon het model niet verwijderen: %@": "Could not delete the model: %@"
+ "Kon het model niet verwijderen: %@": "Could not delete the model: %@",
+ "Op update controleren…": "Checking for an update…",
+ "Controleer op update": "Check for update",
+ "Vergelijkt de bestanden op deze Mac met deze versie van MacAIMagic en vraagt de server of er iets nieuws is. Duurt enkele seconden; een update begint meteen.": "Compares the files on this Mac with this version of MacAIMagic and asks the server whether there is anything new. Takes a few seconds; an update starts at once.",
+ "Update gevonden (%@): die wordt nu gedownload.": "Update found (%@): it is being downloaded now.",
+ "Geen update voor deze versie van MacAIMagic. De maker heeft wel nieuwere bestanden gepubliceerd; de app gebruikt de versie waarmee hij getest is, en een volgende versie van de app neemt de nieuwe over.": "No update for this version of MacAIMagic. The maker has published newer files; the app uses the version it was tested with, and a next version of the app takes the new ones over.",
+ "Geen update beschikbaar.": "No update available.",
+ "De server is niet bereikbaar. De bestanden op deze Mac kloppen met deze versie van MacAIMagic.": "The server cannot be reached. The files on this Mac match this version of MacAIMagic."
 }

@@ -13,13 +13,12 @@ final class ModelStore: ObservableObject {
         var sha: String = ""
         var id: String { name }
         var fraction: Double { expected == 0 ? 0 : min(1, Double(have) / Double(expected)) }
+        /// An empty .ok is from before 1.9.12: trusted on the file's size.
         var verified: Bool { okHash != nil && (okHash == sha || okHash == "") }
         /// Downloaded by hand into the folder: the exact size is enough to use it (sha256 is checked by our download script)
         var complete: Bool { verified || have == expected }
         /// Another version than the catalog names: checked with another sha256, or a size that no longer matches.
         var stale: Bool { guard let ok = okHash else { return false }; return (!ok.isEmpty && ok != sha) || have != expected }
-        /// Checked before the .ok held a sha256: which version it is, is not known until it is checked once.
-        var unknownVersion: Bool { okHash == "" && have == expected }
     }
 
     struct ModelStatus {
@@ -34,8 +33,7 @@ final class ModelStore: ObservableObject {
         /// The catalog names another version of some files: Update downloads those.
         var updateAvailable: Bool { files.contains(where: \.stale) }
         var updateBytes: UInt64 { files.filter(\.stale).reduce(0) { $0 + $1.expected } }
-        /// Files checked before 1.9.12: Controleer finds out which version they are, once.
-        var needsCheck: Bool { files.contains(where: \.unknownVersion) }
+
         /// The headers sit at the start of every shard, so the plan can be made long before a download ends.
         var headersAvailable: Bool { !files.isEmpty && files.allSatisfy { $0.have >= min($0.expected, 32 << 20) } }
     }
@@ -121,15 +119,76 @@ final class ModelStore: ObservableObject {
         return Paths.visionDir.appendingPathComponent(v.local)
     }
 
-    /// Models whose files are being checked (Controleer), not downloaded.
+    /// Models being checked for an update (seconds: a look at the disk and the server, no file is read).
     @Published private(set) var checking: Set<String> = []
+    /// What the last check said, on the card until the next one.
+    @Published private(set) var checkResult: [String: (text: String, good: Bool)] = [:]
 
-    /// Controleer: which version of each file is on this Mac, read once; nothing is downloaded.
-    func startCheck(_ id: String) { startDownload(id, verifyOnly: true) }
+    enum UpdateCheck: Equatable { case update(UInt64), makerHasNewer, none, offline }
 
-    func startDownload(_ id: String) { startDownload(id, verifyOnly: false) }
+    /// Controleer op update: the files on this Mac against this version's catalog (size and the sha256 in their .ok), then
+    /// the maker's server, whether the maker published newer files. An update of the catalog's files is downloaded at once;
+    /// the maker's newer files are not: the app runs the version it was measured with, and a next version takes them over.
+    func checkForUpdate(_ id: String) {
+        guard let model = catalog.model(id), !checking.contains(id), !downloading.contains(id) else { return }
+        checking.insert(id)
+        checkResult[id] = nil
+        let status = status(id)
+        Task {
+            let outcome: UpdateCheck
+            if status.updateAvailable || !status.isComplete {
+                outcome = .update(status.updateAvailable ? status.updateBytes : status.expected - status.have)
+            } else {
+                outcome = await Self.makerHasNewer(model.files + (model.draft.map { [$0] } ?? []))
+            }
+            checking.remove(id)
+            switch outcome {
+            case .update(let bytes):
+                checkResult[id] = (L("Update gevonden (\(bytes.gbShort)): die wordt nu gedownload."), true)
+                startDownload(id)
+            case .makerHasNewer:
+                checkResult[id] = (L("Geen update voor deze versie van MacAIMagic. De maker heeft wel nieuwere bestanden gepubliceerd; de app gebruikt de versie waarmee hij getest is, en een volgende versie van de app neemt de nieuwe over."), true)
+            case .none:
+                checkResult[id] = (L("Geen update beschikbaar."), true)
+            case .offline:
+                checkResult[id] = (L("De server is niet bereikbaar. De bestanden op deze Mac kloppen met deze versie van MacAIMagic."), false)
+            }
+        }
+    }
 
-    private func startDownload(_ id: String, verifyOnly: Bool) {
+    /// Asks the server about the maker's newest files against the ones the catalog names: headers only, no download.
+    nonisolated static func makerHasNewer(_ files: [ModelFile]) async -> UpdateCheck {
+        var answered = false
+        for f in files {
+            guard f.url.range(of: "/resolve/[0-9a-f]{40}/", options: .regularExpression) != nil else { continue }
+            let newest = f.url.replacingOccurrences(of: "/resolve/[0-9a-f]{40}/", with: "/resolve/main/", options: .regularExpression)
+            guard let pinned = await head(f.url), let latest = await head(newest) else { continue }
+            answered = true
+            if latest.status == 404 || latest.status == 410 || latest.identity != pinned.identity { return .makerHasNewer }
+        }
+        return answered ? .none : .offline
+    }
+
+    /// The status and identity (the sha256 of a large file, git's own of a small one) of an address, without following it.
+    nonisolated static func head(_ url: String) async -> (status: Int, identity: String)? {
+        guard let u = URL(string: url) else { return nil }
+        var req = URLRequest(url: u)
+        req.httpMethod = "HEAD"
+        req.timeoutInterval = 20
+        req.setValue("macaimagic-update-check", forHTTPHeaderField: "User-Agent")
+        guard let (_, response) = try? await URLSession.shared.data(for: req, delegate: NoRedirect()),
+              let http = response as? HTTPURLResponse else { return nil }
+        let id = (http.value(forHTTPHeaderField: "x-linked-etag") ?? http.value(forHTTPHeaderField: "etag") ?? "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"W/"))
+        return (http.statusCode, id)
+    }
+
+    private final class NoRedirect: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest) async -> URLRequest? { nil }
+    }
+
+    func startDownload(_ id: String) {
         guard processes[id] == nil, !downloading.contains(id), let script = Paths.script("download_model.sh") else {
             lastError[id] = L("download_model.sh niet gevonden")
             return
@@ -137,7 +196,7 @@ final class ModelStore: ObservableObject {
         lastError[id] = nil
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/bash")
-        p.arguments = [script.path, id, Paths.modelsRoot.path] + (verifyOnly ? ["--verify"] : [])
+        p.arguments = [script.path, id, Paths.modelsRoot.path]
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = pipe
@@ -154,7 +213,6 @@ final class ModelStore: ObservableObject {
             let code = proc.terminationReason == .exit ? proc.terminationStatus : 0     // a pause ends it with a signal
             Task { @MainActor in
                 self?.processes[id] = nil
-                self?.checking.remove(id)
                 self?.lastError[id] = Self.errorText(exitCode: code, failure: self?.failures[id])
                 self?.failures[id] = nil
                 self?.refresh()
@@ -164,7 +222,6 @@ final class ModelStore: ObservableObject {
             try p.run()
             processes[id] = p
             downloading.insert(id)
-            if verifyOnly { checking.insert(id) }
         } catch { lastError[id] = error.localizedDescription }
     }
 

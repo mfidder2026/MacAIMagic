@@ -115,8 +115,10 @@ private struct ModelCard: View {
             if models.checking.contains(model.id) {
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text(L("Controleren welke versie op deze Mac staat…")).font(.caption).foregroundStyle(.secondary)
+                    Text(L("Op update controleren…")).font(.caption).foregroundStyle(.secondary)
                 }
+            } else if let result = models.checkResult[model.id], !models.downloading.contains(model.id) || result.good {
+                Text(result.text).font(.caption).foregroundStyle(result.good ? Theme.mint : Theme.amber).fixedSize(horizontal: false, vertical: true)
             } else if status.updateAvailable && !models.downloading.contains(model.id) {
                 Text(L("Er is een nieuwere versie van dit model. Update downloadt alleen de bestanden die anders zijn (\(status.updateBytes.gbShort)); tot dan werkt de versie die er staat."))
                     .font(.caption).foregroundStyle(Theme.amber).fixedSize(horizontal: false, vertical: true)
@@ -125,17 +127,19 @@ private struct ModelCard: View {
                 Text(problem).font(.caption).foregroundStyle(Theme.pink).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
+                // not here: Download; here: Controleer op update, which updates at once when there is one
                 if models.downloading.contains(model.id) {
-                    Button(models.checking.contains(model.id) ? L("Stop") : L("Pauzeer")) { models.stopDownload(model.id) }
-                } else if !status.isComplete || status.updateAvailable {
-                    Button { models.startDownload(model.id) } label: {
-                        Label(status.updateAvailable ? L("Update") : L("Download"),
-                              systemImage: status.updateAvailable ? "arrow.triangle.2.circlepath" : "arrow.down.circle.fill")
-                    }
-                    .buttonStyle(.borderedProminent).tint(status.updateAvailable ? Theme.amber : Theme.family(model.family))
-                } else if status.needsCheck {
-                    Button(L("Controleer")) { models.startCheck(model.id) }
-                        .help(L("Leest elk bestand één keer om te zien welke versie op deze Mac staat. Duurt enkele minuten; er wordt niets gedownload."))
+                    Button(L("Pauzeer")) { models.stopDownload(model.id) }
+                } else if !status.isComplete {
+                    Button { models.startDownload(model.id) } label: { Label(L("Download"), systemImage: "arrow.down.circle.fill") }
+                        .buttonStyle(.borderedProminent).tint(Theme.family(model.family))
+                } else if status.updateAvailable {
+                    Button { models.startDownload(model.id) } label: { Label(L("Update"), systemImage: "arrow.triangle.2.circlepath") }
+                        .buttonStyle(.borderedProminent).tint(Theme.amber)
+                } else {
+                    Button { models.checkForUpdate(model.id) } label: { Label(L("Controleer op update"), systemImage: "arrow.triangle.2.circlepath") }
+                        .disabled(models.checking.contains(model.id))
+                        .help(L("Vergelijkt de bestanden op deze Mac met deze versie van MacAIMagic en vraagt de server of er iets nieuws is. Duurt enkele seconden; een update begint meteen."))
                 }
                 if status.have > 0 && !models.downloading.contains(model.id) {
                     Button { askDelete = true } label: { Image(systemName: "trash") }

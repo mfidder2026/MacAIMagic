@@ -618,5 +618,12 @@
  "De map van dit model met alle bestanden (%@) wordt van de schijf verwijderd: %@. Je kunt het model later opnieuw downloaden.": "Der Ordner dieses Modells mit allen Dateien (%@) wird von der Festplatte entfernt: %@. Du kannst das Modell später erneut herunterladen.",
  "Dit model staat niet in de catalogus.": "Dieses Modell ist nicht im Katalog.",
  "Dit model wordt nog gedownload. Pauzeer de download eerst.": "Dieses Modell wird noch heruntergeladen. Pausiere zuerst den Download.",
- "Kon het model niet verwijderen: %@": "Das Modell konnte nicht gelöscht werden: %@"
+ "Kon het model niet verwijderen: %@": "Das Modell konnte nicht gelöscht werden: %@",
+ "Op update controleren…": "Nach Updates suchen…",
+ "Controleer op update": "Nach Update suchen",
+ "Vergelijkt de bestanden op deze Mac met deze versie van MacAIMagic en vraagt de server of er iets nieuws is. Duurt enkele seconden; een update begint meteen.": "Vergleicht die Dateien auf diesem Mac mit dieser Version von MacAIMagic und fragt den Server, ob es etwas Neues gibt. Dauert einige Sekunden; ein Update beginnt sofort.",
+ "Update gevonden (%@): die wordt nu gedownload.": "Update gefunden (%@): es wird jetzt heruntergeladen.",
+ "Geen update voor deze versie van MacAIMagic. De maker heeft wel nieuwere bestanden gepubliceerd; de app gebruikt de versie waarmee hij getest is, en een volgende versie van de app neemt de nieuwe over.": "Kein Update für diese Version von MacAIMagic. Der Hersteller hat zwar neuere Dateien veröffentlicht; die App nutzt die Version, mit der sie getestet wurde, und eine nächste Version der App übernimmt die neuen.",
+ "Geen update beschikbaar.": "Kein Update verfügbar.",
+ "De server is niet bereikbaar. De bestanden op deze Mac kloppen met deze versie van MacAIMagic.": "Der Server ist nicht erreichbar. Die Dateien auf diesem Mac passen zu dieser Version von MacAIMagic."
 }

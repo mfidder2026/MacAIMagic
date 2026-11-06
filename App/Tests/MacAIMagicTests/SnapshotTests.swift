@@ -128,6 +128,7 @@ final class SnapshotTests: XCTestCase {
         Settings.shared.modelFolder = dir.appendingPathComponent("empty-models").path
         await app.check.run(app: app)
         try shot(withBackground(SystemView { _ in }, app: app), app: app, name: "system-clean", dark: true)
+        try shot(withBackground(ModelsView(), app: app), app: app, name: "models-empty", dark: true)
         Settings.shared.modelFolder = saved
     }
 

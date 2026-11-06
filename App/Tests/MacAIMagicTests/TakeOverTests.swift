@@ -647,7 +647,7 @@ final class ModelVersionTests: XCTestCase {
     func testTheCatalogsVersion() {
         let s = status(ok: "abc")
         XCTAssertTrue(s.verified && s.complete)
-        XCTAssertFalse(s.stale || s.unknownVersion)
+        XCTAssertFalse(s.stale)
     }
 
     func testAnotherVersionIsAnUpdate() {
@@ -660,13 +660,25 @@ final class ModelVersionTests: XCTestCase {
         XCTAssertTrue(model.isComplete, "the old version keeps working until the update")
     }
 
-    /// An empty .ok, from before 1.9.12: usable, its version unknown until Controleer.
-    func testAnOldOkIsCheckedOnce() {
+    /// An empty .ok, from before 1.9.12: trusted on its size, no update and nothing to read.
+    func testAnOldOkIsTrustedOnItsSize() {
         let s = status(ok: "")
-        XCTAssertTrue(s.complete)
-        XCTAssertTrue(s.unknownVersion)
+        XCTAssertTrue(s.complete && s.verified)
         XCTAssertFalse(s.stale)
+        XCTAssertTrue(status(ok: "", have: 8).stale, "an old .ok with another size is another version")
         XCTAssertFalse(status(ok: nil).stale, "a file downloaded by hand is no update")
+    }
+
+    /// MACAIMAGIC_NETWORK_TEST=1: the maker's server, headers only. Ministral's files are the newest; Qwen3.8's maker replaced
+    /// them on 2026-11-04, after the version this app pins.
+    func testTheMakersServer() async throws {
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_NETWORK_TEST"] == "1" else { throw XCTSkip("no network test") }
+        let c = ModelCatalog.shared
+        let ministral = await ModelStore.makerHasNewer(c.model("ministral-3-8b-q4")!.files)
+        let qwen = await ModelStore.makerHasNewer(c.model("qwen3.8-flash-next-q4")!.files)
+        print("MAKER ministral: \(ministral), qwen3.8: \(qwen)")
+        XCTAssertEqual(ministral, .none)
+        XCTAssertEqual(qwen, .makerHasNewer)
     }
 
     func testTheOkIsReadFromDisk() throws {
