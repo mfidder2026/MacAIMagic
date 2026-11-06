@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.11 (macOS, Apple Silicon)
+# MacAIMagic 1.9.12 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.11-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.12-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,16 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.11-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.12-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.9.12:
+- **Delete a model** with the trash button on its card, after a question. Not while it downloads or runs.
+- **Updates of a model are recognised.** Each verified file now records its checksum. When the catalog names another version, the card shows **Update**, which downloads only the files that differ; the version you have keeps working until then.
+- **Controleer** checks once which version of a model is on your Mac, for models downloaded before this version. It reads the files (a few minutes for a large model) and downloads nothing.
+- **Exporteer meting** and **Deel op GitHub** on Compare: save your measurement as one file, without names or folders, and share it through a form on GitHub. Measurements of Macs with 8, 16 or 24 GB help most.
+- When the chat's model runs only as the fast model, the chat says so; starting it stops the fast copy first, so it is never in memory twice.
 
 New in 1.9.11:
 - **Better images with "Verbeteren met web".** The description for the image model is now always English, starts with the subject's name and holds only what can be seen: no measurements, history or invented details, which the image model would draw. A request like "maak een foto van de eifeltoren" now gives the real Eiffel Tower; before, a long Dutch description drew a tower that does not exist.
