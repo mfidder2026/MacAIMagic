@@ -330,3 +330,21 @@ Result: the Eiffel Tower came out right in every run; the Rijksmuseum comes out 
 close but not the real one, because the image model does not know it by name and the small model picks little of its
 look from the pages.
 
+## 9. The KV cache in 8 bits: not on the Mac (2026-11-06)
+
+WinAIMagic keeps the KV cache of its second engine in 8 bits (q8_0) on a video card: there it frees VRAM for more layers
+(an 8 GB card: 20 instead of 14 tok/s for Ministral) at a quality cost of a KL divergence of 0.0008. Measured here with
+llama-bench on the M3 Max, flash attention on, 2,048-token prompts and 128 written tokens, two runs each:
+
+| Model | KV cache | Prompt | Writing | Prompt after 16K | Writing after 16K |
+|---|---|---|---|---|---|
+| Ministral-3-8B Q4 | 16 bit | 695 tok/s | 51.5 tok/s | 300 tok/s | 31.4 tok/s |
+| | 8 bit | 634 tok/s | 42.9 tok/s | 316 tok/s | 34.1 tok/s |
+| Qwen3.6-35B-A3B Q4 | 16 bit | 1,383 tok/s | 72.6 tok/s | 789 tok/s | 55.3 tok/s |
+| | 8 bit | 1,351 tok/s | 66.3 tok/s | 724 tok/s | 49.5 tok/s |
+
+Mixing the two (keys in 8 bits, values in 16, or the other way round) is 5-40 times slower. On a Mac the GPU reads the
+cache from the same memory as everything else, so 8 bits only saves memory, and costs 9-17% of the writing speed at the
+contexts the app uses; the gain after 16K for Ministral is within the noise. The app keeps the cache in 16 bits. It could
+pay on a Mac with 8 or 16 GB, where the context is short for lack of memory; that has not been measured.
+

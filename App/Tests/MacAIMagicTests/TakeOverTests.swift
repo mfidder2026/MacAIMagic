@@ -595,3 +595,26 @@ final class DescriberTests: XCTestCase {
         XCTAssertTrue(m.steps.allSatisfy { $0.state == .done })
     }
 }
+
+
+/// Taken over from WinAIMagic c358a16.
+@MainActor final class StoppedEngineTests: XCTestCase {
+    /// An engine that stopped must not leave its last speed on the gauge.
+    func testTheGaugeForgetsAnEngineThatStopped() {
+        let m = LiveMetrics()
+        m.setEngineRateForTests(67)
+        m.forgetEngines()
+        XCTAssertNil(m.engineRateForTests)
+        XCTAssertFalse(m.engineBusy)
+    }
+
+    /// The heavy model is never the fast one too, however it was chosen.
+    func testTheChatModelIsNeverTheFastOne() {
+        let app = AppState()
+        let saved = (app.selectedModelID, Settings.shared.fastModel)
+        defer { app.selectedModelID = saved.0; Settings.shared.fastModel = saved.1 }
+        Settings.shared.fastModel = "ministral-3-8b-q4"
+        app.selectedModelID = "ministral-3-8b-q4"
+        XCTAssertEqual(Settings.shared.fastModel, "")
+    }
+}

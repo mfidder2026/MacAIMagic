@@ -18,7 +18,12 @@ final class AppState: ObservableObject {
     private(set) lazy var documentEngines = DocumentEngines(app: self)
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
-        didSet { loadIndex(); objectWillChange.send() }
+        didSet {
+            // the heavy model is never the fast one too, however it was chosen (a card, the system check, Compare)
+            if Settings.shared.fastModel == selectedModelID { Settings.shared.fastModel = "" }
+            loadIndex()
+            objectWillChange.send()
+        }
     }
     @Published private(set) var system = SystemInfo.current()
     /// For the tests: the app as another Mac sees it.
@@ -44,6 +49,7 @@ final class AppState: ObservableObject {
             }
         }
         images.onRate = { [weak metrics] rate in metrics?.imageRate = rate }
+        if Settings.shared.fastModel == selectedModelID { Settings.shared.fastModel = "" }   // a choice from before that rule
         loadIndex()
         documents.endpoint = { [weak self] role in
             guard let self else { throw CancellationError() }
@@ -99,8 +105,21 @@ final class AppState: ObservableObject {
 
     func refreshSystem() { system = simulatedSystem ?? SystemInfo.current() }
 
+    /// The chat's model, when it runs only as the fast model on the second engine: the chat does not talk to that one.
+    var chatModelOnFast: ModelInfo? {
+        let fast = documentEngines.fast
+        guard engine.state == .stopped || { if case .failed = engine.state { return true }; return false }() else { return nil }
+        guard fast.state.isRunning || { if case .starting = fast.state { return true }; return false }() else { return nil }
+        return fast.model?.id == selectedModel?.id ? fast.model : nil
+    }
+
     /// `forImage`: the image being made needs the chat model first, to improve its description.
     func startEngine(forImage: Bool = false) {
+        // the same model twice in memory helps nothing: the copy on the second engine makes room for the real one
+        if chatModelOnFast != nil {
+            Task { await documentEngines.fast.stopAndWait(); startEngine(forImage: forImage) }
+            return
+        }
         if index == nil { loadIndex() }
         guard forImage || !images.busy, let m = selectedModel, let index, var plan else { return }
         if !plan.fitsInMemory {

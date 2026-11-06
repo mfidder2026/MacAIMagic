@@ -45,7 +45,7 @@ struct ChatView: View {
             if let problem = store.loadProblem {
                 Text(problem).font(.callout).foregroundStyle(Theme.amber).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 8)
             }
-            if !engine.state.isRunning { EngineBanner() }
+            if !engine.state.isRunning { EngineBanner(fast: app.documentEngines.fast) }
             if engine.state.isRunning && metrics.engineBusy && !chat.busy { OtherRequestBanner() }
             if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
@@ -287,6 +287,8 @@ private struct EmptyChat: View {
 private struct EngineBanner: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var engine: EngineController
+    /// The second engine: the chat's model may run there already, as the fast model.
+    @ObservedObject var fast: EngineController
 
     var body: some View {
         HStack {
@@ -301,7 +303,9 @@ private struct EngineBanner: View {
                 Button(L("Opnieuw")) { app.startEngine() }.disabled(!app.canStart)
             default:
                 Image(systemName: "power").foregroundStyle(.secondary)
-                Text(app.canStart ? L("De engine staat uit.") : L("Model of engine nog niet klaar: zie Engine & model."))
+                Text(!app.canStart ? L("Model of engine nog niet klaar: zie Engine & model.")
+                     : app.chatModelOnFast.map { L("\($0.shortName) draait nu alleen als snel model, voor Documenten en Beeld. Start de engine om ermee te chatten; dan stopt het snelle exemplaar.") }
+                     ?? L("De engine staat uit."))
                 Spacer()
                 Button(L("Start engine")) { app.startEngine() }.buttonStyle(.borderedProminent).disabled(!app.canStart)
             }

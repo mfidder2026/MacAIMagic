@@ -600,5 +600,6 @@
  "Het beeldmodel": "Das Bildmodell",
  "zoekt: %@": "sucht: %@",
  "leest: %@": "liest: %@",
- "schrijft het opnieuw, in het Engels": "schreibt es neu, auf Englisch"
+ "schrijft het opnieuw, in het Engels": "schreibt es neu, auf Englisch",
+ "%@ draait nu alleen als snel model, voor Documenten en Beeld. Start de engine om ermee te chatten; dan stopt het snelle exemplaar.": "%@ läuft gerade nur als schnelles Modell, für Dokumente und Bilder. Starte die Engine, um damit zu chatten; dann stoppt die schnelle Kopie."
 }

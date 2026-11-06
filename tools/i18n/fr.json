@@ -600,5 +600,6 @@
  "Het beeldmodel": "Le modèle d'image",
  "zoekt: %@": "cherche : %@",
  "leest: %@": "lit : %@",
- "schrijft het opnieuw, in het Engels": "le réécrit en anglais"
+ "schrijft het opnieuw, in het Engels": "le réécrit en anglais",
+ "%@ draait nu alleen als snel model, voor Documenten en Beeld. Start de engine om ermee te chatten; dan stopt het snelle exemplaar.": "%@ ne tourne pour l'instant que comme modèle rapide, pour Documents et Images. Démarrez le moteur pour discuter avec lui ; la copie rapide s'arrête alors."
 }

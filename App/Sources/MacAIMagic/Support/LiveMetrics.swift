@@ -53,6 +53,17 @@ final class LiveMetrics: ObservableObject {
     }
     var makingImage: Bool { imageRate != nil }
 
+    /// No engine runs: no speed of its own, and not busy.
+    func forgetEngines() {
+        engineRate = nil
+        lastDecoded = [:]
+        if engineBusy { engineBusy = false }
+    }
+
+    /// Tests: what the engines said last.
+    var engineRateForTests: Double? { engineRate }
+    func setEngineRateForTests(_ rate: Double) { engineRate = rate; lastDecoded = [8080: 100] }
+
     /// The top of a speed scale: `base` for text, a round number above the speeds of the last minute and a half otherwise.
     func scale(base: Double) -> Double {
         let top = max(samples.map(\.tokensPerSec).max() ?? 0, current?.tokensPerSec ?? 0)
@@ -92,7 +103,8 @@ final class LiveMetrics: ObservableObject {
 
         // smooth the token rate a little; drop to zero shortly after the stream stops
         // the engine's own count when it answers (any client: this app, the API, tools), else the tokens this app streamed
-        if fast || fastPort != nil { pollEngine(dt: dt) } else { engineRate = nil; if engineBusy { engineBusy = false } }
+        // an engine that stopped says nothing any more: its last speed must not stay on the gauge
+        if fast || fastPort != nil { pollEngine(dt: dt) } else { forgetEngines() }
         let inst = imageRate ?? engineRate ?? Double(tokenCount) / dt
         tokenCount = 0
         let idle = imageRate.map { $0 == 0 } ?? engineRate.map { $0 == 0 } ?? (now.timeIntervalSince(lastStreamDate) > 1.5)

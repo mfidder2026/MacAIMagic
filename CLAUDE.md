@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `6c51802`** (2026-11-05: images with FLUX.2 Klein 4B). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `eac2164`** (2026-11-06: version 0.2.8). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -36,7 +36,12 @@ Commit on `main` and push: the other machine only sees `main`.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
 
-**Still open after the take-over of `6c51802`:** `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine. Ministral and FLUX were measured on the M3 Max only, not on a Mac with 8 or 16 GB. `.github/workflows/check-models.yml` could not be pushed (the token has no `workflow` scope).
+**Still open after the take-over of `eac2164`:**
+
+- `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
+- `3505bb6`: the 8-bit KV cache costs 9-17% of the writing speed here (docs/RESEARCH.md section 9), so the Mac keeps 16 bits. Its "Deel op GitHub" button and issue form are not on the Mac: the Mac has no "Exporteer meting" yet. Ask the owner before adding both.
+- Ministral and FLUX were measured on the M3 Max only, not on a Mac with 8 or 16 GB.
+- `.github/workflows/check-models.yml` could not be pushed (the token has no `workflow` scope).
 
 ## Building and testing
 
