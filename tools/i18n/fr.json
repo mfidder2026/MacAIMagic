@@ -678,5 +678,6 @@
  "sudo werkt hier niet: zonder wachtwoordvenster blijft het commando hangen. Het model had de stap als beheerder moeten markeren.": "sudo does not work here: without a password dialog the command hangs. The model should have marked the step as administrator.",
  "35B MoE · 3B actief · 4 bit · 21 GB in het geheugen · Qwen3.6 zonder weigeringen (Heretic)": "35B MoE · 3B actifs · 4 bits · 21 Go en mémoire · Qwen3.6 sans refus (Heretic)",
  "Wijzigingen met beheerdersrechten vragen altijd eerst, en daarna vraagt macOS om je wachtwoord. Gevoelige instellingen krijgen een waarschuwing. Vraag het model om een wijziging ongedaan te maken.": "Changes with administrator rights always ask first, and then macOS asks for your password. Sensitive settings get a warning. Ask the model to undo a change.",
- "Het model kan deze Mac voor je bekijken en instellen. Een wijziging keur je eerst goed, en het model kan hem weer ongedaan maken.": "The model can look at and set up this Mac for you. You approve a change first, and the model can undo it again."
+ "Het model kan deze Mac voor je bekijken en instellen. Een wijziging keur je eerst goed, en het model kan hem weer ongedaan maken.": "The model can look at and set up this Mac for you. You approve a change first, and the model can undo it again.",
+ "Terugzetten: %@": "Putting back: %@"
 }

@@ -429,7 +429,9 @@ final class MachineFitTests: XCTestCase {
         let store = ModelStore()
         let m1 = mac(32, gpuShare: 0.67)
         var checked = 0
-        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" && !m.isPlain && store.status(m.id).isComplete {
+        // the two Qwen3.6 versions fit whole on 32 GB (testFitPerMac), so they are not streaming plans
+        let fitOn32 = ["qwen3.6-35b-a3b-q4", "qwen3.6-35b-a3b-heretic-q4"]
+        for m in ModelCatalog.shared.models where !fitOn32.contains(m.id) && !m.isPlain && store.status(m.id).isComplete {
             let index = try GGUFIndex.load(shards: store.shardURLs(m), sizes: m.files.map(\.size))
             XCTAssertFalse(MemoryPlanner.fitsWhole(index: index, system: m1), m.id)
             let context = try XCTUnwrap(MemoryPlanner.contextRoom(index: index, system: m1, vision: false))

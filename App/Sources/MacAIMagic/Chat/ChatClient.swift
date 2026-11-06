@@ -315,7 +315,7 @@ final class ChatClient: ObservableObject {
             let approval = Approval(conversation: id, call: call, title: L("Ongedaan maken: \(change.summary)"),
                                     detail: undoSteps.map { change.steps[$0].undo }.joined(separator: "\n"),
                                     warnings: SystemTools.warnings(for: undoSteps.map { change.steps[$0] }, afterWeb: false),
-                                    steps: undoSteps.map { PlanStep(title: change.steps[$0].title, command: change.steps[$0].undo, current: nil, admin: change.steps[$0].admin) },
+                                    steps: undoSteps.map { PlanStep(title: L("Terugzetten: \(change.steps[$0].title)"), command: change.steps[$0].undo, current: nil, admin: change.steps[$0].admin) },
                                     admin: change.admin)
             if s.systemRight(change: true) == "deny" { return ("The user's settings do not allow changing the system.", true) }
             guard await ask(approval) else { return ("The user did not approve undoing it.", true) }
