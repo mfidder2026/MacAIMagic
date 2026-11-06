@@ -636,3 +636,68 @@ final class DescriberTests: XCTestCase {
         XCTAssertFalse(text.lowercased().contains("maya"))
     }
 }
+
+
+/// The .ok beside a file holds its sha256: another version is recognised, one from before 1.9.12 is checked once.
+final class ModelVersionTests: XCTestCase {
+    private func status(ok: String?, have: UInt64 = 10, expected: UInt64 = 10) -> ModelStore.FileStatus {
+        ModelStore.FileStatus(name: "a", expected: expected, have: have, okHash: ok, sha: "abc")
+    }
+
+    func testTheCatalogsVersion() {
+        let s = status(ok: "abc")
+        XCTAssertTrue(s.verified && s.complete)
+        XCTAssertFalse(s.stale || s.unknownVersion)
+    }
+
+    func testAnotherVersionIsAnUpdate() {
+        XCTAssertTrue(status(ok: "def").stale)
+        XCTAssertTrue(status(ok: "abc", have: 8).stale, "the size no longer matches")
+        var model = ModelStore.ModelStatus()
+        model.files = [status(ok: "def"), status(ok: "abc")]
+        XCTAssertTrue(model.updateAvailable)
+        XCTAssertEqual(model.updateBytes, 10)
+        XCTAssertTrue(model.isComplete, "the old version keeps working until the update")
+    }
+
+    /// An empty .ok, from before 1.9.12: usable, its version unknown until Controleer.
+    func testAnOldOkIsCheckedOnce() {
+        let s = status(ok: "")
+        XCTAssertTrue(s.complete)
+        XCTAssertTrue(s.unknownVersion)
+        XCTAssertFalse(s.stale)
+        XCTAssertFalse(status(ok: nil).stale, "a file downloaded by hand is no update")
+    }
+
+    func testTheOkIsReadFromDisk() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try Data(count: 10).write(to: dir.appendingPathComponent("a.gguf"))
+        try "abc\n".write(to: dir.appendingPathComponent("a.gguf.ok"), atomically: true, encoding: .utf8)
+        let s = ModelStore.fileStatus(dir, "a.gguf", 10, sha: "abc")
+        XCTAssertEqual(s.okHash, "abc")
+        XCTAssertTrue(s.verified)
+    }
+
+    /// Verwijder model removes the model's folder, not while it downloads, and leaves the shared vision file.
+    @MainActor func testDeletingAModel() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let saved = UserDefaults.standard.string(forKey: "modelFolder")
+        UserDefaults.standard.set(root.path, forKey: "modelFolder")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "modelFolder") } else { UserDefaults.standard.removeObject(forKey: "modelFolder") }
+            try? FileManager.default.removeItem(at: root)
+        }
+        let id = "ministral-3-8b-q4"
+        try FileManager.default.createDirectory(at: Paths.modelDir(id), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: Paths.visionDir, withIntermediateDirectories: true)
+        try Data(count: 5).write(to: Paths.modelDir(id).appendingPathComponent("ministral-3-8b-q4.gguf"))
+        try Data(count: 5).write(to: Paths.visionDir.appendingPathComponent("ministral-3-vision.gguf"))
+        let store = ModelStore()
+        XCTAssertNil(store.deleteModel(id))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: Paths.modelDir(id).path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: Paths.visionDir.appendingPathComponent("ministral-3-vision.gguf").path))
+        XCTAssertNotNil(store.deleteModel("no-such-model"))
+    }
+}

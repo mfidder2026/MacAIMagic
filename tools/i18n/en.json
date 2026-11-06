@@ -606,5 +606,17 @@
  "Deel op GitHub": "Share on GitHub",
  "Eén bestand met hardware en resultaten, zonder persoonlijke gegevens. Niets gaat vanzelf naar buiten.": "One file with hardware and results, without personal data. Nothing leaves by itself.",
  "Opent een formulier op GitHub. Sleep daar het geëxporteerde bestand in; je ziet alles voordat je het verstuurt.": "Opens a form on GitHub. Drop the exported file there; you see everything before you send it.",
- "Opgeslagen: %@": "Saved: %@"
+ "Opgeslagen: %@": "Saved: %@",
+ "Controleren welke versie op deze Mac staat…": "Checking which version is on this Mac…",
+ "Er is een nieuwere versie van dit model. Update downloadt alleen de bestanden die anders zijn (%@); tot dan werkt de versie die er staat.": "There is a newer version of this model. Update downloads only the files that differ (%@); until then the version that is here keeps working.",
+ "Update": "Update",
+ "Controleer": "Check",
+ "Leest elk bestand één keer om te zien welke versie op deze Mac staat. Duurt enkele minuten; er wordt niets gedownload.": "Reads every file once to see which version is on this Mac. Takes a few minutes; nothing is downloaded.",
+ "Stop het model eerst.": "Stop the model first.",
+ "Verwijder model": "Delete model",
+ "%@ verwijderen?": "Delete %@?",
+ "De map van dit model met alle bestanden (%@) wordt van de schijf verwijderd: %@. Je kunt het model later opnieuw downloaden.": "This model's folder with all its files (%@) is removed from the disk: %@. You can download the model again later.",
+ "Dit model staat niet in de catalogus.": "This model is not in the catalog.",
+ "Dit model wordt nog gedownload. Pauzeer de download eerst.": "This model is still downloading. Pause the download first.",
+ "Kon het model niet verwijderen: %@": "Could not delete the model: %@"
 }

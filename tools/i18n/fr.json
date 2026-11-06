@@ -606,5 +606,17 @@
  "Deel op GitHub": "Partager sur GitHub",
  "Eén bestand met hardware en resultaten, zonder persoonlijke gegevens. Niets gaat vanzelf naar buiten.": "Un fichier avec le matériel et les résultats, sans données personnelles. Rien ne part tout seul.",
  "Opent een formulier op GitHub. Sleep daar het geëxporteerde bestand in; je ziet alles voordat je het verstuurt.": "Ouvre un formulaire sur GitHub. Déposez-y le fichier exporté ; vous voyez tout avant de l'envoyer.",
- "Opgeslagen: %@": "Enregistré : %@"
+ "Opgeslagen: %@": "Enregistré : %@",
+ "Controleren welke versie op deze Mac staat…": "Vérification de la version présente sur ce Mac…",
+ "Er is een nieuwere versie van dit model. Update downloadt alleen de bestanden die anders zijn (%@); tot dan werkt de versie die er staat.": "Une version plus récente de ce modèle existe. Mettre à jour ne télécharge que les fichiers différents (%@) ; d'ici là, la version présente continue de fonctionner.",
+ "Update": "Mettre à jour",
+ "Controleer": "Vérifier",
+ "Leest elk bestand één keer om te zien welke versie op deze Mac staat. Duurt enkele minuten; er wordt niets gedownload.": "Lit chaque fichier une fois pour voir quelle version est sur ce Mac. Prend quelques minutes ; rien n'est téléchargé.",
+ "Stop het model eerst.": "Arrêtez d'abord le modèle.",
+ "Verwijder model": "Supprimer le modèle",
+ "%@ verwijderen?": "Supprimer %@ ?",
+ "De map van dit model met alle bestanden (%@) wordt van de schijf verwijderd: %@. Je kunt het model later opnieuw downloaden.": "Le dossier de ce modèle avec tous ses fichiers (%@) est supprimé du disque : %@. Vous pourrez le télécharger à nouveau plus tard.",
+ "Dit model staat niet in de catalogus.": "Ce modèle n'est pas dans le catalogue.",
+ "Dit model wordt nog gedownload. Pauzeer de download eerst.": "Ce modèle est encore en téléchargement. Mettez d'abord le téléchargement en pause.",
+ "Kon het model niet verwijderen: %@": "Impossible de supprimer le modèle : %@"
 }

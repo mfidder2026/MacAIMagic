@@ -7,11 +7,19 @@ final class ModelStore: ObservableObject {
         let name: String
         let expected: UInt64
         var have: UInt64
-        var verified: Bool
+        /// What the .ok beside the file says: nil none, "" checked before 1.9.12 (its version unknown), else its sha256.
+        var okHash: String? = nil
+        /// The catalog's sha256 for this file.
+        var sha: String = ""
         var id: String { name }
         var fraction: Double { expected == 0 ? 0 : min(1, Double(have) / Double(expected)) }
+        var verified: Bool { okHash != nil && (okHash == sha || okHash == "") }
         /// Downloaded by hand into the folder: the exact size is enough to use it (sha256 is checked by our download script)
         var complete: Bool { verified || have == expected }
+        /// Another version than the catalog names: checked with another sha256, or a size that no longer matches.
+        var stale: Bool { guard let ok = okHash else { return false }; return (!ok.isEmpty && ok != sha) || have != expected }
+        /// Checked before the .ok held a sha256: which version it is, is not known until it is checked once.
+        var unknownVersion: Bool { okHash == "" && have == expected }
     }
 
     struct ModelStatus {
@@ -23,6 +31,11 @@ final class ModelStore: ObservableObject {
         var fraction: Double { expected == 0 ? 0 : Double(have) / Double(expected) }
         var isComplete: Bool { !files.isEmpty && files.allSatisfy(\.complete) }
         var allVerified: Bool { !files.isEmpty && files.allSatisfy(\.verified) }
+        /// The catalog names another version of some files: Update downloads those.
+        var updateAvailable: Bool { files.contains(where: \.stale) }
+        var updateBytes: UInt64 { files.filter(\.stale).reduce(0) { $0 + $1.expected } }
+        /// Files checked before 1.9.12: Controleer finds out which version they are, once.
+        var needsCheck: Bool { files.contains(where: \.unknownVersion) }
         /// The headers sit at the start of every shard, so the plan can be made long before a download ends.
         var headersAvailable: Bool { !files.isEmpty && files.allSatisfy { $0.have >= min($0.expected, 32 << 20) } }
     }
@@ -59,17 +72,12 @@ final class ModelStore: ObservableObject {
 
     func refresh() {
         let fm = FileManager.default
-        func file(_ dir: URL, _ name: String, _ size: UInt64) -> FileStatus {
-            let url = dir.appendingPathComponent(name)
-            let have = ((try? fm.attributesOfItem(atPath: url.path))?[.size] as? UInt64) ?? 0
-            return FileStatus(name: name, expected: size, have: have, verified: fm.fileExists(atPath: url.path + ".ok"))
-        }
         var next: [String: ModelStatus] = [:]
         for m in catalog.all {
             var s = ModelStatus()
-            s.files = m.files.map { file(Paths.modelDir(m.id), $0.local, $0.size) }
-            if let v = catalog.vision(for: m) { s.vision = file(Paths.visionDir, v.local, v.size) }
-            if let d = m.draft { s.draft = file(Paths.modelDir(m.id), d.local, d.size) }
+            s.files = m.files.map { Self.fileStatus(Paths.modelDir(m.id), $0.local, $0.size, sha: $0.sha256) }
+            if let v = catalog.vision(for: m) { s.vision = Self.fileStatus(Paths.visionDir, v.local, v.size, sha: v.sha256) }
+            if let d = m.draft { s.draft = Self.fileStatus(Paths.modelDir(m.id), d.local, d.size, sha: d.sha256) }
             next[m.id] = s
         }
         status = next
@@ -93,6 +101,14 @@ final class ModelStore: ObservableObject {
         downloading = Set(processes.keys).union(catalog.all.map(\.id).filter { external.contains($0) })
     }
 
+    /// One file as it is on disk, and what its .ok says.
+    nonisolated static func fileStatus(_ dir: URL, _ name: String, _ size: UInt64, sha: String) -> FileStatus {
+        let url = dir.appendingPathComponent(name)
+        let have = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64) ?? 0
+        let ok = (try? String(contentsOfFile: url.path + ".ok", encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return FileStatus(name: name, expected: size, have: have, okHash: ok, sha: sha)
+    }
+
     func shardURLs(_ model: ModelInfo) -> [URL] { model.files.map { Paths.modelDir(model.id).appendingPathComponent($0.local) } }
 
     func draftURL(_ model: ModelInfo) -> URL? {
@@ -105,7 +121,15 @@ final class ModelStore: ObservableObject {
         return Paths.visionDir.appendingPathComponent(v.local)
     }
 
-    func startDownload(_ id: String) {
+    /// Models whose files are being checked (Controleer), not downloaded.
+    @Published private(set) var checking: Set<String> = []
+
+    /// Controleer: which version of each file is on this Mac, read once; nothing is downloaded.
+    func startCheck(_ id: String) { startDownload(id, verifyOnly: true) }
+
+    func startDownload(_ id: String) { startDownload(id, verifyOnly: false) }
+
+    private func startDownload(_ id: String, verifyOnly: Bool) {
         guard processes[id] == nil, !downloading.contains(id), let script = Paths.script("download_model.sh") else {
             lastError[id] = L("download_model.sh niet gevonden")
             return
@@ -113,7 +137,7 @@ final class ModelStore: ObservableObject {
         lastError[id] = nil
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/bash")
-        p.arguments = [script.path, id, Paths.modelsRoot.path]
+        p.arguments = [script.path, id, Paths.modelsRoot.path] + (verifyOnly ? ["--verify"] : [])
         let pipe = Pipe()
         p.standardOutput = pipe
         p.standardError = pipe
@@ -130,12 +154,18 @@ final class ModelStore: ObservableObject {
             let code = proc.terminationReason == .exit ? proc.terminationStatus : 0     // a pause ends it with a signal
             Task { @MainActor in
                 self?.processes[id] = nil
+                self?.checking.remove(id)
                 self?.lastError[id] = Self.errorText(exitCode: code, failure: self?.failures[id])
                 self?.failures[id] = nil
                 self?.refresh()
             }
         }
-        do { try p.run(); processes[id] = p; downloading.insert(id) } catch { lastError[id] = error.localizedDescription }
+        do {
+            try p.run()
+            processes[id] = p
+            downloading.insert(id)
+            if verifyOnly { checking.insert(id) }
+        } catch { lastError[id] = error.localizedDescription }
     }
 
     /// What the card says when the download script ends. Exit 3: the server offers another file than the catalog names.
@@ -147,6 +177,22 @@ final class ModelStore: ObservableObject {
             guard let failure else { return L("De download is niet gelukt. Probeer het opnieuw.") }
             return L("De download is niet gelukt: \(failure). Verwijder het bestand en download het opnieuw.")
         }
+    }
+
+    /// Verwijder model: its folder with every file, the expert cache included. Not while it downloads; the vision file is
+    /// shared with other models and stays. On return: nil, or why not.
+    func deleteModel(_ id: String) -> String? {
+        guard catalog.model(id) != nil else { return L("Dit model staat niet in de catalogus.") }
+        guard !downloading.contains(id) else { return L("Dit model wordt nog gedownload. Pauzeer de download eerst.") }
+        let dir = Paths.modelDir(id)
+        do {
+            if FileManager.default.fileExists(atPath: dir.path) { try FileManager.default.removeItem(at: dir) }
+        } catch {
+            return L("Kon het model niet verwijderen: \(error.localizedDescription)")
+        }
+        lastError[id] = nil
+        refresh()
+        return nil
     }
 
     func stopDownload(_ id: String) {

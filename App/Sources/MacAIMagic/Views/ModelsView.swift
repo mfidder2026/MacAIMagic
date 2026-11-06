@@ -41,11 +41,21 @@ private struct ModelCard: View {
     @EnvironmentObject var engine: EngineController
     @EnvironmentObject var models: ModelStore
     @State private var hover = false
+    @State private var askDelete = false
+    @State private var deleteProblem: String?
 
     private var status: ModelStore.ModelStatus { models.status(model.id) }
     /// Makes images instead of chatting: chosen apart, for the page Beeld.
     private var makesImages: Bool { models.catalog.images.contains(model) }
     private var selected: Bool { makesImages ? app.imageModel?.id == model.id : app.selectedModelID == model.id }
+    /// Running now: then it cannot be deleted.
+    private var inUse: Bool {
+        if makesImages { return app.images.busy }
+        let active = engine.state.isRunning || { if case .starting = engine.state { return true }; return false }()
+        let fast = app.documentEngines.fast
+        return (active && engine.model?.id == model.id) || (fast.state != .stopped && fast.model?.id == model.id)
+    }
+
     /// The documents module's fast model: chosen here, or the one it picks itself.
     private var isFast: Bool { !makesImages && app.documentEngines.fastChoice?.id == model.id }
     private var running: Bool { engine.model?.id == model.id && engine.state.isRunning }
@@ -102,17 +112,35 @@ private struct ModelCard: View {
                     Spacer()
                 }
             }
-            if let problem = models.lastError[model.id] {
+            if models.checking.contains(model.id) {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(L("Controleren welke versie op deze Mac staat…")).font(.caption).foregroundStyle(.secondary)
+                }
+            } else if status.updateAvailable && !models.downloading.contains(model.id) {
+                Text(L("Er is een nieuwere versie van dit model. Update downloadt alleen de bestanden die anders zijn (\(status.updateBytes.gbShort)); tot dan werkt de versie die er staat."))
+                    .font(.caption).foregroundStyle(Theme.amber).fixedSize(horizontal: false, vertical: true)
+            }
+            if let problem = models.lastError[model.id] ?? deleteProblem {
                 Text(problem).font(.caption).foregroundStyle(Theme.pink).fixedSize(horizontal: false, vertical: true)
             }
             HStack {
-                if !status.isComplete {
-                    if models.downloading.contains(model.id) {
-                        Button(L("Pauzeer")) { models.stopDownload(model.id) }
-                    } else {
-                        Button { models.startDownload(model.id) } label: { Label(L("Download"), systemImage: "arrow.down.circle.fill") }
-                            .buttonStyle(.borderedProminent).tint(Theme.family(model.family))
+                if models.downloading.contains(model.id) {
+                    Button(models.checking.contains(model.id) ? L("Stop") : L("Pauzeer")) { models.stopDownload(model.id) }
+                } else if !status.isComplete || status.updateAvailable {
+                    Button { models.startDownload(model.id) } label: {
+                        Label(status.updateAvailable ? L("Update") : L("Download"),
+                              systemImage: status.updateAvailable ? "arrow.triangle.2.circlepath" : "arrow.down.circle.fill")
                     }
+                    .buttonStyle(.borderedProminent).tint(status.updateAvailable ? Theme.amber : Theme.family(model.family))
+                } else if status.needsCheck {
+                    Button(L("Controleer")) { models.startCheck(model.id) }
+                        .help(L("Leest elk bestand één keer om te zien welke versie op deze Mac staat. Duurt enkele minuten; er wordt niets gedownload."))
+                }
+                if status.have > 0 && !models.downloading.contains(model.id) {
+                    Button { askDelete = true } label: { Image(systemName: "trash") }
+                        .help(inUse ? L("Stop het model eerst.") : L("Verwijder model"))
+                        .disabled(inUse)
                 }
                 Spacer()
                 // the same three roles on every card: heavy and fast for a model that chats, images for one that draws
@@ -145,6 +173,15 @@ private struct ModelCard: View {
         .scaleEffect(hover ? 1.01 : 1)
         .animation(.spring(response: 0.35), value: hover)
         .onHover { hover = $0 }
+        .alert(L("\(model.name) verwijderen?"), isPresented: $askDelete) {
+            Button(L("Verwijder model"), role: .destructive) {
+                deleteProblem = models.deleteModel(model.id)
+                app.loadIndex()
+            }
+            Button(L("Annuleer"), role: .cancel) {}
+        } message: {
+            Text(L("De map van dit model met alle bestanden (\(status.have.gbShort)) wordt van de schijf verwijderd: \(Paths.modelDir(model.id).path). Je kunt het model later opnieuw downloaden."))
+        }
     }
 
     private func duration(_ s: Double) -> String {
