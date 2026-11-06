@@ -86,7 +86,7 @@ final class GGUFIndexTests: XCTestCase {
 final class CatalogTests: XCTestCase {
     func testCatalogLoads() throws {
         let c = ModelCatalog.shared
-        XCTAssertEqual(c.models.count, 7)
+        XCTAssertEqual(c.models.count, 8)
         for m in c.models {
             XCTAssertFalse(m.files.isEmpty)
             XCTAssertNotNil(c.vision(for: m), m.id)
@@ -390,9 +390,11 @@ final class MachineFitTests: XCTestCase {
     func testFitPerMac() {
         let byID = Dictionary(uniqueKeysWithValues: ModelCatalog.shared.models.map { ($0.id, $0) })
         let small = mac(32).physicalMemory, big = mac(128).physicalMemory
-        XCTAssertEqual(MemoryPlanner.fit(byID["qwen3.6-35b-a3b-q4"]!, physical: small), .fits)
-        // larger than memory is what the app is for: everything streams on 32 GB, nothing is too big
-        for m in ModelCatalog.shared.models where m.id != "qwen3.6-35b-a3b-q4" && !m.isPlain {
+        // both Qwen3.6 versions (the original and Heretic, without refusals) fit whole on 32 GB
+        let fitOn32 = ["qwen3.6-35b-a3b-q4", "qwen3.6-35b-a3b-heretic-q4"]
+        for id in fitOn32 { XCTAssertEqual(MemoryPlanner.fit(byID[id]!, physical: small), .fits, id) }
+        // larger than memory is what the app is for: everything else streams on 32 GB, nothing is too big
+        for m in ModelCatalog.shared.models where !fitOn32.contains(m.id) && !m.isPlain {
             XCTAssertEqual(MemoryPlanner.fit(m, physical: small), .streams, m.id)
         }
         XCTAssertEqual(MemoryPlanner.fit(byID["glm-5.3-flash-q4"]!, physical: mac(16).physicalMemory), .tooBig)

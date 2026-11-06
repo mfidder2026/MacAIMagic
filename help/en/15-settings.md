@@ -1,7 +1,7 @@
 ---
 title: Settings
 icon: gearshape
-keywords: settings language preferences context vision MTP port address experimental
+keywords: settings language preferences context vision MTP port address system management skills
 ---
 Open the settings with **⌘,**.
 
@@ -16,5 +16,5 @@ Open the settings with **⌘,**.
 - **Images (vision)**, **MTP**, **Start engine when the app opens**, **Moving background**.
 - **Server**: address, port and API key (see *Local API*).
 
-## Experimental
-**Skills** and **System management**, with the rights to read and to change the system. They are off by default.
+## System management
+**Skills** and **This Mac**: whether the model may look at and set up this Mac, and the rights to read and to change the system. They are on by default.

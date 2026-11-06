@@ -170,6 +170,6 @@ final class HelpTests: XCTestCase {
 
     func testBlocks() {
         let b = HelpBody.blocks("Intro\n## Kop\n| a | b |\n|---|---|\n| 1 | 2 |\n> Tip\n```\n## not a heading\n```")
-        XCTAssertEqual(b, [.text("Intro"), .heading("Kop"), .text("- a — b\n- 1 — 2"), .tip("Tip"), .text("```\n## not a heading\n```")])
+        XCTAssertEqual(b, [.text("Intro"), .heading("Kop"), .text("• a — b\n• 1 — 2"), .tip("Tip"), .text("```\n## not a heading\n```")])
     }
 }

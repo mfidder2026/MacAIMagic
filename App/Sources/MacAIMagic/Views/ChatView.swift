@@ -574,10 +574,36 @@ struct ActivityRow: View {
 private struct ApprovalCard: View {
     let approval: ChatClient.Approval
     @EnvironmentObject var chat: ChatClient
+    @State private var contentHeight: CGFloat = 0
+
+    private struct ContentHeight: PreferenceKey {
+        static var defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+    }
 
     private var icon: String {
         if approval.call.name.hasPrefix("system_") { return approval.admin ? "lock.shield.fill" : "gearshape.2.fill" }
         return approval.call.name == "run_command" ? "terminal.fill" : "doc.badge.plus"
+    }
+
+    @ViewBuilder private var cardContent: some View {
+        if approval.steps.isEmpty {
+            Text(approval.detail).font(.callout.monospaced()).textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(approval.steps.enumerated()), id: \.element.id) { i, step in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(i + 1). \(step.title)" + (step.admin ? "  🔑" : "")).font(.callout.bold())
+                        if let current = step.current {
+                            Text(L("Nu: \(current)")).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                        }
+                        Text(step.command).font(.caption.monospaced()).textSelection(.enabled).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+        }
     }
 
     var body: some View {
@@ -601,26 +627,14 @@ private struct ApprovalCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
             }
+            // as high as what it shows, and scrolling only from 160/240 points on
             ScrollView {
-                if approval.steps.isEmpty {
-                    Text(approval.detail).font(.callout.monospaced()).textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(Array(approval.steps.enumerated()), id: \.element.id) { i, step in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("\(i + 1). \(step.title)" + (step.admin ? "  🔑" : "")).font(.callout.bold())
-                                if let current = step.current {
-                                    Text(L("Nu: \(current)")).font(.caption).foregroundStyle(.secondary).lineLimit(3)
-                                }
-                                Text(step.command).font(.caption.monospaced()).textSelection(.enabled).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(10)
-                }
+                cardContent.background(GeometryReader { g in
+                    Color.clear.preference(key: ContentHeight.self, value: g.size.height)
+                })
             }
-            .frame(maxHeight: approval.steps.isEmpty ? 160 : 240)
+            .frame(height: min(max(contentHeight, 24), approval.steps.isEmpty ? 160 : 240))
+            .onPreferenceChange(ContentHeight.self) { contentHeight = $0 }
             .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
             if approval.admin {
                 Toggle(L("Maak eerst een lokale snapshot (Time Machine), zodat je altijd terug kunt"), isOn: $chat.snapshot)

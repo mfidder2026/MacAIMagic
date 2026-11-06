@@ -23,7 +23,7 @@ final class ChatClient: ObservableObject {
     var modelName = "DeepSeek-V4.1-Flash"
     private var task: Task<Void, Never>?
     /// Web questions need a few rounds; work in a folder (read, write, run, read the log, fix) needs many more.
-    private var maxToolRounds: Int { workspaceActive || Settings.shared.featureSystem ? 200 : 20 }
+    private var maxToolRounds: Int { workspaceActive || Settings.shared.systemManagement ? 200 : 20 }
     private var workspaceActive: Bool { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil }
     /// How many times in a row the model is told to go on without it doing anything in between.
     private static let maxNudges = 3
@@ -117,6 +117,9 @@ final class ChatClient: ObservableObject {
         var activities: [ToolActivity] = []
         var sources: [Source] = []
         var nudges = 0
+        // only work in a folder needs the model's own KLAAR to end: an answer after reading the system or the web is
+        // finished when it does not announce a next step
+        var changedFiles = false
         for _ in 0..<maxToolRounds {
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
@@ -164,7 +167,7 @@ final class ChatClient: ObservableObject {
                 let m = store.conversations.first { $0.id == id }?.messages.last { $0.id == reply.id }
                 let cutOff = result.finishReason == "length"
                 guard Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
-                                           working: workspaceActive || !activities.isEmpty, tookSteps: !activities.isEmpty) else { return }
+                                           working: workspaceActive || !activities.isEmpty, tookSteps: changedFiles) else { return }
                 guard nudges < Self.maxNudges else {
                     // it keeps stopping: say so, instead of just falling silent
                     store.update(id) { c in
@@ -188,6 +191,7 @@ final class ChatClient: ObservableObject {
             // run the tools; the next round's message carries the activity list, this one folds away
             for (place, call) in result.toolCalls.enumerated() {
                 let isWorkspace = WorkspaceTools.names.contains(call.name)
+                if isWorkspace { changedFiles = true }
                 let isSystem = SystemTools.names.contains(call.name)
                 let isSkill = call.name == Skills.toolName
                 activities.append(ToolActivity(label: isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
@@ -299,7 +303,6 @@ final class ChatClient: ObservableObject {
                 }
             }
             let change = await SystemTools.apply(summary: plan.summary, steps: plan.steps, snapshot: admin && snapshot)
-            ChangeLog.shared.reload()
             return (SystemTools.report(change), false)
 
         case "system_undo":
@@ -317,7 +320,6 @@ final class ChatClient: ObservableObject {
             if s.systemRight(change: true) == "deny" { return ("The user's settings do not allow changing the system.", true) }
             guard await ask(approval) else { return ("The user did not approve undoing it.", true) }
             let done = await SystemTools.undo(change)
-            ChangeLog.shared.reload()
             return ("Undone \(done.id):\n" + (done.undoReport ?? ""), false)
         default:
             return ("Unknown tool \(call.name)", false)
@@ -506,9 +508,9 @@ final class ChatClient: ObservableObject {
         let s = Settings.shared
         var tools: [[String: Any]] = s.webSearch ? WebTools.definitions : []
         if s.workspaceTools && WorkspaceTools.workspace != nil { tools += WorkspaceTools.definitions }
-        // the experimental tools come last: with them off the request starts the same as before
-        if s.featureSkills && !Skills.all.isEmpty { tools.append(Skills.definition) }
-        if s.featureSystem { tools += SystemTools.definitions }
+        // skills and system management come last: with them off the request starts the same as before
+        if s.skills && !Skills.all.isEmpty { tools.append(Skills.definition) }
+        if s.systemManagement { tools += SystemTools.definitions }
         return tools
     }
 
@@ -536,9 +538,9 @@ final class ChatClient: ObservableObject {
                 system += "\n\n" + L("Notities van de gebruiker voor deze werkmap (MACAIMAGIC.md), volg ze op:") + "\n" + text
             }
         }
-        // experimental (Instellingen → Experimenteel): nothing is added while they are off
-        if s.featureSystem { system += "\n\n" + SystemTools.promptSection() }
-        if s.featureSkills {
+        // Instellingen → Systeembeheer: nothing is added while they are off
+        if s.systemManagement { system += "\n\n" + SystemTools.promptSection() }
+        if s.skills {
             let section = Skills.promptSection(Skills.all)
             if !section.isEmpty { system += "\n\n" + section }
         }

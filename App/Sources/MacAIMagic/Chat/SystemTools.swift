@@ -1,9 +1,9 @@
 import Foundation
 
-/// System management (Instellingen → Experimenteel): the model reads this Mac's settings with `system_read`, and changes
+/// System management (Instellingen → Systeembeheer): the model reads this Mac's settings with `system_read`, and changes
 /// them with `system_change`, a plan of steps that each have a check, an apply and an undo. The app shows the plan,
-/// runs it after the user's yes, records the values before and after, and can undo it later (`system_undo`, or the
-/// button under Systeem). Admin steps go through macOS's own password dialog: the model never sees the password.
+/// runs it after the user's yes, records the values before and after, and can undo it later (`system_undo`, when the user
+/// asks for it). Admin steps go through macOS's own password dialog: the model never sees the password.
 /// Sensitive changes are not blocked; the approval card warns about them.
 enum SystemTools {
     static let names: Set<String> = ["system_read", "system_change", "system_undo"]
@@ -452,7 +452,7 @@ enum SystemTools {
             lines.append(line)
         }
         lines.append(c.succeeded
-                     ? "Tell the user what changed. They can undo it under Systeem in the app, or you with system_undo id \(c.id)."
+                     ? "Tell the user what changed, and that you can undo it when they ask (system_undo id \(c.id))."
                      : "Not everything worked. Tell the user what did and did not change; offer system_undo id \(c.id) for the steps that ran.")
         return lines.joined(separator: "\n")
     }
@@ -464,28 +464,6 @@ enum SystemTools {
         case "system_change": return L("Systeemwijziging: \(a["summary"] as? String ?? "")")
         case "system_undo": return L("Ongedaan maken: \(a["id"] as? String ?? "")")
         default: return call.name
-        }
-    }
-}
-
-/// The recorded system changes, for the list under Systeem.
-@MainActor
-final class ChangeLog: ObservableObject {
-    static let shared = ChangeLog()
-    @Published private(set) var changes: [SystemTools.Change] = []
-    @Published private(set) var undoing: String?
-
-    init() { reload() }
-
-    func reload() { changes = SystemTools.load() }
-
-    func undo(_ change: SystemTools.Change) {
-        guard undoing == nil else { return }
-        undoing = change.id
-        Task {
-            _ = await SystemTools.undo(change)
-            undoing = nil
-            reload()
         }
     }
 }

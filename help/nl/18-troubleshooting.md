@@ -20,8 +20,8 @@ Zeg "ga door", of geef een aanwijzing. Bij werk in een map helpt een korte notit
 Druk nog eens op **Download**: de download gaat verder waar hij was. Zegt de kaart dat een bestand veranderd is, gebruik dan **Controleer op update**.
 
 ## Een systeemwijziging is niet gelukt
-- Onder **Systeem → Wijzigingen door het model** zie je welke stap mislukte.
-- **Ongedaan maken** zet de stappen terug die wel zijn uitgevoerd.
+- Het model zegt na afloop welke stap mislukte; dat staat ook bij de stappen in het gesprek.
+- Vraag het model om de wijziging ongedaan te maken: dan gaan de stappen terug die wel zijn uitgevoerd.
 - Heb je het wachtwoordvenster geannuleerd, dan is er niets gewijzigd.
 
 ## Het wachtwoordvenster verschijnt niet

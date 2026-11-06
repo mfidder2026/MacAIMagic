@@ -15,8 +15,8 @@ The commands and the administrator route differ.
 
 ## 1. Schakelaars en rechten · Switches and rights
 
-- [ ] Instellingen → tab **Experimenteel**, alles standaard uit: `featureSkills`, `featureSystem`. Zijn ze uit, dan krijgt het model exact dezelfde tools en systeemprompt als nu.
-      Settings → tab **Experimental**, everything off by default. When off, the model gets exactly the same tools and system prompt as now.
+- [ ] Instellingen → tab **Systeembeheer** (geen Experimenteel meer), beide standaard **aan**: `skills`, `systemManagement`. Zijn ze uit, dan krijgt het model exact dezelfde tools en systeemprompt als nu.
+      Settings → tab **System management** (no longer Experimental), both **on** by default. When off, the model gets exactly the same tools and system prompt as now.
 - [ ] Rechten `rightSystemRead` (standaard *allow*) en `rightSystemChange` (standaard *ask*), met Toestaan / Eerst vragen / Weigeren, en dezelfde waarschuwing bij *allow*.
       Rights `rightSystemRead` (default *allow*) and `rightSystemChange` (default *ask*), with the same warning for *allow*.
 - [ ] Een beheerdersplan vraagt **altijd**, ook na "Altijd in dit gesprek". De knop "Altijd" staat niet op een beheerderskaart.
@@ -66,8 +66,8 @@ Panelen die niet te scripten zijn · panes that cannot be scripted: `start ms-se
       Windows patterns as listed; reuse the existing texts and add ones for Defender and UAC. Also: a plan after reading the web, and a step without undo.
 - [ ] **Wijzigingslog · change log**: `%APPDATA%\WinAIMagic\Changes\<id>\plan.json`, met hetzelfde JSON-formaat als de Mac (`id`, `date`, `summary`, `steps`, `results` [`before`, `after`, `output`, `ok`, `ran`], `exports`, `snapshot`, `undone`, `undoReport`).
       Same JSON format as the Mac.
-- [ ] **Ongedaan maken · undo**: onder Systeem "Wijzigingen door het model", met per plan **Ongedaan maken** (de laatste stap eerst), plus de tool `system_undo(id)` via dezelfde kaart. Daarna elke check opnieuw uitvoeren en vergelijken met de waarde van vóór de wijziging.
-      Under System, with **Undo** per plan (last step first), plus the tool `system_undo(id)` through the same card. Then run every check again and compare it with its value from before.
+- [ ] **Ongedaan maken · undo**: alleen via het model, met de tool `system_undo(id)` en dezelfde kaart (de laatste stap eerst). Er is geen lijst met wijzigingen in de app: die is op verzoek van de eigenaar weggehaald. Daarna elke check opnieuw uitvoeren en vergelijken met de waarde van vóór de wijziging.
+      Only through the model, with the tool `system_undo(id)` and the same card (last step first). There is no list of changes in the app: the owner asked for it to be removed. Then run every check again and compare it with its value from before.
 - [ ] Een stap die mislukt, stopt het plan; de stappen daarna blijven "niet uitgevoerd" · a failing step stops the plan; later steps stay "not run".
 - [ ] Systeemtools tellen niet mee voor wat het model leert in WINAIMAGIC.md · system tools do not count for what the model learns.
 
@@ -75,8 +75,8 @@ Mac-tests om in Windows-vorm over te nemen · Mac tests to take over in Windows 
 
 ## 4. Hulp · Help
 
-- [ ] Een pagina **Hulp** in de zijbalk, een **?** in de werkbalk (de hulp bij het scherm dat open is), F1 / het Help-menu, en een ?-knop in de tab Experimenteel.
-      Sidebar page **Help**, a **?** in the toolbar (help for the page on screen), F1 / Help menu, and a ? in the Experimental tab.
+- [ ] Een pagina **Hulp** in de zijbalk, een **?** in de werkbalk (de hulp bij het scherm dat open is), F1 / het Help-menu, en een ?-knop in de tab Systeembeheer.
+      Sidebar page **Help**, a **?** in the toolbar (help for the page on screen), F1 / Help menu, and a ? in the System management tab.
 - [ ] De inhoud staat in `help/nl/*.md` en `help/en/*.md`, één bestand per onderwerp, met front matter `title`, `icon`, `keywords`. Nederlands voor nl, Engels voor de andere talen.
       Content in `help/nl/*.md` and `help/en/*.md`, one file per topic. Dutch for nl, English for the other languages.
 - [ ] **Neem de onderwerpen over en pas ze aan voor Windows**: VRAM + RAM + SSD in *Modellen* en *Live*, UAC en een herstelpunt in *Systeembeheer*, `%APPDATA%`-paden, de sneltoetsen (Ctrl in plaats van ⌘), de twee engines, en geen Time Machine of Thunderbolt Bridge.

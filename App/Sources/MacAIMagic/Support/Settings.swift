@@ -63,12 +63,11 @@ final class Settings: ObservableObject {
     /// Tests: allow what would be asked.
     @AppStorage("autoApprove") var autoApprove = false
 
-    /// Experimental (Instellingen → Experimenteel), off by default: with both off the model gets the same tools and
-    /// system prompt as before.
+    /// Instellingen → Systeembeheer, both on by default.
     /// Skills: markdown instructions per subject that the model loads when it needs them.
-    @AppStorage("featureSkills") var featureSkills = false
+    @AppStorage("skills") var skills = true
     /// System management: the model reads this Mac's settings and changes them through a plan the user approves.
-    @AppStorage("featureSystem") var featureSystem = false
+    @AppStorage("systemManagement") var systemManagement = true
     /// Reading the system (diagnosis) and changing it: "allow", "ask" or "deny". Admin changes always ask.
     @AppStorage("rightSystemRead") var rightSystemRead = "allow"
     @AppStorage("rightSystemChange") var rightSystemChange = "ask"

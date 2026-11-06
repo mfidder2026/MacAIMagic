@@ -100,6 +100,7 @@ struct HelpButton: View {
     var body: some View {
         Button { HelpCenter.shared.open(topic) } label: { Image(systemName: "questionmark.circle") }
             .buttonStyle(.borderless).help(L("Hulp bij dit onderdeel"))
+            .accessibilityLabel(L("Hulp bij dit onderdeel"))
     }
 }
 
@@ -121,7 +122,7 @@ struct HelpView: View {
                 .padding(.bottom, 4)
                 TextField(L("Zoek in de hulp…"), text: $query).textFieldStyle(.roundedBorder)
                 List(shown, selection: Binding(get: { center.selected }, set: { if let v = $0 { center.selected = v } })) { t in
-                    Label(t.title, systemImage: t.icon).tag(t.id)
+                    Label(t.title, systemImage: t.icon).lineLimit(2).tag(t.id)
                 }
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
@@ -130,7 +131,7 @@ struct HelpView: View {
                 }
             }
             .padding(20)
-            .frame(width: 270)
+            .frame(width: 310)
             Divider()
             ScrollView {
                 if let t = current {
@@ -148,8 +149,8 @@ struct HelpView: View {
             }
         }
         .onChange(of: query) { _, q in
-            // the first hit opens by itself, unless the open one still matches
-            if let first = HelpCenter.search(q, in: topics).first, !HelpCenter.search(q, in: topics).contains(where: { $0.id == center.selected }) {
+            // the best hit opens by itself
+            if !q.trimmingCharacters(in: .whitespaces).isEmpty, let first = HelpCenter.search(q, in: topics).first {
                 center.selected = first.id
             }
         }
@@ -182,7 +183,9 @@ struct HelpBody: View {
             } else if !inCode, line.hasPrefix("|") {
                 // a table becomes one line per row: "a — b — c"; the line under the header is dropped
                 let cells = line.split(separator: "|").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-                if !cells.allSatisfy({ $0.allSatisfy { "-: ".contains($0) } }) { buffer.append("- " + cells.joined(separator: " — ")) }
+                if !cells.allSatisfy({ $0.allSatisfy { "-: ".contains($0) } }) { buffer.append("• " + cells.joined(separator: " — ")) }
+            } else if !inCode, line.hasPrefix("- ") {
+                buffer.append("• " + line.dropFirst(2))
             } else {
                 buffer.append(line)
             }

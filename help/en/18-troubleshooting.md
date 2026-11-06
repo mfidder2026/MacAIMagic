@@ -20,8 +20,8 @@ Say "go on", or give a hint. For work in a folder, a short note in MACAIMAGIC.md
 Press **Download** again: it carries on where it was. If the card says a file has changed, use **Check for update**.
 
 ## A system change did not work
-- **System → Changes by the model** shows which step failed.
-- **Undo** puts back the steps that did run.
+- Afterwards the model says which step failed; the steps in the conversation show it too.
+- Ask the model to undo the change: the steps that did run are put back.
 - If you cancelled the password dialog, nothing was changed.
 
 ## The password dialog does not appear

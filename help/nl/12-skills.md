@@ -1,12 +1,12 @@
 ---
-title: Skills (experimenteel)
+title: Skills
 icon: book.closed
-keywords: skills instructies SKILL.md eigen onderwerp experimenteel
+keywords: skills instructies SKILL.md eigen onderwerp
 ---
 Een **skill** is een korte handleiding voor het model over één onderwerp, met commando's die op deze macOS-versie getest zijn. Het model ziet alleen de namen en laadt een skill pas als het hem nodig heeft. Zo blijft de prompt kort en het model snel.
 
-## Aanzetten
-Instellingen → **Experimenteel** → **Skills**.
+## Aan of uit
+Skills staan standaard aan. Uitzetten kan onder Instellingen → **Systeembeheer** → **Skills**.
 
 ## Ingebouwde skills
 | Skill | Over |
@@ -21,7 +21,7 @@ Instellingen → **Experimenteel** → **Skills**.
 | diagnose | traag, warm, batterij snel leeg, crashes, netwerkproblemen |
 
 ## Een eigen skill maken
-1. Instellingen → Experimenteel → **Open map**.
+1. Instellingen → Systeembeheer → **Open map**.
 2. Maak een map, bijvoorbeeld `mijn-printer`, met daarin een bestand `SKILL.md`:
 ```
 ---

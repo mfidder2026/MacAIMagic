@@ -484,15 +484,15 @@ final class SystemIntegrationTests: XCTestCase {
     override func setUp() async throws {
         guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
         let s = Settings.shared
-        saved = (s.featureSystem, s.featureSkills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools)
-        (s.featureSystem, s.featureSkills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools)
+        saved = (s.systemManagement, s.skills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools)
+        (s.systemManagement, s.skills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools)
             = (true, true, false, false, false, "allow", "ask", false)
     }
 
     override func tearDown() async throws {
         guard let saved else { return }
         let s = Settings.shared
-        (s.featureSystem, s.featureSkills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools) = saved
+        (s.systemManagement, s.skills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools) = saved
     }
 
     /// Runs one message to the end; every approval card is recorded and answered with yes.

@@ -18,7 +18,7 @@ MacAIMagic runs large AI models entirely on this Mac. Nothing goes to the cloud:
 - **Work in a folder**: the model reads and writes files and runs commands (see *Working in a folder*).
 - **Make images** under **Images**, and **Word documents** under **Documents**.
 - **Compare models**, link several Macs in a **Cluster**, and use the model from other programs (see *Local API*).
-- **Experimental**: skills and system management, where the model sets up this Mac for you (see *System management*).
+- **Setting up this Mac**: the model looks at this Mac and sets it up for you, with skills per subject (see *System management*).
 
 ## Finding help
 - Every page has **?** at the top right: it opens the help for that page.

@@ -88,14 +88,14 @@ struct SettingsView: View {
             Form {
                 Section {
                     HStack {
-                        Text(L("Nieuwe functies om uit te proberen. Ze staan standaard uit; zet je ze uit, dan werkt de app weer precies als zonder."))
+                        Text(L("Het model kan deze Mac voor je bekijken en instellen. Een wijziging keur je eerst goed, en het model kan hem weer ongedaan maken."))
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
                         HelpButton(topic: "sysadmin")
                     }
                 }
                 Section(L("Skills")) {
-                    Toggle(L("Skills: instructies per onderwerp, met geteste commando's"), isOn: $settings.featureSkills)
+                    Toggle(L("Skills: instructies per onderwerp, met geteste commando's"), isOn: $settings.skills)
                     HStack {
                         Text(L("Eigen skills: een map met een SKILL.md erin. Een eigen skill met dezelfde naam vervangt de ingebouwde."))
                             .font(.caption).foregroundStyle(.secondary)
@@ -106,11 +106,11 @@ struct SettingsView: View {
                         }
                     }
                 }
-                Section(L("Systeembeheer")) {
-                    Toggle(L("Het model mag deze Mac bekijken en instellen"), isOn: $settings.featureSystem)
+                Section(L("Deze Mac")) {
+                    Toggle(L("Het model mag deze Mac bekijken en instellen"), isOn: $settings.systemManagement)
                     Picker(L("Systeem lezen (diagnose)"), selection: $settings.rightSystemRead) { rightOptions }
                     Picker(L("Systeem wijzigen (een plan dat je goedkeurt)"), selection: $settings.rightSystemChange) { rightOptions }
-                    Text(L("Wijzigingen met beheerdersrechten vragen altijd eerst, en daarna vraagt macOS om je wachtwoord. Gevoelige instellingen krijgen een waarschuwing. Elke wijziging is ongedaan te maken onder Systeem."))
+                    Text(L("Wijzigingen met beheerdersrechten vragen altijd eerst, en daarna vraagt macOS om je wachtwoord. Gevoelige instellingen krijgen een waarschuwing. Vraag het model om een wijziging ongedaan te maken."))
                         .font(.caption).foregroundStyle(.secondary)
                     if settings.rightSystemChange == "allow" {
                         Text(L("Let op: het model kan dan zonder te vragen instellingen van je gebruiker wijzigen."))
@@ -118,7 +118,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .tabItem { Label(L("Experimenteel"), systemImage: "flask") }
+            .tabItem { Label(L("Systeembeheer"), systemImage: "gearshape.2") }
         }
         .formStyle(.grouped)
         .frame(width: 560, height: 520)

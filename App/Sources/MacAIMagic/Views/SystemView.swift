@@ -27,7 +27,6 @@ struct SystemView: View {
                         }
                     }
                 }
-                ChangesSection()
             }
             .padding(28)
         }

@@ -121,10 +121,10 @@ comes from the internal SSD.
 - **Help** (sidebar → **Hulp**, the **?** at the top right of every page, or ⌘?): searchable help for every part of
   the app, in Dutch and English
 
-## Experimental: skills and system management
+## Skills and system management
 
-Off by default (Settings → **Experimenteel**). With both off the model gets exactly the tools and system prompt it
-had before, so the app behaves as it did.
+On by default; each can be turned off under Settings → **Systeembeheer**. With both off the model gets exactly the
+tools and system prompt it had before.
 
 - **Skills**: short instructions per subject with commands tested on macOS 27 (appearance and Dock, energy, network,
   software, startup items, storage, security, diagnosis), in [`skills/`](skills/). The model sees only their names and
@@ -136,8 +136,8 @@ had before, so the app behaves as it did.
   Steps that need administrator rights go through **macOS's own password dialog** (the model never sees the password),
   always ask first, and can make a local Time Machine snapshot beforehand. Sensitive changes (firewall, Gatekeeper,
   FileVault, users, privacy permissions, `rm -r`, a restart) are **not blocked but warned about**, and so is a plan
-  that follows reading the web. Every change is recorded in `~/Library/Application Support/MacAIMagic/Changes/` and can be
-  undone under **Systeem → Wijzigingen door het model**. For preference domains the app exports an exact copy first, so
+  that follows reading the web. Every change is recorded in `~/Library/Application Support/MacAIMagic/Changes/`, and the model
+  undoes it when asked (`system_undo`, again through the card). For preference domains the app exports an exact copy first, so
   undo works even when the model's undo command is wrong; afterwards each check is compared with its value from before.
 
 ## Requirements

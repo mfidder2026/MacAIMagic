@@ -18,7 +18,7 @@ MacAIMagic draait grote AI-modellen helemaal op deze Mac. Er gaat niets naar de 
 - **In een map werken**: het model leest en schrijft bestanden en voert commando's uit (zie *Werken in een map*).
 - **Afbeeldingen maken** onder **Beeld**, en **Word-documenten** onder **Documenten**.
 - **Modellen vergelijken**, meerdere Macs koppelen in een **Cluster**, en het model gebruiken vanuit andere programma's (zie *Lokale API*).
-- **Experimenteel**: skills en systeembeheer, waarmee het model deze Mac voor je instelt (zie *Systeembeheer*).
+- **Deze Mac instellen**: het model bekijkt deze Mac en stelt hem voor je in, met skills per onderwerp (zie *Systeembeheer*).
 
 ## Hulp vinden
 - Rechtsboven op elk scherm staat **?**: dat opent de hulp bij dat scherm.

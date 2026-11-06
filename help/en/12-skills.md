@@ -1,12 +1,12 @@
 ---
-title: Skills (experimental)
+title: Skills
 icon: book.closed
-keywords: skills instructions SKILL.md own subject experimental
+keywords: skills instructions SKILL.md own subject
 ---
 A **skill** is a short guide for the model about one subject, with commands that were tested on this macOS version. The model sees only the names, and loads a skill when it needs it. That keeps the prompt short and the model fast.
 
-## Turning it on
-Settings → **Experimental** → **Skills**.
+## On or off
+Skills are on by default. Turn them off under Settings → **System management** → **Skills**.
 
 ## Built-in skills
 | Skill | About |
@@ -21,7 +21,7 @@ Settings → **Experimental** → **Skills**.
 | diagnose | slow, hot, battery drains fast, crashes, network trouble |
 
 ## Making your own skill
-1. Settings → Experimental → **Open folder**.
+1. Settings → System management → **Open folder**.
 2. Make a folder, for example `my-printer`, with a file `SKILL.md` in it:
 ```
 ---
