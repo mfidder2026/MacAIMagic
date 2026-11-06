@@ -474,3 +474,102 @@ final class DocumentsIntegrationTests: XCTestCase {
         print("DOC engines: heavy \(app.engine.state) fast \(app.documentEngines.fast.state)")
     }
 }
+
+/// System management with a real model (MACAIMAGIC_ENGINE_TEST=1, engine running): diagnosis only reads, a change goes
+/// through the approval card and is recorded, and the model undoes it with system_undo. Changes only a test domain.
+@MainActor
+final class SystemIntegrationTests: XCTestCase {
+    private var saved: (Bool, Bool, Bool, Bool, Bool, String, String, Bool)!
+
+    override func setUp() async throws {
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
+        let s = Settings.shared
+        saved = (s.featureSystem, s.featureSkills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools)
+        (s.featureSystem, s.featureSkills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools)
+            = (true, true, false, false, false, "allow", "ask", false)
+    }
+
+    override func tearDown() async throws {
+        guard let saved else { return }
+        let s = Settings.shared
+        (s.featureSystem, s.featureSkills, s.autoApprove, s.webSearch, s.thinking, s.rightSystemRead, s.rightSystemChange, s.workspaceTools) = saved
+    }
+
+    /// Runs one message to the end; every approval card is recorded and answered with yes.
+    private func run(_ text: String, chat: ChatClient, store: ConversationStore, id: Conversation.ID, cards: inout [ChatClient.Approval]) async throws {
+        chat.send(text: text, attachments: [], in: id, store: store, baseURL: URL(string: "http://127.0.0.1:8080")!)
+        let start = Date()
+        while chat.busy && Date().timeIntervalSince(start) < 900 {
+            if let a = chat.pendingApproval { cards.append(a); chat.answer(a, allow: true) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        for m in store.conversations[0].messages.suffix(14) {
+            print("[\(m.role)] calls=\(m.toolCalls.map { "\($0.name) \($0.arguments.prefix(300))" }) text=\(m.text.prefix(400).replacingOccurrences(of: "\n", with: " "))")
+        }
+    }
+
+    func testDiagnosisOnlyReads() async throws {
+        let store = ConversationStore()
+        store.conversations = [Conversation()]
+        let chat = ChatClient()
+        chat.modelName = "Qwen3.8-Flash-Next"
+        var cards: [ChatClient.Approval] = []
+        try await run("Welke macOS-versie draait deze Mac, en hoeveel vrije ruimte is er op de opstartschijf? Alleen bekijken, niets veranderen.",
+                      chat: chat, store: store, id: store.conversations[0].id, cards: &cards)
+        let calls = store.conversations[0].messages.flatMap(\.toolCalls)
+        XCTAssertTrue(calls.contains { $0.name == "system_read" }, "it read the system")
+        XCTAssertFalse(calls.contains { $0.name == "system_change" }, "it changed nothing")
+        XCTAssertTrue(cards.isEmpty, "reading asks nothing")
+        let answer = store.conversations[0].messages.last { $0.role == .assistant && !$0.text.isEmpty }?.text ?? ""
+        XCTAssertTrue(answer.contains("27"), "the macOS version is in the answer: \(answer.prefix(300))")
+    }
+
+    func testChangeThroughCardAndUndoByModel() async throws {
+        let domain = "app.fremen.macaimagic.agenttest"
+        _ = await SystemTools.runUser("defaults write \(domain) kleur -string blauw")
+        let before = Set(SystemTools.load().map(\.id))
+        defer {
+            _ = try? Process.run(URL(fileURLWithPath: "/usr/bin/defaults"), arguments: ["delete", domain])
+            // the test's own records do not stay in the user's list
+            for c in SystemTools.load() where !before.contains(c.id) {
+                try? FileManager.default.removeItem(at: Paths.changes.appendingPathComponent(c.id))
+            }
+        }
+        let store = ConversationStore()
+        store.conversations = [Conversation()]
+        let id = store.conversations[0].id
+        let chat = ChatClient()
+        chat.modelName = "Qwen3.8-Flash-Next"
+        var cards: [ChatClient.Approval] = []
+        try await run("Zet in het voorkeurendomein \(domain) de sleutel kleur op de tekst rood. Gebruik system_change met een check, een wijziging en een ongedaanmaking.",
+                      chat: chat, store: store, id: id, cards: &cards)
+        let now = await SystemTools.runUser("defaults read \(domain) kleur")
+        XCTAssertEqual(now.output, "rood")
+        let card = try XCTUnwrap(cards.first { $0.call.name == "system_change" }, "the plan was shown on a card")
+        XCTAssertFalse(card.steps.isEmpty)
+        print("PLAN:", card.call.arguments)
+        XCTAssertTrue(card.steps.contains { $0.current == "blauw" }, "the card showed the current value: \(card.steps.map { $0.current ?? "-" })")
+        XCTAssertFalse(card.admin)
+        let change = try XCTUnwrap(SystemTools.load().first { !before.contains($0.id) }, "the change was recorded")
+        XCTAssertTrue(change.succeeded)
+
+        try await run("Maak die wijziging weer ongedaan.", chat: chat, store: store, id: id, cards: &cards)
+        XCTAssertTrue(cards.contains { $0.call.name == "system_undo" } || cards.filter { $0.call.name == "system_change" }.count > 1, "undo went through a card")
+        let back = await SystemTools.runUser("defaults read \(domain) kleur")
+        XCTAssertEqual(back.output, "blauw")
+    }
+
+    func testSkillIsUsedForASubject() async throws {
+        let store = ConversationStore()
+        store.conversations = [Conversation()]
+        let chat = ChatClient()
+        chat.modelName = "Qwen3.8-Flash-Next"
+        var cards: [ChatClient.Approval] = []
+        try await run("Welke DNS-servers gebruikt de Wi-Fi van deze Mac nu? Alleen bekijken.",
+                      chat: chat, store: store, id: store.conversations[0].id, cards: &cards)
+        let calls = store.conversations[0].messages.flatMap(\.toolCalls)
+        print("CALLS:", calls.map(\.name))
+        XCTAssertTrue(calls.contains { $0.name == "system_read" && $0.arguments.contains("networksetup") || $0.arguments.contains("scutil") })
+        XCTAssertFalse(calls.contains { $0.name == "system_change" })
+    }
+}

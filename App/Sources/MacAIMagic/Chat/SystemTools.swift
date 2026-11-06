@@ -310,12 +310,24 @@ enum SystemTools {
         }.filter { $0 != "-currentHost" && !$0.hasPrefix("/") }
     }
 
+    /// A check as models often write it, `defaults read d k 2>/dev/null || echo "not set"`, without the parts that
+    /// only hide an error: what is left, when that only reads. Nil when it does more.
+    static func readableCheck(_ check: String) -> String? {
+        var core = check.trimmingCharacters(in: .whitespacesAndNewlines)
+        // a fallback at the end: || true, || echo "…", || :
+        if let r = core.range(of: #"\s*\|\|\s*(true|:|echo(\s+("[^"$`]*"|'[^']*'|[^;|&<>$`]*))?)\s*$"#, options: .regularExpression) {
+            core.removeSubrange(r)
+        }
+        core = core.replacingOccurrences(of: #"\s*2>\s*/dev/null|\s*2>&1"#, with: "", options: .regularExpression)
+        return isReadOnly(core) ? core : nil
+    }
+
     /// The current value for each step's check, when the check only reads (for the approval card).
     static func preview(_ steps: [Step]) async -> [String?] {
         var out: [String?] = []
         for s in steps {
-            if !s.check.isEmpty, isReadOnly(s.check) {
-                let r = await runUser(s.check, timeout: 20)
+            if !s.check.isEmpty, let check = readableCheck(s.check) {
+                let r = await runUser(check, timeout: 20)
                 out.append(r.output.isEmpty ? L("(leeg)") : r.output)
             } else {
                 out.append(nil)

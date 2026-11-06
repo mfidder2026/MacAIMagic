@@ -57,6 +57,15 @@ final class SystemToolsTests: XCTestCase {
         }
     }
 
+    func testChecksAsModelsWriteThem() {
+        XCTAssertEqual(SystemTools.readableCheck(#"defaults read d k 2>/dev/null || echo "(sleutel bestaat nog niet)""#), "defaults read d k")
+        XCTAssertEqual(SystemTools.readableCheck("pmset -g 2>&1"), "pmset -g")
+        XCTAssertEqual(SystemTools.readableCheck("defaults read d k || true"), "defaults read d k")
+        XCTAssertNil(SystemTools.readableCheck("defaults read d k || rm -rf ~"))
+        XCTAssertNil(SystemTools.readableCheck(#"defaults read d k || echo "$(whoami)""#))
+        XCTAssertNil(SystemTools.readableCheck("defaults write d k v 2>/dev/null"))
+    }
+
     func testWarnings() {
         func step(_ apply: String, undo: String = "x") -> SystemTools.Step {
             SystemTools.Step(title: "t", check: "", apply: apply, undo: undo, admin: true)
