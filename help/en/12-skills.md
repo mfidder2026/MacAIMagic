@@ -1,0 +1,34 @@
+---
+title: Skills (experimental)
+icon: book.closed
+keywords: skills instructions SKILL.md own subject experimental
+---
+A **skill** is a short guide for the model about one subject, with commands that were tested on this macOS version. The model sees only the names, and loads a skill when it needs it. That keeps the prompt short and the model fast.
+
+## Turning it on
+Settings → **Experimental** → **Skills**.
+
+## Built-in skills
+| Skill | About |
+|---|---|
+| uiterlijk (appearance) | dark mode, accent colour, Dock, Finder, screenshots |
+| energie (energy) | sleep, display sleep, Power Nap, battery |
+| netwerk (network) | DNS, Wi-Fi, IP address, flushing the DNS cache |
+| software | Homebrew, macOS updates |
+| opstartitems (startup items) | programs that start at login, background services |
+| opslag (storage) | what takes space, cleaning up safely through the trash |
+| privacy-beveiliging (security) | firewall, Gatekeeper, FileVault, privacy permissions |
+| diagnose | slow, hot, battery drains fast, crashes, network trouble |
+
+## Making your own skill
+1. Settings → Experimental → **Open folder**.
+2. Make a folder, for example `my-printer`, with a file `SKILL.md` in it:
+```
+---
+name: my-printer
+description: Installing and fixing the office printer
+platform: macos
+---
+Write the steps and commands here.
+```
+3. Your own skill with the same name as a built-in one replaces the built-in one.

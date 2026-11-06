@@ -47,6 +47,18 @@ enum Paths {
         return !FileManager.default.fileExists(atPath: current.path) && FileManager.default.fileExists(atPath: former.path) ? former : current
     }
 
+    /// The user's own skills (a folder per skill with SKILL.md); one with the name of a built-in skill replaces it.
+    static var userSkills: URL { appSupport.appendingPathComponent("Skills", isDirectory: true) }
+    /// The skills that come with the app: inside the bundle, or skills/ when run from source.
+    static var bundledSkills: URL? {
+        var candidates: [URL] = []
+        if let res = Bundle.main.resourceURL { candidates.append(res.appendingPathComponent("Skills")) }
+        for root in sourceRoots { candidates.append(root.appendingPathComponent("skills")) }
+        return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
+    }
+    /// One folder per system change the model made: the plan, the values before and after, and exports for undo.
+    static var changes: URL { appSupport.appendingPathComponent("Changes", isDirectory: true) }
+
     /// models.json: inside the app bundle, or in tools/ when run from source.
     static var manifest: URL? { resource("models.json") }
 
@@ -67,6 +79,9 @@ enum Paths {
         for root in sourceRoots { candidates.append(root.appendingPathComponent("tools/\(name)")) }
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
     }
+
+    /// A folder of the project when running from source (help/nl, skills).
+    static func sourceFolders(_ path: String) -> [URL] { sourceRoots.map { $0.appendingPathComponent(path) } }
 
     /// The project root when running from source (swift run / swift test in App/, or this file's location).
     private static var sourceRoots: [URL] {

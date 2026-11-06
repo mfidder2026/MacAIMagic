@@ -575,31 +575,73 @@ private struct ApprovalCard: View {
     let approval: ChatClient.Approval
     @EnvironmentObject var chat: ChatClient
 
+    private var icon: String {
+        if approval.call.name.hasPrefix("system_") { return approval.admin ? "lock.shield.fill" : "gearshape.2.fill" }
+        return approval.call.name == "run_command" ? "terminal.fill" : "doc.badge.plus"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Image(systemName: approval.call.name == "run_command" ? "terminal.fill" : "doc.badge.plus")
-                    .foregroundStyle(Theme.amber)
+                Image(systemName: icon).foregroundStyle(Theme.amber)
                 Text(approval.title).font(.system(.headline, design: .rounded))
+                Spacer()
+                if approval.admin {
+                    Label(L("Beheerder"), systemImage: "key.fill").font(.caption.bold()).foregroundStyle(.orange)
+                }
+            }
+            if !approval.warnings.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(approval.warnings, id: \.self) { w in
+                        Label(w, systemImage: "exclamationmark.triangle.fill").font(.callout).foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
             }
             ScrollView {
-                Text(approval.detail).font(.callout.monospaced()).textSelection(.enabled)
+                if approval.steps.isEmpty {
+                    Text(approval.detail).font(.callout.monospaced()).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(approval.steps.enumerated()), id: \.element.id) { i, step in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(i + 1). \(step.title)" + (step.admin ? "  🔑" : "")).font(.callout.bold())
+                                if let current = step.current {
+                                    Text(L("Nu: \(current)")).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                                }
+                                Text(step.command).font(.caption.monospaced()).textSelection(.enabled).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading).padding(10)
+                }
             }
-            .frame(maxHeight: 160)
+            .frame(maxHeight: approval.steps.isEmpty ? 160 : 240)
             .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 8))
+            if approval.admin {
+                Toggle(L("Maak eerst een lokale snapshot (Time Machine), zodat je altijd terug kunt"), isOn: $chat.snapshot)
+                    .font(.callout)
+                Text(L("Na Toestaan vraagt macOS om je wachtwoord. MacAIMagic en het model zien dat wachtwoord niet."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             HStack {
                 Button(L("Weigeren"), role: .cancel) { chat.answer(approval, allow: false) }
                     .keyboardShortcut(.escape, modifiers: [])
                 Spacer()
-                Button(L("Altijd in dit gesprek")) { chat.answer(approval, allow: true, always: true) }
+                if !approval.admin {
+                    Button(L("Altijd in dit gesprek")) { chat.answer(approval, allow: true, always: true) }
+                }
                 Button { chat.answer(approval, allow: true) } label: { Label(L("Toestaan"), systemImage: "checkmark") }
-                    .buttonStyle(.borderedProminent).tint(Theme.amber).keyboardShortcut(.return, modifiers: [])
+                    .buttonStyle(.borderedProminent).tint(approval.warnings.isEmpty ? Theme.amber : .red).keyboardShortcut(.return, modifiers: [])
             }
         }
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.amber.opacity(0.6), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke((approval.warnings.isEmpty ? Theme.amber : Color.red).opacity(0.6), lineWidth: 1.5))
         .shadow(color: Theme.amber.opacity(0.25), radius: 14)
         .frame(maxWidth: 860)
         .padding(.horizontal, 24)

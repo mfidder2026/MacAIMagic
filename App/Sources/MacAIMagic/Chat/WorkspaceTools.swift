@@ -228,12 +228,18 @@ enum WorkspaceTools {
     /// Runs in the workspace with the user's login shell environment; output is capped so it fits the context.
     @MainActor static func runCommand(_ command: String, timeout: Int) async throws -> String {
         guard let root = workspace else { throw ToolError.noWorkspace }
+        return await runShell(command, in: root, timeout: timeout)
+    }
+
+    /// A zsh command line in a folder, stopped after the timeout or when the user presses stop. Also used by the
+    /// system tools, which work in the home folder.
+    static func runShell(_ command: String, in root: URL, timeout: Int, executable: String = "/bin/zsh", arguments: [String]? = nil) async -> String {
         let stopped = StopFlag()
         return await withTaskCancellationHandler(operation: { await withCheckedContinuation { cont in
             DispatchQueue.global().async {
                 let p = Process()
-                p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-                p.arguments = ["-lc", command]
+                p.executableURL = URL(fileURLWithPath: executable)
+                p.arguments = arguments ?? ["-lc", command]
                 p.currentDirectoryURL = root
                 let pipe = Pipe()
                 p.standardOutput = pipe

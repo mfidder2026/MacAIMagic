@@ -13,6 +13,8 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/engine"
 cp "$BIN" "$APP/Contents/MacOS/MacAIMagic"
 cp "$ROOT/tools/download_model.sh" "$ROOT/tools/models.json" "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$APP/Contents/Resources/"
+cp -R "$ROOT/skills" "$APP/Contents/Resources/Skills"
+cp -R "$ROOT/help" "$APP/Contents/Resources/Help"
 
 if [ -x "$ROOT/engine/bin/image-engine" ]; then
   cp "$ROOT/engine/bin/image-engine" "$APP/Contents/Resources/engine/"

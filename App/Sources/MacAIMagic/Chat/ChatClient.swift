@@ -23,7 +23,7 @@ final class ChatClient: ObservableObject {
     var modelName = "DeepSeek-V4.1-Flash"
     private var task: Task<Void, Never>?
     /// Web questions need a few rounds; work in a folder (read, write, run, read the log, fix) needs many more.
-    private var maxToolRounds: Int { workspaceActive ? 200 : 20 }
+    private var maxToolRounds: Int { workspaceActive || Settings.shared.featureSystem ? 200 : 20 }
     private var workspaceActive: Bool { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil }
     /// How many times in a row the model is told to go on without it doing anything in between.
     private static let maxNudges = 3
@@ -37,7 +37,22 @@ final class ChatClient: ObservableObject {
         let call: ToolCall
         let title: String
         let detail: String
+        /// What the card warns about (a sensitive setting, a plan that follows reading the web).
+        var warnings: [String] = []
+        /// A system plan: its steps, with the current value where the app could read it first.
+        var steps: [PlanStep] = []
+        /// Needs administrator rights: macOS asks for the password after this yes, and "always" is not offered.
+        var admin = false
     }
+    struct PlanStep: Identifiable, Hashable {
+        let id = UUID()
+        let title: String
+        let command: String
+        let current: String?
+        let admin: Bool
+    }
+    /// The card's "make a local snapshot first" (admin plans).
+    @Published var snapshot = true
     @Published private(set) var pendingApproval: Approval?
     private var approvalContinuation: CheckedContinuation<Bool, Never>?
     /// Conversations where the user chose "always allow".
@@ -51,11 +66,17 @@ final class ChatClient: ObservableObject {
     }
 
     private func askApproval(_ call: ToolCall, in conversation: Conversation.ID) async -> Bool {
-        if trusted.contains(conversation) { return true }
         let text = WorkspaceTools.approvalText(for: call)
+        return await ask(Approval(conversation: conversation, call: call, title: text.title, detail: text.detail))
+    }
+
+    /// "Always in this conversation" covers everything but admin rights: those are asked every time.
+    private func ask(_ approval: Approval) async -> Bool {
+        if trusted.contains(approval.conversation) && !approval.admin { return true }
+        if approval.admin { snapshot = true }
         return await withCheckedContinuation { cont in
             approvalContinuation = cont
-            pendingApproval = Approval(conversation: conversation, call: call, title: text.title, detail: text.detail)
+            pendingApproval = approval
         }
     }
 
@@ -167,7 +188,10 @@ final class ChatClient: ObservableObject {
             // run the tools; the next round's message carries the activity list, this one folds away
             for (place, call) in result.toolCalls.enumerated() {
                 let isWorkspace = WorkspaceTools.names.contains(call.name)
-                activities.append(ToolActivity(label: isWorkspace ? WorkspaceTools.label(for: call) : WebTools.label(for: call), done: false))
+                let isSystem = SystemTools.names.contains(call.name)
+                let isSkill = call.name == Skills.toolName
+                activities.append(ToolActivity(label: isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
+                                               : isSkill ? Skills.label(for: call) : WebTools.label(for: call), done: false))
                 store.update(id) { c in
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = activities }
                 }
@@ -183,6 +207,12 @@ final class ChatClient: ObservableObject {
                     } else {
                         text = await WorkspaceTools.run(call)
                     }
+                } else if isSystem {
+                    let out = await runSystem(call, in: id, store: store)
+                    text = out.text
+                    if out.denied { activities[activities.count - 1].denied = true }
+                } else if isSkill {
+                    text = Skills.run(call)
                 } else {
                     let out = await WebTools.run(call)
                     text = out.text
@@ -223,6 +253,82 @@ final class ChatClient: ObservableObject {
             pause.error = L("Het model heeft \(maxToolRounds) stappen gezet en pauzeert. Zeg \"ga door\" om verder te gaan.")
             c.messages.append(pause)
         }
+    }
+
+    // MARK: - system management
+
+    /// system_read, system_change and system_undo, with the user's rights; a change always shows its plan first.
+    private func runSystem(_ call: ToolCall, in id: Conversation.ID, store: ConversationStore) async -> (text: String, denied: Bool) {
+        let s = Settings.shared
+        let a = WorkspaceTools.args(call)
+        switch call.name {
+        case "system_read":
+            let command = (a["command"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard SystemTools.isReadOnly(command) else {
+                return ("This command is not on the list of read-only commands (one program, no pipes, ;, &&, redirection or $(…)). Read with a simpler command, or use system_change if it changes something.", false)
+            }
+            switch s.systemRight(change: false) {
+            case "deny":
+                return ("The user's settings do not allow reading the system. Tell the user what you wanted to look at.", true)
+            case "ask":
+                let ok = await ask(Approval(conversation: id, call: call, title: L("Systeem lezen"), detail: command))
+                if !ok { return ("The user did not allow this. Ask what they want instead, or continue without it.", true) }
+            default: break
+            }
+            let out = await SystemTools.runUser(command, timeout: 120)
+            return ((out.output.isEmpty ? "(no output)" : out.output) + (out.ok ? "" : "\n[the command failed]"), false)
+
+        case "system_change":
+            let plan: (summary: String, steps: [SystemTools.Step])
+            do { plan = try SystemTools.plan(from: call) } catch { return ("Error: \(error.localizedDescription)", false) }
+            let admin = plan.steps.contains(where: \.admin)
+            let right = s.systemRight(change: true)
+            if right == "deny" {
+                return ("The user's settings do not allow changing the system. Tell the user what you would change and how they can do it themselves.", true)
+            }
+            if right == "ask" || admin {
+                let current = await SystemTools.preview(plan.steps)
+                let steps = plan.steps.enumerated().map { PlanStep(title: $0.element.title, command: $0.element.apply, current: current[$0.offset], admin: $0.element.admin) }
+                let approval = Approval(conversation: id, call: call, title: plan.summary,
+                                        detail: plan.steps.map { "\($0.admin ? "[admin] " : "")\($0.apply)" }.joined(separator: "\n"),
+                                        warnings: SystemTools.warnings(for: plan.steps, afterWeb: readWeb(id, store: store)),
+                                        steps: steps, admin: admin)
+                // autoApprove (tests) skips the card, but never the password dialog of macOS
+                if !(s.autoApprove && right == "allow"), !(await ask(approval)) {
+                    return ("The user did not approve this plan. Ask what they want instead.", true)
+                }
+            }
+            let change = await SystemTools.apply(summary: plan.summary, steps: plan.steps, snapshot: admin && snapshot)
+            ChangeLog.shared.reload()
+            return (SystemTools.report(change), false)
+
+        case "system_undo":
+            let wanted = (a["id"] as? String ?? "").trimmingCharacters(in: .whitespaces)
+            guard let change = SystemTools.load().first(where: { $0.id == wanted }) else {
+                return ("There is no change with id \(wanted). Recent: " + SystemTools.load().prefix(5).map { "\($0.id) (\($0.summary))" }.joined(separator: ", "), false)
+            }
+            if change.undone != nil { return ("Change \(wanted) was already undone.", false) }
+            let undoSteps = change.steps.indices.reversed().filter { change.results[$0].ran }
+            let approval = Approval(conversation: id, call: call, title: L("Ongedaan maken: \(change.summary)"),
+                                    detail: undoSteps.map { change.steps[$0].undo }.joined(separator: "\n"),
+                                    warnings: SystemTools.warnings(for: undoSteps.map { change.steps[$0] }, afterWeb: false),
+                                    steps: undoSteps.map { PlanStep(title: change.steps[$0].title, command: change.steps[$0].undo, current: nil, admin: change.steps[$0].admin) },
+                                    admin: change.admin)
+            if s.systemRight(change: true) == "deny" { return ("The user's settings do not allow changing the system.", true) }
+            guard await ask(approval) else { return ("The user did not approve undoing it.", true) }
+            let done = await SystemTools.undo(change)
+            ChangeLog.shared.reload()
+            return ("Undone \(done.id):\n" + (done.undoReport ?? ""), false)
+        default:
+            return ("Unknown tool \(call.name)", false)
+        }
+    }
+
+    /// The current task (since the user's last question) read the web: a page could have put the plan in the model's mind.
+    private func readWeb(_ id: Conversation.ID, store: ConversationStore) -> Bool {
+        guard let c = store.conversations.first(where: { $0.id == id }),
+              let start = c.messages.lastIndex(where: { $0.role == .user && $0.automatic != true }) else { return false }
+        return c.messages[start...].contains { m in m.toolCalls.contains { WebTools.names.contains($0.name) } }
     }
 
     // MARK: - learning
@@ -400,6 +506,9 @@ final class ChatClient: ObservableObject {
         let s = Settings.shared
         var tools: [[String: Any]] = s.webSearch ? WebTools.definitions : []
         if s.workspaceTools && WorkspaceTools.workspace != nil { tools += WorkspaceTools.definitions }
+        // the experimental tools come last: with them off the request starts the same as before
+        if s.featureSkills && !Skills.all.isEmpty { tools.append(Skills.definition) }
+        if s.featureSystem { tools += SystemTools.definitions }
         return tools
     }
 
@@ -426,6 +535,12 @@ final class ChatClient: ObservableObject {
             if let text = notesForPrompt(ws) {
                 system += "\n\n" + L("Notities van de gebruiker voor deze werkmap (MACAIMAGIC.md), volg ze op:") + "\n" + text
             }
+        }
+        // experimental (Instellingen → Experimenteel): nothing is added while they are off
+        if s.featureSystem { system += "\n\n" + SystemTools.promptSection() }
+        if s.featureSkills {
+            let section = Skills.promptSection(Skills.all)
+            if !section.isEmpty { system += "\n\n" + section }
         }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
         if let summary {

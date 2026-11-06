@@ -2,6 +2,7 @@ import Foundation
 
 /// The tools the model can call: web search and reading a page. They run in the app, not in the engine.
 enum WebTools {
+    static let names: Set<String> = ["web_search", "fetch_url"]
     static let definitions: [[String: Any]] = [
         [
             "type": "function",

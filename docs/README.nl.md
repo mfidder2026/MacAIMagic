@@ -92,6 +92,26 @@ helemaal in het geheugen, en van DeepSeek-V4.1-Flash Q4 staat bijna de helft van
 Op een helper verhoogt **Verhoog GPU-limiet** wat zijn GPU mag gebruiken (bij 96 GB van ~72 naar ~88 GB). Getest op één
 Mac met een lokale helper: het verdelen kost ~7% schrijfsnelheid.
 
+## Experimenteel: skills en systeembeheer
+
+Standaard uit (Instellingen → **Experimenteel**). Staan beide uit, dan krijgt het model precies dezelfde tools en
+systeemprompt als voorheen.
+
+- **Skills**: korte instructies per onderwerp, met commando's die op macOS 27 getest zijn: uiterlijk en Dock, energie,
+  netwerk, software, opstartitems, opslag, beveiliging en diagnose. Het model ziet alleen de namen en laadt een skill
+  als het hem nodig heeft. Eigen skills zet je in `~/Library/Application Support/MacAIMagic/Skills/<naam>/SKILL.md`.
+- **Systeembeheer**: vraag bijvoorbeeld "waarom is mijn Mac traag?" of "zet het Dock links". Het model leest met vaste
+  commando's die niets kunnen veranderen, en wijzigt via een plan dat jij goedkeurt: per stap de huidige waarde, de
+  wijziging en hoe het terug moet. Stappen met beheerdersrechten gaan via het **wachtwoordvenster van macOS zelf** en
+  vragen altijd eerst; vooraf kan de app een Time Machine-momentopname maken. Gevoelige wijzigingen worden **niet
+  geblokkeerd, maar krijgen een duidelijke waarschuwing**. Elke wijziging is ongedaan te maken onder **Systeem →
+  Wijzigingen door het model**.
+
+## Hulp
+
+Onder **Hulp** in de zijbalk, met de **?** rechtsboven op elk scherm of met ⌘?: doorzoekbare hulp bij elk onderdeel
+van de app, in het Nederlands en het Engels.
+
 ## Installeren
 
 ```sh

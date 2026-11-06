@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Pane: Hashable { case live, models, documents, images, compare, cluster, system, chat(Conversation.ID) }
+enum Pane: Hashable { case live, models, documents, images, compare, cluster, system, help, chat(Conversation.ID) }
 
 struct RootView: View {
     @EnvironmentObject var app: AppState
@@ -25,6 +25,7 @@ struct RootView: View {
                     case .compare?: CompareView()
                     case .cluster?: ClusterView()
                     case .system?: SystemView { pane = $0 }
+                    case .help?: HelpView()
                     case .chat(let id)?: ChatView(conversationID: id).id(id)
                     }
                 }
@@ -35,6 +36,11 @@ struct RootView: View {
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 EngineStatusPill().onTapGesture { pane = .live }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                // the help for the page on screen
+                Button { HelpCenter.shared.open(HelpCenter.topic(for: pane)) } label: { Label(L("Hulp"), systemImage: "questionmark.circle") }
+                    .help(L("Hulp bij dit onderdeel"))
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -54,6 +60,7 @@ struct RootView: View {
             if app.check.needsAttention || !Settings.shared.systemCheckSeen { pane = .system }
             Settings.shared.systemCheckSeen = true
         }
+        .onReceive(HelpCenter.shared.$openRequest.dropFirst()) { _ in pane = .help }
         .onChange(of: pane) { _, new in
             if case .chat(let id) = new { store.selection = id }
         }
@@ -100,6 +107,7 @@ struct Sidebar: View {
                 Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
                 Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
                 Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)
+                Label(L("Hulp"), systemImage: "questionmark.circle").tag(Pane.help)
             }
             Section(L("Gesprekken")) {
                 ForEach(store.conversations) { c in

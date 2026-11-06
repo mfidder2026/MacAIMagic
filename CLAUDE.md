@@ -43,6 +43,11 @@ Commit on `main` and push: the other machine only sees `main`.
 - Ministral and FLUX were measured on the M3 Max only, not on a Mac with 8 or 16 GB.
 - `.github/workflows/check-models.yml` could not be pushed (the token has no `workflow` scope).
 
+## Windows work from the branch `agent-features`
+
+[PARITY.md](PARITY.md) lists what WinAIMagic needs for the experimental skills, system management and the help, with
+the Windows counterpart of each piece. Tick an item there when it is done on Windows.
+
 ## Building and testing
 
 ```bash

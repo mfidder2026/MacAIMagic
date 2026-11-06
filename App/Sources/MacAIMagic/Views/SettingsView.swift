@@ -84,6 +84,41 @@ struct SettingsView: View {
                 }
             }
             .tabItem { Label(L("Engine"), systemImage: "cpu") }
+
+            Form {
+                Section {
+                    HStack {
+                        Text(L("Nieuwe functies om uit te proberen. Ze staan standaard uit; zet je ze uit, dan werkt de app weer precies als zonder."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        HelpButton(topic: "sysadmin")
+                    }
+                }
+                Section(L("Skills")) {
+                    Toggle(L("Skills: instructies per onderwerp, met geteste commando's"), isOn: $settings.featureSkills)
+                    HStack {
+                        Text(L("Eigen skills: een map met een SKILL.md erin. Een eigen skill met dezelfde naam vervangt de ingebouwde."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(L("Open map")) {
+                            try? FileManager.default.createDirectory(at: Paths.userSkills, withIntermediateDirectories: true)
+                            NSWorkspace.shared.open(Paths.userSkills)
+                        }
+                    }
+                }
+                Section(L("Systeembeheer")) {
+                    Toggle(L("Het model mag deze Mac bekijken en instellen"), isOn: $settings.featureSystem)
+                    Picker(L("Systeem lezen (diagnose)"), selection: $settings.rightSystemRead) { rightOptions }
+                    Picker(L("Systeem wijzigen (een plan dat je goedkeurt)"), selection: $settings.rightSystemChange) { rightOptions }
+                    Text(L("Wijzigingen met beheerdersrechten vragen altijd eerst, en daarna vraagt macOS om je wachtwoord. Gevoelige instellingen krijgen een waarschuwing. Elke wijziging is ongedaan te maken onder Systeem."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    if settings.rightSystemChange == "allow" {
+                        Text(L("Let op: het model kan dan zonder te vragen instellingen van je gebruiker wijzigen."))
+                            .font(.caption).foregroundStyle(.orange)
+                    }
+                }
+            }
+            .tabItem { Label(L("Experimenteel"), systemImage: "flask") }
         }
         .formStyle(.grouped)
         .frame(width: 560, height: 520)

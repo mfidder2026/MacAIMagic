@@ -37,6 +37,11 @@ struct MacAIMagicApp: App {
             CommandGroup(replacing: .newItem) {
                 Button(L("Nieuw gesprek")) { app.store.newConversation() }.keyboardShortcut("n")
             }
+            CommandGroup(replacing: .help) {
+                Button(L("MacAIMagic-hulp")) { HelpCenter.shared.open("start") }.keyboardShortcut("?", modifiers: .command)
+                Button(L("Problemen oplossen")) { HelpCenter.shared.open("troubleshooting") }
+                Button(L("Sneltoetsen")) { HelpCenter.shared.open("shortcuts") }
+            }
         }
 
         SwiftUI.Settings {
