@@ -1,0 +1,48 @@
+name: Meting delen (Share a measurement)
+description: Stuur de meting van je Mac, zodat de app beter leert plannen. Send your Mac's measurement so the app learns to plan better.
+title: "Meting: "
+labels: ["meting"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Dank je! Metingen van Macs met 8, 16 of 24 GB helpen het meest: die hebben we zelf niet.
+
+        1. Open **Vergelijken** in MacAIMagic, kies de modellen en klik **Start meting**.
+        2. Klik **Exporteer meting** en bewaar het bestand.
+        3. Sleep het bestand hieronder in het vak, of plak de inhoud.
+
+        Het bestand bevat de chip, het geheugen en de resultaten, zonder namen of mappen. Kijk het gerust na voor je het stuurt.
+
+        *Thanks! Open Compare, run a measurement, choose Export measurement and drop the file below. It holds the chip, the memory and the results, without names or folders.*
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Soort Mac (Kind of Mac)
+      options:
+        - MacBook Air
+        - MacBook Pro
+        - Mac mini
+        - iMac
+        - Mac Studio
+        - Mac Pro
+    validations:
+      required: true
+  - type: textarea
+    id: measurement
+    attributes:
+      label: Het bestand MacAIMagic-meting.json (The file)
+      description: Sleep het bestand hierheen of plak de inhoud. Drop the file here or paste its contents.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: power
+    attributes:
+      label: Op netstroom of op de accu? (Plugged in or on battery?)
+      placeholder: netstroom
+  - type: textarea
+    id: notes
+    attributes:
+      label: Opmerkingen (Notes)
+      description: Wat viel op? Bijvoorbeeld een model dat niet startte, een melding, of dat de Mac warm of luid werd.

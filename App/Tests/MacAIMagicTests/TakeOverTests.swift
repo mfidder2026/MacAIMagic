@@ -618,3 +618,21 @@ final class DescriberTests: XCTestCase {
         XCTAssertEqual(Settings.shared.fastModel, "")
     }
 }
+
+
+/// Exporteer meting, taken over from WinAIMagic 3505bb6: hardware and results, no paths or names.
+@MainActor final class ExportMeasurementTests: XCTestCase {
+    func testTheFileHoldsHardwareAndResultsButNoPaths() throws {
+        let bench = BenchmarkRunner()
+        let data = try bench.exportData(system: SystemInfo.current())
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hardware = try XCTUnwrap(json["hardware"] as? [String: Any])
+        XCTAssertNotNil(hardware["chip"])
+        XCTAssertNotNil(hardware["memoryGB"])
+        XCTAssertNotNil(json["results"] as? [Any])
+        let text = String(decoding: data, as: UTF8.self)
+        XCTAssertFalse(text.contains("/Users/"))
+        XCTAssertFalse(text.contains(NSUserName()))
+        XCTAssertFalse(text.lowercased().contains("maya"))
+    }
+}

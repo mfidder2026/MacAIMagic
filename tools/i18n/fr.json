@@ -601,5 +601,10 @@
  "zoekt: %@": "cherche : %@",
  "leest: %@": "lit : %@",
  "schrijft het opnieuw, in het Engels": "le réécrit en anglais",
- "%@ draait nu alleen als snel model, voor Documenten en Beeld. Start de engine om ermee te chatten; dan stopt het snelle exemplaar.": "%@ ne tourne pour l'instant que comme modèle rapide, pour Documents et Images. Démarrez le moteur pour discuter avec lui ; la copie rapide s'arrête alors."
+ "%@ draait nu alleen als snel model, voor Documenten en Beeld. Start de engine om ermee te chatten; dan stopt het snelle exemplaar.": "%@ ne tourne pour l'instant que comme modèle rapide, pour Documents et Images. Démarrez le moteur pour discuter avec lui ; la copie rapide s'arrête alors.",
+ "Exporteer meting": "Exporter la mesure",
+ "Deel op GitHub": "Partager sur GitHub",
+ "Eén bestand met hardware en resultaten, zonder persoonlijke gegevens. Niets gaat vanzelf naar buiten.": "Un fichier avec le matériel et les résultats, sans données personnelles. Rien ne part tout seul.",
+ "Opent een formulier op GitHub. Sleep daar het geëxporteerde bestand in; je ziet alles voordat je het verstuurt.": "Ouvre un formulaire sur GitHub. Déposez-y le fichier exporté ; vous voyez tout avant de l'envoyer.",
+ "Opgeslagen: %@": "Enregistré : %@"
 }

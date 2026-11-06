@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import Charts
 
@@ -7,6 +8,11 @@ struct CompareView: View {
     @EnvironmentObject var bench: BenchmarkRunner
     @EnvironmentObject var models: ModelStore
     @State private var selection: Set<String> = []
+    @State private var saved: String?
+    @State private var savedFailed = false
+
+    /// A form on GitHub where colleagues drop the exported file: Macs with little memory are the ones we cannot measure ourselves.
+    static let shareURL = URL(string: "https://github.com/mfidder2026/MacAIMagic/issues/new?template=meting.yml")!
 
     private var ready: [ModelInfo] { models.catalog.all.filter { models.status($0.id).isComplete } }
     private var text: [BenchResult] { bench.latest.filter { !$0.makesImage } }
@@ -51,8 +57,15 @@ struct CompareView: View {
                                 .buttonStyle(.borderedProminent).tint(Theme.violet).disabled(selection.isEmpty)
                             if !bench.results.isEmpty {
                                 Button(L("Wis resultaten"), role: .destructive) { bench.clear() }
+                                Button { export() } label: { Label(L("Exporteer meting"), systemImage: "square.and.arrow.up") }
+                                    .help(L("Eén bestand met hardware en resultaten, zonder persoonlijke gegevens. Niets gaat vanzelf naar buiten."))
+                                Button { NSWorkspace.shared.open(Self.shareURL) } label: { Label(L("Deel op GitHub"), systemImage: "globe") }
+                                    .help(L("Opent een formulier op GitHub. Sleep daar het geëxporteerde bestand in; je ziet alles voordat je het verstuurt."))
                             }
                         }
+                    }
+                    if let saved {
+                        Text(saved).font(.caption).foregroundStyle(savedFailed ? Theme.amber : .secondary).textSelection(.enabled)
                     }
                     Text(L("Elk model wordt om de beurt gestart; grote modellen laden de eerste keer enkele minuten."))
                         .font(.caption).foregroundStyle(.tertiary)
@@ -77,6 +90,22 @@ struct CompareView: View {
             .padding(28)
         }
         .onAppear { if selection.isEmpty { selection = Set(ready.map(\.id)) } }
+    }
+
+    /// Exporteer meting: what the file says, and only after the user chose where it goes.
+    private func export() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "MacAIMagic-meting.json"
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try bench.exportData(system: app.system).write(to: url, options: .atomic)
+            saved = L("Opgeslagen: \(url.path)")
+            savedFailed = false
+        } catch {
+            saved = error.localizedDescription
+            savedFailed = true
+        }
     }
 }
 

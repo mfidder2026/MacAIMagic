@@ -152,6 +152,32 @@ final class BenchmarkRunner: ObservableObject {
 
     func clear() { results = []; save() }
 
+    /// Exporteer meting: one file with this Mac's hardware and the results, without paths or names. Nothing leaves by itself:
+    /// the user drops it in the form on GitHub (Deel op GitHub) and sees it all before sending.
+    func exportData(system: SystemInfo) throws -> Data {
+        struct Hardware: Encodable {
+            let chip: String, model: String, memoryGB: Double, performanceCores: Int, gpuLimitGB: Double, wiredLimitMB: Int, macOS: String
+        }
+        struct Export: Encodable { let app: String, hardware: Hardware, results: [BenchResult] }
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        let hardware = Hardware(chip: system.chip, model: Self.macModel(), memoryGB: (Double(system.physicalMemory) / 1e8).rounded() / 10,
+                                performanceCores: system.performanceCores, gpuLimitGB: (Double(system.effectiveGPULimit) / 1e8).rounded() / 10,
+                                wiredLimitMB: system.wiredLimitMB, macOS: "\(v.majorVersion).\(v.minorVersion).\(v.patchVersion)")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(Export(app: Paths.appVersion ?? "source", hardware: hardware, results: results))
+    }
+
+    /// "Mac15,8": which Mac it is, without its name.
+    static func macModel() -> String {
+        var size = 0
+        guard sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 else { return "?" }
+        var bytes = [CChar](repeating: 0, count: size)
+        guard sysctlbyname("hw.model", &bytes, &size, nil, 0) == 0 else { return "?" }
+        return String(cString: bytes)
+    }
+
     private func save() {
         guard let data = try? JSONEncoder().encode(results) else { return }
         try? data.write(to: Paths.benchmarksFile, options: .atomic)
