@@ -21,7 +21,10 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
+| **Qwen3.6-35B-A3B Heretic Q4**: the same model without refusals ([Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF)), 4 bit | 21 GB | fits (21 GB) | **78–80 tok/s**¹ | ~1,180 tok/s¹ |
 | **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 8 or 16 GB | 6 GB | fits (5 GB) | **51 tok/s** | ~630 tok/s |
+
+¹ Measured in the app on a chat with tools (a 2,831-token prompt), not yet with the benchmark the other rows come from.
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
@@ -62,7 +65,7 @@ comes from the internal SSD.
 ## Features
 
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
-- **Seven models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
+- **Eight models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
   says for this Mac whether the model fits in memory, streams from the SSD, or is too big. Every download address names
   one version of its file, and the size is checked before a byte comes down: when a maker replaces or removes a file,
   the card says so at once. `tools/check_catalog.py` checks that every file can still be downloaded, reading headers only.
@@ -332,6 +335,7 @@ MacAIMagic is MIT-licensed (see [LICENSE](LICENSE)). It builds on:
 - [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) (MIT), by DeepSeek
 - [GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) (MIT), by Z.ai
 - [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next), by Qwen (its own license, see the model page)
+- [Qwen3.6-35B-A3B Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF), Qwen3.6-35B-A3B with its refusals removed by llmfan46 (Apache 2.0)
 - The quantized GGUF files are downloaded from Hugging Face from their publishers; see [`tools/models.json`](tools/models.json)
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

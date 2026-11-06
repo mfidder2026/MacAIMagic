@@ -18,7 +18,10 @@ De Engelse [README](../README.md) is de volledige versie; dit is een samenvattin
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 460 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **7–8,5 tok/s** | ~65–95 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B, 3B actief, 4 bit; het model voor een Mac met 32 GB | 23 GB | past (22 GB) | **60–67 tok/s** | ~180 tok/s (korte prompt) |
+| **Qwen3.6-35B-A3B Heretic Q4**: hetzelfde model zonder weigeringen ([Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF)), 4 bit | 21 GB | past (21 GB) | **78–80 tok/s**¹ | ~1.180 tok/s¹ |
 | **Ministral-3-8B Q4**: 8B, 4 bit, leest afbeeldingen; het model voor een Mac met 8 of 16 GB | 6 GB | past (5 GB) | **51 tok/s** | ~630 tok/s |
+
+¹ Gemeten in de app, in een gesprek met tools (een prompt van 2.831 tokens), nog niet met de benchmark van de andere regels.
 
 **Systeemcontrole**: bij elke start controleert de app (zijbalk → **Systeem**) de engine, het downloadgereedschap, de
 modellen, de schijfruimte, de GPU-limiet en de ontwikkeltools van Apple. Wat hij zelf kan oplossen doet hij, de rest

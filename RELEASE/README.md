@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.13 (macOS, Apple Silicon)
+# MacAIMagic 1.10.0 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.13-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.10.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,17 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.13-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.10.0-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.10.0:
+- **The model sets up this Mac for you** (Settings → Systeembeheer, on by default). Ask "why is my Mac slow?" and it only reads, with fixed commands that cannot change anything. Ask "put the Dock on the left" and it makes a **plan**: a card shows every step with the value it has now, and nothing happens until you press **Toestaan**. Afterwards the app reads every value again as a check. Steps that need administrator rights go through **macOS's own password dialog** (the model never sees your password), always ask first, and can make a Time Machine snapshot beforehand. Sensitive changes (firewall, Gatekeeper, FileVault, user accounts, deleting for good, a restart) are not blocked but get a **red warning**, and so does a plan that follows reading the web.
+- **Undo by asking.** Say "undo the last change": the model puts it back through the same kind of card, and the app checks that every value is as before. For app settings the app keeps an exact copy first, so undo works even when the model's own undo is wrong.
+- **Skills**: eight built-in guides with commands tested on macOS 27 (appearance and Dock, energy, network, software, startup items, storage, security, diagnosis). The model loads one only when it needs it. Add your own under Settings → Systeembeheer → Open map.
+- **Help for the whole app** (sidebar → Hulp, the **?** at the top right of every page, or ⌘?): 18 searchable topics in Dutch and English.
+- **New model: Qwen3.6-35B-A3B Heretic Q4** (21 GB), Qwen3.6 without refusals. It fits a Mac with 32 GB; measured in the app on an M3 Max: 78–80 tok/s writing.
+- After a complete answer that only read the system or the web, the app no longer tells the model to go on once more.
 
 New in 1.9.13:
 - **"Controleer" no longer makes the Mac hang.** In 1.9.12 it read every file of a model to check it, hundreds of GB at once. It is replaced by **Controleer op update**, which reads no file and takes a few seconds: it compares the files on your Mac with this version of MacAIMagic and asks the server whether there is anything new. An update starts at once; otherwise the card says "Geen update beschikbaar".
