@@ -39,7 +39,7 @@ Commit on `main` and push: the other machine only sees `main`.
 **Still open after the take-over of `eac2164`:**
 
 - `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
-- `3505bb6`: the 8-bit KV cache costs 9-17% of the writing speed here (docs/RESEARCH.md section 9), so the Mac keeps 16 bits. Its "Deel op GitHub" button and issue form are not on the Mac: the Mac has no "Exporteer meting" yet. Ask the owner before adding both.
+- `3505bb6`: the 8-bit KV cache costs 9-17% of the writing speed here (docs/RESEARCH.md section 9), so the Mac keeps 16 bits. Its "Exporteer meting" and "Deel op GitHub" were added here on the owner's request (`942aead`), with the Mac's own form in `.github/ISSUE_TEMPLATE/meting.yml`.
 - Ministral and FLUX were measured on the M3 Max only, not on a Mac with 8 or 16 GB.
 - `.github/workflows/check-models.yml` could not be pushed (the token has no `workflow` scope).
 
