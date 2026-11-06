@@ -1,6 +1,6 @@
-# MacAIMagic 1.9.12 (macOS, Apple Silicon)
+# MacAIMagic 1.9.13 (macOS, Apple Silicon)
 
-`MacAIMagic-1.9.12-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.9.13-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,14 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.9.12-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.9.13-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.9.13:
+- **"Controleer" no longer makes the Mac hang.** In 1.9.12 it read every file of a model to check it, hundreds of GB at once. It is replaced by **Controleer op update**, which reads no file and takes a few seconds: it compares the files on your Mac with this version of MacAIMagic and asks the server whether there is anything new. An update starts at once; otherwise the card says "Geen update beschikbaar".
+- **One clear button per model:** Download when a model is not on your Mac, Controleer op update when it is, Update when an update is known.
+- When the maker has published newer files than this version uses, the card says so and downloads nothing: the app runs the version it was tested with, and a next version takes the new files over.
 
 New in 1.9.12:
 - **Delete a model** with the trash button on its card, after a question. Not while it downloads or runs.
