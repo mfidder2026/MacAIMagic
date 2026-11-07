@@ -38,6 +38,8 @@ struct ChatView: View {
                     .modifier(OpenAtEnd(enabled: scrollToEnd))
                     .onChange(of: c.messages.last?.text) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     .onChange(of: c.messages.last?.preparing) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+                    // the step card or an approval card below takes room: keep the last message above it
+                    .onChange(of: belowKey) { _, _ in Self.scrollSoon(proxy) }
                     .onChange(of: (c.messages.last?.reasoning.count ?? 0) / 400) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     .onChange(of: c.messages.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
                     // back from another page: the anchor alone can land at the top while the lazy stack still guesses
@@ -68,6 +70,20 @@ struct ChatView: View {
             Composer(conversationID: conversationID, text: $draft)
         }
         .navigationTitle(conversation?.displayTitle ?? "MacAIMagic")
+    }
+
+    /// What sits between the messages and the input field (the step card, an approval card): when it changes, the
+    /// view gets smaller and the end has to come into view again.
+    private var belowKey: String {
+        let steps = conversation?.steps?.map { $0.title + $0.status }.joined() ?? ""
+        return steps + (chat.approvals[conversationID]?.id.uuidString ?? "")
+    }
+
+    private static func scrollSoon(_ proxy: ScrollViewProxy) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+        }
     }
 
     /// The last visible message that the summary replaces (the divider goes under it).
