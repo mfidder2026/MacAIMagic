@@ -61,6 +61,12 @@ struct RootView: View {
             Settings.shared.systemCheckSeen = true
         }
         .onReceive(HelpCenter.shared.$openRequest.dropFirst()) { _ in pane = .help }
+        // a click on a notification: its conversation
+        .onReceive(Notifier.shared.$openRequest.compactMap { $0 }) { id in
+            guard store.conversations.contains(where: { $0.id == id }) else { return }
+            store.selection = id
+            pane = .chat(id)
+        }
         .onChange(of: pane) { _, new in
             if case .chat(let id) = new { store.selection = id }
         }
@@ -111,7 +117,7 @@ struct Sidebar: View {
                 Label(L("Hulp"), systemImage: "questionmark.circle").tag(Pane.help)
             }
             Section(L("Gesprekken")) {
-                ForEach(store.conversations) { c in
+                ForEach(store.conversations.filter { $0.hidden != true }) { c in
                     HStack(spacing: 6) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(c.displayTitle).lineLimit(1)

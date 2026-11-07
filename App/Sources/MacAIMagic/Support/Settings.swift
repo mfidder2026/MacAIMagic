@@ -68,6 +68,19 @@ final class Settings: ObservableObject {
     @AppStorage("skills") var skills = true
     /// System management: the model reads this Mac's settings and changes them through a plan the user approves.
     @AppStorage("systemManagement") var systemManagement = true
+    // Instellingen → Taken
+    /// The model a task started stops again when the tasks are done and the user did not use it meanwhile.
+    @AppStorage("tasksStopModel") var tasksStopModel = true
+    @AppStorage("heartbeat") var heartbeat = false
+    @AppStorage("heartbeatMinutes") var heartbeatMinutes = 60
+    @AppStorage("heartbeatFrom") var heartbeatFrom = 8
+    @AppStorage("heartbeatTo") var heartbeatTo = 22
+    /// A heartbeat may load the model; off, it only checks while the model is loaded anyway.
+    @AppStorage("heartbeatMayLoad") var heartbeatMayLoad = false
+    /// With the window closed the app stays in the menu bar while there are tasks or a heartbeat.
+    @AppStorage("stayInMenuBar") var stayInMenuBar = true
+    /// Closing the window stops the model (unless something is running), so its memory is free again.
+    @AppStorage("stopModelOnClose") var stopModelOnClose = true
     /// Reading the system (diagnosis) and changing it: "allow", "ask" or "deny". Admin changes always ask.
     @AppStorage("rightSystemRead") var rightSystemRead = "allow"
     @AppStorage("rightSystemChange") var rightSystemChange = "ask"

@@ -58,6 +58,10 @@ enum Paths {
     }
     /// The connectors (MCP servers), in the format of Claude Desktop.
     static var mcpConfig: URL { appSupport.appendingPathComponent("mcp.json") }
+    /// Scheduled tasks (Taken).
+    static var tasks: URL { appSupport.appendingPathComponent("tasks.json") }
+    /// The heartbeat's checklist.
+    static var heartbeat: URL { appSupport.appendingPathComponent("HEARTBEAT.md") }
     /// One folder per system change the model made: the plan, the values before and after, and exports for undo.
     static var changes: URL { appSupport.appendingPathComponent("Changes", isDirectory: true) }
 

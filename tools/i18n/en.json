@@ -748,5 +748,20 @@
  "Stappenlijst: %@ van %@ klaar": "Step list: %@ of %@ done",
  "Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.": "When you work on a task of three steps or more, set it up first with task_list and update the list when a step starts or is done. The user sees the list above the input field.",
  "Stappen": "Steps",
- "Stappen: %@ van %@ klaar": "Steps: %@ of %@ done"
+ "Stappen: %@ van %@ klaar": "Steps: %@ of %@ done",
+ "Taak niet uitgevoerd: %@": "Task not run: %@",
+ "Het model kon niet starten. Kijk in MacAIMagic bij Modellen of Engine.": "The model could not start. Look in MacAIMagic under Models or Engine.",
+ "Taak": "Task",
+ "Taak gestopt: %@": "Task stopped: %@",
+ "Taak klaar: %@": "Task done: %@",
+ "Open het gesprek voor de uitkomst.": "Open the conversation for the result.",
+ "Goedkeuring nodig: %@": "Approval needed: %@",
+ "Eenmalig, %@": "Once, %@",
+ "Elke werkdag om %@": "Every weekday at %@",
+ "Elke dag om %@": "Every day at %@",
+ "Elke %@ om %@": "Every %@ at %@",
+ "de hele dag": "all day",
+ "van %@ tot %@": "from %@ to %@",
+ "Elk uur, %@": "Every hour, %@",
+ "Elke %@ uur, %@": "Every %@ hours, %@"
 }

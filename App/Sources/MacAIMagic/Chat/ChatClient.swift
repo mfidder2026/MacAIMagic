@@ -14,6 +14,8 @@ final class ChatClient: ObservableObject {
     @TaskLocal static var runConversation: Conversation.ID?
     /// Called when a conversation's run ends (the scheduler hears of its tasks this way).
     var onFinished: ((Conversation.ID) -> Void)?
+    /// Called when a conversation gets a question (the user's, or a task's).
+    var onSend: ((Conversation.ID) -> Void)?
     /// Called when a run waits for the user's approval (a task in the background gives a notification).
     var onApproval: ((Approval) -> Void)?
     /// Summarizing the start of a conversation to free context.
@@ -124,6 +126,7 @@ final class ChatClient: ObservableObject {
             }
         }
         running.insert(conversation)
+        onSend?(conversation)
         // this conversation's folder for the tools and the system prompt, for the whole run
         let folder = store.conversations.first { $0.id == conversation }?.workspace ?? ""
         tasks[conversation] = Task {

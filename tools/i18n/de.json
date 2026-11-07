@@ -748,5 +748,20 @@
  "Stappenlijst: %@ van %@ klaar": "Schrittliste: %@ von %@ erledigt",
  "Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.": "Arbeitest du an einer Aufgabe mit drei oder mehr Schritten, lege sie zuerst mit task_list an und aktualisiere die Liste, wenn ein Schritt beginnt oder fertig ist. Der Benutzer sieht die Liste über dem Eingabefeld.",
  "Stappen": "Schritte",
- "Stappen: %@ van %@ klaar": "Schritte: %@ von %@ erledigt"
+ "Stappen: %@ van %@ klaar": "Schritte: %@ von %@ erledigt",
+ "Taak niet uitgevoerd: %@": "Aufgabe nicht ausgeführt: %@",
+ "Het model kon niet starten. Kijk in MacAIMagic bij Modellen of Engine.": "Das Modell konnte nicht starten. Sieh in MacAIMagic unter Modelle oder Engine nach.",
+ "Taak": "Aufgabe",
+ "Taak gestopt: %@": "Aufgabe gestoppt: %@",
+ "Taak klaar: %@": "Aufgabe erledigt: %@",
+ "Open het gesprek voor de uitkomst.": "Öffne das Gespräch für das Ergebnis.",
+ "Goedkeuring nodig: %@": "Freigabe nötig: %@",
+ "Eenmalig, %@": "Einmalig, %@",
+ "Elke werkdag om %@": "Jeden Werktag um %@",
+ "Elke dag om %@": "Jeden Tag um %@",
+ "Elke %@ om %@": "Jeden %@ um %@",
+ "de hele dag": "den ganzen Tag",
+ "van %@ tot %@": "von %@ bis %@",
+ "Elk uur, %@": "Jede Stunde, %@",
+ "Elke %@ uur, %@": "Alle %@ Stunden, %@"
 }

@@ -29,6 +29,7 @@ struct MacAIMagicApp: App {
                 .preferredColorScheme(.dark)
                 .onAppear {
                     delegate.app = app
+                    app.startTasks()
                     if Settings.shared.autoStart && app.canStart { app.startEngine() }
                 }
         }

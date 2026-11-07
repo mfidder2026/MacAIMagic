@@ -16,6 +16,13 @@ final class AppState: ObservableObject {
     let documents = DocumentStudio()
     let images = ImageMaker()
     private(set) lazy var documentEngines = DocumentEngines(app: self)
+    // Taken: the scheduled tasks and their runs (TaskRunner.swift)
+    let tasks = TaskStore()
+    /// The conversations of task runs that are going on, with their task.
+    @Published var taskRuns: [Conversation.ID: UUID] = [:]
+    var modelStartedByTasks = false
+    var taskTimer: Timer?
+    var taskActivity: NSObjectProtocol?
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
         didSet {
