@@ -241,6 +241,12 @@ final class ComputerTools: AgentToolSet {
             let r = AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, (a["text"] as? String ?? "") as CFString)
             return r == .success ? "Typed into \(item.title.isEmpty ? "field \(item.n)" : item.title). Use computer_look to check." : "The field did not take the text (\(r.rawValue))."
         }
+        // a text field or area has no press: a click there puts the cursor in it
+        if item.isText || item.role == "AXSecureTextField" {
+            let f = AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+            NSRunningApplication.runningApplications(withBundleIdentifier: id).first?.activate()
+            return f == .success ? "The cursor is in \(item.title.isEmpty ? "field \(item.n)" : item.title) now." : "The field could not be focused (\(f.rawValue))."
+        }
         let r = AXUIElementPerformAction(element, (item.role == "AXMenuBarItem" || item.role == "AXMenuButton" || item.role == "AXPopUpButton" ? kAXShowMenuAction : kAXPressAction) as CFString)
         try? await Task.sleep(for: .milliseconds(600))
         return r == .success ? "Pressed. Use computer_look to see the result." : "It could not be pressed (\(r.rawValue)); try another element or computer_key."

@@ -603,6 +603,10 @@ final class ChatClient: ObservableObject {
         if marks.contains(where: { answer.contains($0) || reasoning.suffix(300).contains($0) }) { return true }
         if answer.hasSuffix("?") { return false }
         if answer.hasSuffix(":") { return true }
+        // the model waits for the user ("laat me weten zodra …"): that is no stop halfway
+        let lastSentence = answer.replacingOccurrences(of: "[.!?]\\s+", with: "\n", options: .regularExpression)
+            .split(separator: "\n").last.map { " " + $0.lowercased() } ?? ""
+        if ["let me know", "laat me weten", "laat het me weten", "lass es mich wissen", "lass mich wissen", "faites-moi savoir", "dites-moi"].contains(where: { lastSentence.contains($0) }) { return false }
         if tookSteps {
             let first = answer.prefix { !$0.isLetter }.count
             let word = answer.dropFirst(first).prefix { $0.isLetter }.lowercased()

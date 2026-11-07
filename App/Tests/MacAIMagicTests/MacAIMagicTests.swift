@@ -495,6 +495,8 @@ final class UnfinishedTurnTests: XCTestCase {
     func testARemarkIsNoEnding() {
         XCTAssertTrue(ChatClient.looksUnfinished(text: "dtruss levert geen uitvoer, exit code 0. Dit werkt niet lekker.", reasoning: "", cutOff: false, working: true, tookSteps: true))
         XCTAssertFalse(ChatClient.looksUnfinished(text: "KLAAR: het spel draait in VICE.", reasoning: "", cutOff: false, working: true, tookSteps: true))
+        // waiting for the user is no stop halfway (seen with Qwen asking for the Accessibility switch)
+        XCTAssertFalse(ChatClient.looksUnfinished(text: "Zet het vinkje aan. Laat het me weten zodra het vinkje aan staat, dan typ ik de tekst.", reasoning: "", cutOff: false, working: true, tookSteps: true))
         XCTAssertFalse(ChatClient.looksUnfinished(text: "**Klaar!** Het staat in uit.txt.", reasoning: "", cutOff: false, working: true, tookSteps: true))
         XCTAssertFalse(ChatClient.looksUnfinished(text: "DONE. The file is written.", reasoning: "", cutOff: false, working: true, tookSteps: true))
         XCTAssertFalse(ChatClient.looksUnfinished(text: "Welke map bedoel je?", reasoning: "", cutOff: false, working: true, tookSteps: true), "a question to the user")
