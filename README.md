@@ -216,6 +216,31 @@ bot of your own.
 Tested against a stand-in for the Bot API (`TelegramBridgeTests`): a stranger gets nothing; pairing, the answer in the
 same conversation, and the button that lets a run write its file. It has not been tried with the real Telegram yet.
 
+## Agent: mail, browser, apps and speech
+
+Settings → **Agent** lets the model work outside the chat. Everything is off by default, and every change comes on a
+card first.
+- **Mail through the Mail app:** the model lists, searches and reads your mail in the accounts Mail already has;
+  MacAIMagic gets no password. A draft opens in Mail after a card. Sending asks every time, also after "Always in
+  this conversation".
+- **A browser of its own:** the model opens pages in a MacAIMagic window you can watch, with its own cookies. It reads
+  each page as text with numbered links, buttons and fields.
+  - Links run, and a button asks first.
+  - Buying, sending, posting or deleting asks every time.
+  - Password and card fields are refused.
+- **Controlling apps:** only the apps you add. The model works through macOS's accessibility tree (numbered buttons,
+  fields and menus), so no screenshots and no vision model are needed.
+  - Every click, text and key asks first.
+  - Password fields, Keychain Access, Passwords, System Settings, Terminal and password managers are never allowed.
+- **Speech:**
+  - Dictate with the microphone next to the input field; recognition runs on this Mac.
+  - Have answers read aloud, with a choice of voice.
+  - Telegram voice messages become text on the Mac.
+
+Tested with a stand-in for Mail's scripts, a real WebView on a test page, and the fake engine: sending asks again after
+"always". Not tried yet with the real Mail app, a real website, a real app or the microphone; each needs a macOS
+permission.
+
 ## Requirements
 
 - Apple Silicon Mac (M1 or later). Models that do not fit in memory stream from the SSD: with **128 GB** the compact

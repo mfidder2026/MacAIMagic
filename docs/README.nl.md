@@ -150,6 +150,23 @@ Telegram-bot.
 - **Privacy**: berichten gaan via de servers van Telegram en zijn daar niet versleuteld van begin tot eind. Het model en
   je bestanden blijven op de Mac.
 
+## Agent: e-mail, browser, apps en spraak
+
+Onder Instellingen → **Agent** werkt het model ook buiten de chat. Alles staat standaard uit, en elke wijziging komt
+eerst op een kaart.
+- **E-mail via de Mail-app**: het model leest, zoekt en vat samen in je bestaande accounts. Een concept opent in Mail;
+  versturen vraagt elke keer.
+- **Eigen browservenster**: het model surft in een venster van MacAIMagic dat je kunt meekijken, met eigen cookies.
+  - Een knop vraagt eerst.
+  - Kopen, versturen, plaatsen en verwijderen vragen elke keer.
+  - Wachtwoord- en betaalvelden vult het model nooit in.
+- **Apps besturen**: alleen de apps die jij toevoegt, via de toegankelijkheid van macOS. Elke handeling komt op een
+  kaart. Wachtwoordvelden en apps met wachtwoorden of beveiliging zijn nooit toegestaan.
+- **Spraak**:
+  - Inspreken met de microfoon; de herkenning gebeurt op deze Mac.
+  - Antwoorden laten voorlezen.
+  - Spraakberichten in Telegram worden tekst.
+
 ## Hulp
 
 Onder **Hulp** in de zijbalk, met de **?** rechtsboven op elk scherm of met ⌘?: doorzoekbare hulp bij elk onderdeel

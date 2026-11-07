@@ -136,6 +136,20 @@ Mac-tests om in Windows-vorm over te nemen · Mac tests to take over in Windows 
 - [ ] **Scherm**: tab Telegram in Instellingen (aan/uit, status, token bewaren of verwijderen, Koppel een account met de code en de resterende tijd, Wie mag praten, Meldingen, Log). Hulp `21-telegram.md` (NL/EN), en een regel in Privacy. `app_action` mag `featureTelegram` en `telegramNotify` zetten; koppelen niet.
 - [ ] Tests: neem `TelegramTests.swift` over met de nep-server `App/Tests/MacAIMagicTests/Fixtures/fake_telegram.py` (onbekend id genegeerd, koppelen, antwoord in HTML in hetzelfde gesprek, `/nieuw`, offset bewaard, de knop laat de run schrijven, een vreemde klik doet niets, een late klik, beheerdersrechten zonder knoppen, meldingen naar het eerste account).
 
+## 9. E-mail en browser, fase 5 · Mail and browser, phase 5
+
+- [ ] **Gemeenschappelijk · shared**: één `AgentToolSet` per groep (namen, aan/uit, definities, promptstuk, label, `check` → run / ask / refuse, `run`). `Approval.everyTime`: vraagt ook na "Altijd in dit gesprek" (geen Altijd-knop, ook niet in Telegram). Alles standaard uit, in een tab **Agent**.
+- [ ] **E-mail**: op de Mac via de Mail-app (AppleScript met de waarden als argv, nooit in het script). Op Windows: Outlook (COM, `Outlook.Application`) als het er is, anders Microsoft Graph met OAuth; geen wachtwoord in de app. Tools `mail_list` (dagen, ongelezen, max), `mail_search`, `mail_read(id)`, `mail_draft` (opent een concept, kaart), `mail_send` (kaart elke keer, met een waarschuwing). Adressen controleren (`MailTools.addresses`). Tekst in een mail is geen opdracht (promptregel).
+- [ ] **Browser**: een eigen venster met WebView2 en een eigen gebruikersmap (eigen cookies, los van Edge en Chrome). `browser_open` (alleen http/https), `browser_read` (titel, adres, tekst tot 14.000 tekens, genummerde links/knoppen/velden via het script `BrowserTools.markScript` en `data-mam`), `browser_click`, `browser_type` (React-proof via de value-setter, `submit`), `browser_back`. Een gewone link: draait; een knop: kaart; woorden als kopen/betalen/versturen/plaatsen/verwijderen (`BrowserTools.risky`): kaart elke keer met waarschuwing; wachtwoord-, pin- en kaartvelden (`isSecret`): weigeren; typen: draait, versturen van een formulier: kaart.
+- [ ] Tests: `MailToolsTests` (met een nep-script), `BrowserToolsTests` met `Fixtures/browser/*.html`, en de nep-engine met `MAILSTUUR` (versturen vraagt opnieuw na Altijd).
+
+## 10. Apps besturen en spraak, fase 6 · Controlling apps and speech, phase 6
+
+- [ ] **Apps besturen**: alleen apps die de gebruiker toevoegt; op Windows via UI Automation (in plaats van de toegankelijkheidsboom van macOS), het voorste venster plus de menubalk, genummerd, zonder schermafbeelding. `computer_apps`, `computer_look`, `computer_click` (Invoke/Toggle/ExpandCollapse), `computer_type` (ValuePattern; nooit een wachtwoordveld, `IsPassword`), `computer_key` (SendInput; nooit Alt+F4). Elke handeling een kaart; risicovolle knoppen en Enter: elke keer. Nooit toe te voegen: Credential Manager, Windows-beveiliging, Instellingen, PowerShell/Terminal/cmd, wachtwoordmanagers, WinAIMagic zelf.
+- [ ] **Spraak**: een microfoonknop naast het invoerveld (Windows.Media.SpeechRecognition, of offline met de spraak van Windows), een luidspreker onder een antwoord en "Lees antwoorden vanzelf voor" (SpeechSynthesizer), een stemkeuze. Markdown wordt eerst leesbare tekst (`Voice.speakable`).
+- [ ] **Telegram-spraakberichten**: Ogg/Opus naar tekst (op Windows met Media Foundation of een kleine Opus-decoder), terugmelden als "🎙 …" en dan als vraag.
+- [ ] Tests: `ComputerToolsTests` (toetsen, de nooit-lijst), `VoiceTests`, en de Telegram-test met een spraakbericht.
+
 ## Later (fase 4–6) · Later (phases 4–6)
 
 Nog niet gebouwd; elke fase krijgt een eigen plan en een eigen stuk in dit bestand.
@@ -144,5 +158,5 @@ Not built yet; each phase gets its own plan and its own part of this file.
 | Fase | Functie · feature | Schakelaar · switch |
 |---|---|---|
 | 4 | iMessage (alleen Mac; Telegram is gebouwd, zie 8) · iMessage (Mac only; Telegram is built, see 8) | — |
-| 5 | Browser-agent en e-mail · browser agent and mail | `featureBrowser`, `featureMail` |
-| 6 | Computer besturen en spraak · computer use and voice | `featureComputerUse`, `featureVoice` |
+| 5 | Gebouwd, zie 9 · built, see 9 | `featureBrowser`, `featureMail` |
+| 6 | Gebouwd, zie 10 · built, see 10 | `featureComputerUse`, `featureVoice` |
