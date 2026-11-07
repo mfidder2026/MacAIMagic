@@ -410,6 +410,9 @@ struct MessageRow: View {
                             Text(String(format: "%.1f tok/s", tps))
                             if let p = message.promptTokensPerSecond { Text(String(format: "prompt %.0f tok/s", p)) }
                             Button { copy(message.text) } label: { Image(systemName: "doc.on.doc") }.buttonStyle(.plain)
+                            if Settings.shared.featureVoice {
+                                SpeakButton(message: message)
+                            }
                         }
                         .font(.caption).foregroundStyle(.tertiary)
                     }
@@ -620,6 +623,19 @@ struct TableBlock: View {
     }
 }
 
+/// Reads an answer aloud, or stops.
+struct SpeakButton: View {
+    let message: ChatMessage
+    @ObservedObject private var voice = Voice.shared
+    var body: some View {
+        Button { voice.speak(message.text, id: message.id) } label: {
+            Image(systemName: voice.speaking == message.id ? "speaker.slash.fill" : "speaker.wave.2")
+        }
+        .buttonStyle(.plain)
+        .help(voice.speaking == message.id ? L("Stop met voorlezen") : L("Lees voor"))
+    }
+}
+
 func copy(_ s: String) {
     NSPasteboard.general.clearContents()
     NSPasteboard.general.setString(s, forType: .string)
@@ -671,6 +687,7 @@ private struct ApprovalCard: View {
     private var icon: String {
         if approval.call.name.hasPrefix("system_") { return approval.admin ? "lock.shield.fill" : "gearshape.2.fill" }
         if approval.call.name.contains("__") { return "puzzlepiece.extension.fill" }
+        if let set = AgentTools.all.first(where: { $0.names.contains(approval.call.name) }) { return set.icon }
         return approval.call.name == "run_command" ? "terminal.fill" : "doc.badge.plus"
     }
 
@@ -734,7 +751,7 @@ private struct ApprovalCard: View {
                 Button(L("Weigeren"), role: .cancel) { chat.answer(approval, allow: false) }
                     .keyboardShortcut(.escape, modifiers: [])
                 Spacer()
-                if !approval.admin {
+                if !approval.admin && !approval.everyTime {
                     Button(L("Altijd in dit gesprek")) { chat.answer(approval, allow: true, always: true) }
                 }
                 Button { chat.answer(approval, allow: true) } label: { Label(L("Toestaan"), systemImage: "checkmark") }

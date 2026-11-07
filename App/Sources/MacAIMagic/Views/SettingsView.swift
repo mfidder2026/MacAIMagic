@@ -131,6 +131,9 @@ struct SettingsView: View {
             TasksSettingsView()
                 .tabItem { Label(L("Taken"), systemImage: "clock.badge.checkmark") }
 
+            AgentSettingsView()
+                .tabItem { Label(L("Agent"), systemImage: "wand.and.stars") }
+
             TelegramSettingsView()
                 .tabItem { Label(L("Telegram"), systemImage: "paperplane") }
         }

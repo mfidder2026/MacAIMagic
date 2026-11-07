@@ -15,6 +15,9 @@ struct Composer: View {
     @State private var pasteMonitor: Any?
     @State private var dropTarget = false
     @FocusState private var focused: Bool
+    @ObservedObject private var voice = Voice.shared
+    /// The text before speaking started: what is heard comes after it.
+    @State private var beforeSpeaking = ""
 
     private var canSend: Bool {
         engine.state.isRunning && !chat.isBusy(conversationID) && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
@@ -67,6 +70,23 @@ struct Composer: View {
                 WorkspaceButton(conversationID: conversationID)
                 RightsButton()
                 Spacer()
+                if settings.featureVoice {
+                    Button {
+                        if voice.listening { voice.stopListening() } else {
+                            beforeSpeaking = text.isEmpty ? "" : text + " "
+                            Task { await voice.startListening { heard in text = beforeSpeaking + heard } }
+                        }
+                    } label: {
+                        Image(systemName: voice.listening ? "mic.fill" : "mic").font(.title3)
+                            .foregroundStyle(voice.listening ? .red : .secondary)
+                            .symbolEffect(.pulse, isActive: voice.listening)
+                    }
+                    .buttonStyle(.plain)
+                    .help(voice.listening ? L("Stop met luisteren") : L("Inspreken (op deze Mac, niets gaat naar internet)"))
+                    .popover(isPresented: Binding(get: { voice.problem != nil }, set: { if !$0 { voice.problem = nil } })) {
+                        Text(voice.problem ?? "").padding().frame(width: 300)
+                    }
+                }
                 if chat.isBusy(conversationID) {
                     Button { chat.stop(conversationID) } label: { Image(systemName: "stop.circle.fill").font(.title2) }
                         .buttonStyle(.plain).help(L("Stop"))
@@ -110,6 +130,7 @@ struct Composer: View {
     }
 
     private func send() {
+        if voice.listening { voice.stopListening() }
         guard canSend else { return }
         chat.modelName = engine.model?.name ?? app.selectedModel?.name ?? L("DeepSeek-V4.1-Flash")
         chat.send(text: text.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments,

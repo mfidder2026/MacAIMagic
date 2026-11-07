@@ -7,7 +7,10 @@ extension AppState {
     func startTasks() {
         guard taskTimer == nil else { return }
         Notifier.shared.setUp()
-        chat.onFinished = { [weak self] id in self?.runFinished(id) }
+        chat.onFinished = { [weak self] id in
+            self?.runFinished(id)
+            self?.speakIfWanted(id)
+        }
         chat.onSend = { [weak self] id in
             // the user used the model: it is theirs now, a task must not stop it
             if self?.taskRuns[id] == nil { self?.modelStartedByTasks = false }
@@ -111,6 +114,15 @@ extension AppState {
             try? await Task.sleep(for: .seconds(1))
         }
         return false
+    }
+
+    /// Instellingen → Agent → "Lees antwoorden voor": the answer of a conversation on screen, not of a task or Telegram.
+    private func speakIfWanted(_ id: Conversation.ID) {
+        let s = Settings.shared
+        guard s.featureVoice, s.speakAnswers, taskRuns[id] == nil, NSApp.isActive,
+              let c = store.conversations.first(where: { $0.id == id }), c.telegram == nil, c.task == nil,
+              let last = c.messages.last(where: { $0.role == .assistant && !$0.text.isEmpty && $0.error == nil }) else { return }
+        Voice.shared.speak(last.text, id: last.id)
     }
 
     private func runFinished(_ id: Conversation.ID) {

@@ -259,6 +259,25 @@ final class TelegramBridgeTests: XCTestCase {
         _ = store
     }
 
+    func testAVoiceMessageBecomesTheQuestion() async throws {
+        let (service, bridge, _, store) = make()
+        let saved = Settings.shared.featureVoice
+        Settings.shared.featureVoice = true
+        defer { Settings.shared.featureVoice = saved }
+        var heardFile: URL?
+        bridge.transcribe = { url in heardFile = url; return ("hallo stem", nil) }
+        service.start()
+        defer { service.stop() }
+        try await pair(service)
+        try await push(["message": ["message_id": 7, "from": ["id": 42, "is_bot": false, "first_name": "Mila"],
+                                    "chat": ["id": 42, "type": "private"], "date": 0, "voice": ["file_id": "voice1", "duration": 2]]])
+        try await waitForSent { self.text($0) == "🎙 hallo stem" }
+        try await waitForSent { self.text($0).contains("Antwoord op: hallo stem") }
+        XCTAssertEqual(heardFile?.pathExtension, "ogg")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: heardFile?.path ?? "/"), "the recording is removed again")
+        XCTAssertEqual(store.conversations.first { $0.telegram != nil }?.messages.first?.text, "hallo stem")
+    }
+
     func testTasksReportToTheFirstAccount() async throws {
         let (service, bridge, _, _) = make()
         Settings.shared.telegramNotify = true

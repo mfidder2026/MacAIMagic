@@ -82,6 +82,11 @@ final class AppControl: AppControlling {
         ("tasksStopModel", flag(\.tasksStopModel)),
         ("stayInMenuBar", flag(\.stayInMenuBar)),
         ("featureTelegram", flag(\.featureTelegram)),
+        ("featureMail", flag(\.featureMail)),
+        ("featureBrowser", flag(\.featureBrowser)),
+        ("featureComputerUse", flag(\.featureComputerUse)),
+        ("featureVoice", flag(\.featureVoice)),
+        ("speakAnswers", flag(\.speakAnswers)),
         ("telegramNotify", flag(\.telegramNotify)),
     ]
 

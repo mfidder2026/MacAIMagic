@@ -6,5 +6,7 @@
   <key>com.apple.security.automation.apple-events</key><true/>
   <!-- the built-in connector Agenda en Herinneringen (EventKit); the hardened runtime needs it for calendars and reminders -->
   <key>com.apple.security.personal-information.calendars</key><true/>
+  <!-- speaking a question (Instellingen → Agent → Spraak) -->
+  <key>com.apple.security.device.audio-input</key><true/>
 </dict>
 </plist>

@@ -83,6 +83,19 @@ final class Settings: ObservableObject {
     @AppStorage("stayInMenuBar") var stayInMenuBar = true
     /// Closing the window stops the model (unless something is running), so its memory is free again.
     @AppStorage("stopModelOnClose") var stopModelOnClose = true
+    // Instellingen → Agent (phases 5 and 6), all off by default
+    /// The model reads mail through the Mail app; drafts and sending after a card.
+    @AppStorage("featureMail") var featureMail = false
+    /// The model browses in a window of its own in MacAIMagic.
+    @AppStorage("featureBrowser") var featureBrowser = false
+    /// The model controls the apps the user allows (computerApps), every action after a card.
+    @AppStorage("featureComputerUse") var featureComputerUse = false
+    /// The bundle ids the model may control, one per line.
+    @AppStorage("computerApps") var computerApps = ""
+    /// Speak in the chat (on this Mac) and read answers aloud.
+    @AppStorage("featureVoice") var featureVoice = false
+    @AppStorage("speakAnswers") var speakAnswers = false
+    @AppStorage("voiceID") var voiceID = ""
     // Instellingen → Telegram
     /// Talk with the model on this Mac through a Telegram bot of your own (off by default).
     @AppStorage("featureTelegram") var featureTelegram = false

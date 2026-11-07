@@ -1,6 +1,6 @@
 """A stand-in for llama-server's chat API, for the tests of the chat client.
 
-The last user message decides: "SCHRIJF" asks for write_file (and after the result says KLAAR), "PLAN" sets a
+The last user message decides: "SCHRIJF" asks for write_file, "MAILSTUUR" for mail_send (and after the result says KLAAR), "PLAN" sets a
 task list, anything else gets "Antwoord op: <text>". GET /stats says how many requests ran at once at most.
 Usage: fake_engine.py <port>
 """
@@ -69,6 +69,11 @@ class Handler(BaseHTTPRequestHandler):
             args = json.dumps({"action": "stop_engine"})
             out.append(chunk({"tool_calls": [{"index": 0, "id": "call3", "type": "function",
                                               "function": {"name": "app_action", "arguments": args}}]}))
+            out.append(chunk({}, "tool_calls"))
+        elif "MAILSTUUR" in text and not after_tool:
+            args = json.dumps({"to": "test@example.com", "subject": "Hallo", "body": "Een test."})
+            out.append(chunk({"tool_calls": [{"index": 0, "id": "call4", "type": "function",
+                                              "function": {"name": "mail_send", "arguments": args}}]}))
             out.append(chunk({}, "tool_calls"))
         elif "PLAN" in text and not after_tool:
             args = json.dumps({"steps": [{"title": "Eerst kijken", "status": "done"},

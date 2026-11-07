@@ -15,6 +15,8 @@ final class TelegramBridge {
     var statusText: () -> String
     /// How often the answer in Telegram is brought up to date while the model writes.
     var editInterval: Duration = .milliseconds(1500)
+    /// Speech to text for voice messages (tests give a stand-in).
+    var transcribe: (URL) async -> (text: String?, error: String?) = { await Voice.transcribe($0) }
 
     private struct Card {
         let chat: Int64
@@ -68,11 +70,30 @@ final class TelegramBridge {
             await command(text, account, bot, chatID)
             return
         }
-        if m.voice != nil {
-            _ = try? await bot.send(chatID, L("Spraakberichten begrijp ik nog niet. Typ je vraag, of stuur een foto."))
-            return
-        }
         var prompt = text
+        if let voice = m.voice {
+            guard Settings.shared.featureVoice else {
+                _ = try? await bot.send(chatID, L("Spraakberichten staan uit op de Mac (Instellingen → Agent → Spraak). Typ je vraag, of stuur een foto."))
+                return
+            }
+            await bot.typing(chatID)
+            let heard: (text: String?, error: String?)
+            do {
+                let data = try await bot.download(voice.fileId)
+                let file = FileManager.default.temporaryDirectory.appendingPathComponent("telegram-\(UUID().uuidString).ogg")
+                try data.write(to: file)
+                defer { try? FileManager.default.removeItem(at: file) }
+                heard = await transcribe(file)
+            } catch {
+                heard = (nil, error.localizedDescription)
+            }
+            guard let words = heard.text, !words.isEmpty else {
+                _ = try? await bot.send(chatID, L("Ik kon het spraakbericht niet verstaan: \(heard.error ?? "")"))
+                return
+            }
+            _ = try? await bot.send(chatID, "🎙 " + words)
+            prompt = words + (prompt.isEmpty ? "" : "\n\n" + prompt)
+        }
         var attachments: [Attachment] = []
         if let photo = m.photo?.max(by: { $0.width * $0.height < $1.width * $1.height }) {
             guard Settings.shared.vision else {
@@ -214,8 +235,8 @@ final class TelegramBridge {
                 return
             }
             let key = a.id.uuidString
-            let buttons = [[TelegramBot.Button(text: L("Toestaan"), data: "a:" + key), TelegramBot.Button(text: L("Weigeren"), data: "n:" + key)],
-                           [TelegramBot.Button(text: L("Altijd in dit gesprek"), data: "t:" + key)]]
+            var buttons = [[TelegramBot.Button(text: L("Toestaan"), data: "a:" + key), TelegramBot.Button(text: L("Weigeren"), data: "n:" + key)]]
+            if !a.everyTime { buttons.append([TelegramBot.Button(text: L("Altijd in dit gesprek"), data: "t:" + key)]) }
             guard let m = try? await bot.send(target, text, buttons: buttons) else { return }
             // the approval may have been answered on the Mac meanwhile
             if chat.approvals[a.conversation]?.id == a.id {
@@ -247,7 +268,7 @@ final class TelegramBridge {
         }
         cards[id] = nil
         let allow = parts[0] != "n"
-        chat.answer(approval, allow: allow, always: parts[0] == "t")
+        chat.answer(approval, allow: allow, always: parts[0] == "t" && !approval.everyTime)
         let result = parts[0] == "t" ? L("Altijd toegestaan in dit gesprek") : allow ? L("Toegestaan") : L("Geweigerd")
         await bot.answerCallback(q.id, result)
         try? await bot.edit(card.chat, card.message, card.text + "\n\n" + (allow ? "✅ " : "❌ ") + result)

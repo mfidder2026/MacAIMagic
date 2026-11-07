@@ -66,6 +66,8 @@ final class ChatClient: ObservableObject {
         var steps: [PlanStep] = []
         /// Needs administrator rights: macOS asks for the password after this yes, and "always" is not offered.
         var admin = false
+        /// Asks every time, also after "always" (sending a mail, a click that sends something).
+        var everyTime = false
     }
     struct PlanStep: Identifiable, Hashable {
         let id = UUID()
@@ -95,7 +97,7 @@ final class ChatClient: ObservableObject {
 
     /// "Always in this conversation" covers everything but admin rights: those are asked every time.
     private func ask(_ approval: Approval) async -> Bool {
-        if trusted.contains(approval.conversation) && !approval.admin { return true }
+        if trusted.contains(approval.conversation) && !approval.admin && !approval.everyTime { return true }
         if approval.admin { snapshot = true }
         if Task.isCancelled { return false }
         return await withCheckedContinuation { cont in
@@ -246,7 +248,8 @@ final class ChatClient: ObservableObject {
                 let isApp = AppTools.names.contains(call.name)
                 let isLoadConnector = call.name == MCPManager.loadTool
                 let connectorTool = MCPManager.shared.route(call.name)
-                let label = isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
+                let agent = AgentTools.set(for: call.name)
+                let label = agent != nil ? agent!.label(for: call) : isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
                     : isSkill ? Skills.label(for: call)
                     : isSteps ? WorkSteps.label(WorkSteps.parse(WorkspaceTools.args(call)))
                     : isApp ? AppTools.label(for: call)
@@ -258,7 +261,24 @@ final class ChatClient: ObservableObject {
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = activities }
                 }
                 var text: String
-                if isWorkspace {
+                if let agent {
+                    switch await agent.check(call) {
+                    case .refuse(let why):
+                        text = why
+                        activities[activities.count - 1].denied = true
+                    case .ask(let title, let detail, let warnings, let everyTime):
+                        var approval = Approval(conversation: id, call: call, title: title, detail: detail, warnings: warnings)
+                        approval.everyTime = everyTime
+                        if await ask(approval) {
+                            text = await agent.run(call)
+                        } else {
+                            text = "The user did not allow this. Ask what they want instead, or continue without it."
+                            activities[activities.count - 1].denied = true
+                        }
+                    case .run:
+                        text = await agent.run(call)
+                    }
+                } else if isWorkspace {
                     let right = Settings.shared.right(WorkspaceTools.right(for: call.name))
                     if right == "deny" {
                         text = "The user's settings do not allow this kind of action (\(WorkspaceTools.right(for: call.name).title)). Do not try it again; tell the user what you wanted to do, or continue without it."
@@ -703,6 +723,7 @@ final class ChatClient: ObservableObject {
         if s.systemManagement { tools += SystemTools.definitions }
         if offersSteps { tools.append(WorkSteps.definition) }
         if taskStore != nil { tools.append(TaskTool.definition) }
+        for set in AgentTools.all where set.isOn { tools += set.definitions }
         if s.appTools, let control = appControl { tools += AppTools.definitions(skills: s.skills, settings: control.settingNames) }
         // connectors: only when one is switched on, and then the tools of those this conversation loaded
         let mcp = MCPManager.shared
@@ -717,6 +738,7 @@ final class ChatClient: ObservableObject {
     private var offersSteps: Bool {
         let s = Settings.shared
         return (s.workspaceTools && WorkspaceTools.workspace != nil) || s.systemManagement || !MCPManager.shared.enabled.isEmpty
+            || AgentTools.all.contains { $0.isOn }
     }
 
     private func requestMessages(_ history: [ChatMessage], summary: String? = nil) -> [[String: Any]] {
@@ -753,6 +775,7 @@ final class ChatClient: ObservableObject {
         if offersSteps {
             system += "\n\n" + L("Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.")
         }
+        for set in AgentTools.all where set.isOn { system += "\n\n" + set.promptSection }
         let connectors = MCPManager.shared.promptSection()
         if !connectors.isEmpty { system += "\n\n" + connectors }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
