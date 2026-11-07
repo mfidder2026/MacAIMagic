@@ -155,7 +155,11 @@ final class EngineController: ObservableObject {
         for _ in 0..<60 where process != nil { try? await Task.sleep(for: .milliseconds(500)) }
     }
 
+    /// Set while a stop that was asked for is under way: how the process then ends is no failure.
+    private var stopping = false
+
     func stop() {
+        stopping = process != nil
         healthTask?.cancel()
         process?.interrupt()
         let p = process
@@ -195,8 +199,12 @@ final class EngineController: ObservableObject {
         preventSleep(false)
         try? logHandle?.close()
         logHandle = nil
-        // 0: clean exit, 2 / 15: our interrupt or terminate
-        if [0, 2, 15].contains(code) {
+        // 0: clean exit, 2 / 15: our interrupt or terminate. A stop that was asked for is a stop whatever the exit
+        // code: llama.cpp's Metal backend can assert while it shuts down after a cancelled request (code 6,
+        // "rsets->data count == 0"), and that is no failure of the model.
+        let asked = stopping
+        stopping = false
+        if [0, 2, 15].contains(code) || asked {
             state = .stopped
         } else {
             let last = logTail.last(where: { $0.contains("error") || $0.contains("failed") }) ?? logTail.last ?? ""
