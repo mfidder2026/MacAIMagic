@@ -931,5 +931,7 @@
  "Volgende taak: %@, %@.": "Next task: %@, %@.",
  "Vrij op schijf: %@ GB.": "Free on disk: %@ GB.",
  "Wie mag praten": "Who may talk",
- "beheerder": "administrator"
+ "beheerder": "administrator",
+ "Instellingen": "Settings",
+ "Instellingen (⌘,)": "Settings (⌘,)"
 }

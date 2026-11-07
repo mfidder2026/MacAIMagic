@@ -44,6 +44,10 @@ struct RootView: View {
                     .help(L("Hulp bij dit onderdeel"))
             }
             ToolbarItem(placement: .primaryAction) {
+                SettingsLink { Label(L("Instellingen"), systemImage: "gearshape") }
+                    .help(L("Instellingen (⌘,)"))
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button {
                     store.newConversation()
                     if let id = store.selection { pane = .chat(id) }

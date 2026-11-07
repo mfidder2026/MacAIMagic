@@ -135,7 +135,7 @@ struct SettingsView: View {
                 .tabItem { Label(L("Telegram"), systemImage: "paperplane") }
         }
         .formStyle(.grouped)
-        .frame(width: 640, height: 560)
+        .frame(minWidth: 720, idealWidth: 760, minHeight: 600, idealHeight: 700)
     }
 
     @ViewBuilder private var rightOptions: some View {

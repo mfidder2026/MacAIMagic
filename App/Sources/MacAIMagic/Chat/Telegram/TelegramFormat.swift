@@ -44,10 +44,42 @@ enum TelegramFormat {
                 if let nl = code.firstIndex(of: "\n"), !code[..<nl].contains(" ") { code = String(code[code.index(after: nl)...]) }
                 out += "<pre>" + escape(code.trimmingCharacters(in: .newlines)) + "</pre>"
             } else {
-                out += inline(part)
+                out += tables(part)
             }
         }
         return out
+    }
+
+    /// Telegram has no tables: a Markdown table becomes aligned columns in a <pre> block.
+    private static func tables(_ text: String) -> String {
+        var out: [String] = []
+        var rows: [[String]] = []
+        func flush() {
+            guard !rows.isEmpty else { return }
+            let count = rows.map(\.count).max() ?? 0
+            let widths = (0..<count).map { i in rows.map { i < $0.count ? $0[i].count : 0 }.max() ?? 0 }
+            let lines = rows.map { r in (0..<count).map { i in (i < r.count ? r[i] : "").padding(toLength: widths[i], withPad: " ", startingAt: 0) }
+                .joined(separator: "  ").trimmingCharacters(in: .whitespaces) }
+            out.append("<pre>" + escape(lines.joined(separator: "\n")) + "</pre>")
+            rows = []
+        }
+        for line in text.components(separatedBy: "\n") {
+            let s = line.trimmingCharacters(in: .whitespaces)
+            if s.hasPrefix("|") && s.hasSuffix("|") && s.count > 1 {
+                let cells = s.dropFirst().dropLast().components(separatedBy: "|").map {
+                    $0.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "**", with: "")
+                }
+                // the line under the header: |---|:--:|
+                if cells.allSatisfy({ !$0.isEmpty && $0.allSatisfy { "-: ".contains($0) } }) { continue }
+                if cells.allSatisfy(\.isEmpty) { continue }
+                rows.append(cells)
+            } else {
+                flush()
+                out.append(inline(line))
+            }
+        }
+        flush()
+        return out.joined(separator: "\n")
     }
 
     private static func inline(_ text: String) -> String {

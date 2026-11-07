@@ -31,6 +31,8 @@ final class TelegramFormatTests: XCTestCase {
         XCTAssertEqual(TelegramFormat.html("[x](javascript:alert(1))"), "[x](javascript:alert(1))", "only http(s) links")
         XCTAssertEqual(TelegramFormat.html("## Titel\n- punt"), "<b>Titel</b>\n• punt")
         XCTAssertEqual(TelegramFormat.html("2 * 3 * 4"), "2 * 3 * 4")
+        XCTAssertEqual(TelegramFormat.html("Vrij:\n| | |\n|---|---|\n| Totaal | 1,8 TB |\n| **Vrij** | 150 GB |\nKlaar"),
+                       "Vrij:\n<pre>Totaal  1,8 TB\nVrij    150 GB</pre>\nKlaar")
     }
 }
 
