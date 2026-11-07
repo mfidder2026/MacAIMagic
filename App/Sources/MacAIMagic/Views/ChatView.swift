@@ -428,34 +428,48 @@ struct MessageRow: View {
     }
 }
 
-/// The steps of an answer, folded: a long task takes dozens of them, and the chat is about the answer.
+/// The steps of an answer. While the model works the list grows, so you see every step as it comes (the last
+/// dozen, with how many came before); when the answer is done it folds into one line, since the chat is about the
+/// answer. A short list is simply shown.
 struct ActivityList: View {
     let activities: [ToolActivity]
     let streaming: Bool
     @State private var open = false
     /// Up to this many steps are simply shown.
     private static let foldAbove = 3
+    /// While working, at most this many of the latest steps.
+    private static let live = 12
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if activities.count > Self.foldAbove {
+            if activities.count <= Self.foldAbove {
+                rows(activities)
+            } else if streaming && !open {
+                let hidden = activities.count - Self.live
+                if hidden > 0 {
+                    Button { open = true } label: {
+                        Label(L("\(hidden) eerdere stappen"), systemImage: "list.bullet").font(.callout).foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                rows(Array(activities.suffix(Self.live)))
+            } else {
                 DisclosureGroup(isExpanded: $open) {
                     rows(activities).padding(.top, 4)
                 } label: {
                     Label(L("\(activities.count) stappen"), systemImage: "list.bullet").font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                // while it works, what it is doing now
-                if streaming && !open { rows(Array(activities.suffix(2))) }
-            } else {
-                rows(activities)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func rows(_ list: [ToolActivity]) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             ForEach(list) { a in ActivityRow(activity: a) }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
