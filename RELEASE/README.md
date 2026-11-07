@@ -1,6 +1,6 @@
-# MacAIMagic 1.12.0 (macOS, Apple Silicon)
+# MacAIMagic 1.13.0 (macOS, Apple Silicon)
 
-`MacAIMagic-1.12.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.13.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,19 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.12.0-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.13.0-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.13.0:
+- **Agent** (Settings → Agent, everything off by default): the model works outside the chat, and every change comes on a card first.
+  - **Mail through the Mail app**: the model lists, searches and reads your mail in the accounts Mail already has; MacAIMagic gets no password. A draft opens in Mail after a card. Sending asks every time, also after "Always in this conversation".
+  - **A browser of its own**: the model opens pages in a MacAIMagic window you can watch, with its own cookies. Links run and a button asks first; buying, sending, posting or deleting asks every time. Password and card fields are never filled in.
+  - **Controlling apps**: only the apps you add. The model sees a window's numbered buttons, fields and menus through macOS's Accessibility, so it works without screenshots and without a vision model. Every click, text or key asks first. Keychain Access, Passwords, System Settings, Terminal and password managers can never be added.
+  - **Speech**: dictate with the microphone next to the input field. After two seconds of silence the question goes by itself, and the model loads first if needed. On macOS 26 and later Apple's newer on-device speech recognition is used. Answers can be read aloud, with a choice of voice, and Telegram voice messages become text on the Mac.
+- A question sent while no model is loaded now loads the model and then goes, also when typed.
+- The model is no longer pushed on when it waits for you ("let me know when …"), and the word KLAAR no longer shows at the end of an answer either.
+- The loading line names the size of the model you chose, instead of always 115 GB.
 
 New in 1.12.0:
 - **Telegram** (Settings → Telegram, off by default): talk with the model on your Mac from your phone, through a Telegram bot of your own. Make the bot at @BotFather and paste its token (it goes into the Keychain); the Mac calls Telegram itself, so nothing on your Mac is open to the internet. **Pair an account** shows a 6-digit code, valid for 10 minutes and usable once: only paired accounts get an answer, and the bot stays silent to everyone else. Each account has one conversation that goes on (also in the sidebar); the answer grows while the model writes, and `/new`, `/stop` and `/status` do what they say. Photos go to the model, and text files up to 1 MB are read along. A change asks for approval with buttons in Telegram; administrator rights are only approved on the Mac. Tasks and the heartbeat report there too. Messages go through Telegram's servers, which do not encrypt them end to end; the model and your files stay on the Mac.
