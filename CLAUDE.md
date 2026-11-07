@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `ccf15f7`** (2026-11-07: version 0.2.11). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `c769d2d`** (2026-11-07: version 0.2.12). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -36,7 +36,7 @@ Commit on `main` and push: the other machine only sees `main`.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
 
-**Still open after the take-over of `ccf15f7`:**
+**Still open after the take-over of `c769d2d`:**
 
 - `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
 - `3505bb6`: the 8-bit KV cache costs 9-17% of the writing speed here (docs/RESEARCH.md section 9), so the Mac keeps 16 bits. Its "Exporteer meting" and "Deel op GitHub" were added here on the owner's request (`942aead`), with the Mac's own form in `.github/ISSUE_TEMPLATE/meting.yml`.
@@ -44,6 +44,7 @@ Commit on `main` and push: the other machine only sees `main`.
 - `.github/workflows/check-models.yml` could not be pushed (the token has no `workflow` scope).
 - `8fd8ddf`: UAC, the restore point and the registry export are Windows-only; the Mac has the password dialog of macOS and a local Time Machine snapshot. Its skills and help were taken over before (from here).
 - `246584d`: Mac and Windows in one cluster is not tried with real machines (both pin `ddf48f8`).
+- `6d69382`, `c769d2d` (0.2.12) take over the Mac's 1.10 and 1.11 and need nothing here. Not run on Windows: a notification and its click, the tray menu by hand, Start with Windows, a task starting on its own, connectors and the heartbeat with a real model.
 
 ## Windows work from the branch `agent-features`
 
