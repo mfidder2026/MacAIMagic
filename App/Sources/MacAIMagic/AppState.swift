@@ -40,6 +40,7 @@ final class AppState: ObservableObject {
 
     init() {
         chat.metrics = metrics
+        chat.taskStore = tasks
         LocalModel.metrics = metrics
         engine.onStateChange = { [weak metrics] state in
             switch state {

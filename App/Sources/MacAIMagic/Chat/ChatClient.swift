@@ -10,6 +10,8 @@ final class ChatClient: ObservableObject {
     var busy: Bool { !running.isEmpty }
     func isBusy(_ id: Conversation.ID) -> Bool { running.contains(id) }
     let gate = ModelGate()
+    /// Where schedule_task puts what the model plans (the app's tasks).
+    weak var taskStore: TaskStore?
     /// The conversation a run works for, carried through every await of that run.
     @TaskLocal static var runConversation: Conversation.ID?
     /// Called when a conversation's run ends (the scheduler hears of its tasks this way).
@@ -236,11 +238,13 @@ final class ChatClient: ObservableObject {
                 let isSystem = SystemTools.names.contains(call.name)
                 let isSkill = call.name == Skills.toolName
                 let isSteps = call.name == WorkSteps.toolName
+                let isSchedule = call.name == TaskTool.toolName
                 let isLoadConnector = call.name == MCPManager.loadTool
                 let connectorTool = MCPManager.shared.route(call.name)
                 let label = isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
                     : isSkill ? Skills.label(for: call)
                     : isSteps ? WorkSteps.label(WorkSteps.parse(WorkspaceTools.args(call)))
+                    : isSchedule ? L("Taak plannen: \(WorkspaceTools.args(call)["title"] as? String ?? "")")
                     : isLoadConnector ? L("Connector laden: \(WorkspaceTools.args(call)["name"] as? String ?? "")")
                     : connectorTool != nil ? MCPManager.shared.label(for: call) : WebTools.label(for: call)
                 activities.append(ToolActivity(label: label, done: false))
@@ -261,6 +265,10 @@ final class ChatClient: ObservableObject {
                     }
                 } else if isSystem {
                     let out = await runSystem(call, in: id, store: store)
+                    text = out.text
+                    if out.denied { activities[activities.count - 1].denied = true }
+                } else if isSchedule {
+                    let out = await scheduleTask(call, in: id)
                     text = out.text
                     if out.denied { activities[activities.count - 1].denied = true }
                 } else if isSteps {
@@ -416,6 +424,22 @@ final class ChatClient: ObservableObject {
         default: break
         }
         return (await MCPManager.shared.call(server: route.server, tool: route.tool, arguments: args), false)
+    }
+
+    /// schedule_task: always with the card first; the task gets this conversation's folder.
+    private func scheduleTask(_ call: ToolCall, in id: Conversation.ID) async -> (text: String, denied: Bool) {
+        guard let taskStore else { return ("Tasks are not available here.", true) }
+        var task: ScheduledTask
+        do { task = try TaskTool.parse(WorkspaceTools.args(call)) } catch {
+            return ("Error: \(error.localizedDescription). Call schedule_task again with that fixed.", false)
+        }
+        if let ws = WorkspaceTools.workspace, Settings.shared.workspaceTools { task.workspace = ws.path }
+        let approval = Approval(conversation: id, call: call, title: L("Taak plannen: \(task.title)"),
+                                detail: task.schedule.description + "\n\n" + task.prompt)
+        guard await ask(approval) else { return ("The user did not want this task. Ask what they want instead.", true) }
+        taskStore.upsert(task)
+        let next = taskStore.task(task.id)?.nextRun.map { $0.formatted(date: .complete, time: .shortened) } ?? "-"
+        return ("Planned \"\(task.title)\" (\(task.schedule.description)); the first run is \(next). The user finds it under Taken in the sidebar.", false)
     }
 
     /// The current task (since the user's last question) read the web: a page could have put the plan in the model's mind.
@@ -622,6 +646,7 @@ final class ChatClient: ObservableObject {
         if s.skills && !Skills.all.isEmpty { tools.append(Skills.definition) }
         if s.systemManagement { tools += SystemTools.definitions }
         if offersSteps { tools.append(WorkSteps.definition) }
+        if taskStore != nil { tools.append(TaskTool.definition) }
         // connectors: only when one is switched on, and then the tools of those this conversation loaded
         let mcp = MCPManager.shared
         if !mcp.enabled.isEmpty {

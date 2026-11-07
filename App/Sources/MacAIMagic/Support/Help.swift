@@ -88,6 +88,7 @@ final class HelpCenter: ObservableObject {
         case .compare?: "compare"
         case .cluster?: "cluster"
         case .system?: "system"
+        case .tasks?: "tasks"
         case .help?: "start"
         case .chat?: "chat"
         }

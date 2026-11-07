@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum Pane: Hashable { case live, models, documents, images, compare, cluster, system, help, chat(Conversation.ID) }
+enum Pane: Hashable { case live, models, documents, images, compare, cluster, system, tasks, help, chat(Conversation.ID) }
 
 struct RootView: View {
     @EnvironmentObject var app: AppState
@@ -25,6 +25,7 @@ struct RootView: View {
                     case .compare?: CompareView()
                     case .cluster?: ClusterView()
                     case .system?: SystemView { pane = $0 }
+                    case .tasks?: TasksView { pane = $0 }
                     case .help?: HelpView()
                     case .chat(let id)?: ChatView(conversationID: id).id(id)
                     }
@@ -114,6 +115,7 @@ struct Sidebar: View {
                 Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
                 Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
                 Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)
+                Label(L("Taken"), systemImage: "clock.badge.checkmark").tag(Pane.tasks)
                 Label(L("Hulp"), systemImage: "questionmark.circle").tag(Pane.help)
             }
             Section(L("Gesprekken")) {

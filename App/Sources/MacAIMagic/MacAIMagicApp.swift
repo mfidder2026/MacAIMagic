@@ -23,6 +23,7 @@ struct MacAIMagicApp: App {
                 .environmentObject(app.check)
                 .environmentObject(app.documents)
                 .environmentObject(app.images)
+                .environmentObject(app.tasks)
                 .environmentObject(Settings.shared)
                 .frame(minWidth: 1000, minHeight: 680)
                 .tint(Theme.accent)

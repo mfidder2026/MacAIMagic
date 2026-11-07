@@ -120,3 +120,26 @@ final class TaskStoreTests: XCTestCase {
         XCTAssertEqual(s.takeDue(), [])
     }
 }
+
+final class TaskToolTests: XCTestCase {
+    func testWhatTheModelAsks() throws {
+        let t = try TaskTool.parse(["title": "Agenda", "prompt": "Wat staat er vandaag in mijn agenda?", "when": "weekdays", "time": "08:00"])
+        XCTAssertEqual(t.schedule, .daily(hour: 8, minute: 0, weekdaysOnly: true))
+        XCTAssertEqual(try TaskTool.parse(["title": "a", "prompt": "b", "when": "weekly", "weekday": "Vrijdag", "time": "17:30"]).schedule,
+                       .weekly(weekday: 6, hour: 17, minute: 30))
+        XCTAssertEqual(try TaskTool.parse(["title": "a", "prompt": "b", "when": "every", "hours": "2", "from": 8, "to": 22]).schedule,
+                       .every(hours: 2, from: 8, to: 22))
+        let now = Date()
+        let once = try TaskTool.parse(["title": "a", "prompt": "b", "when": "once", "at": "2099-01-01T09:00"], now: now)
+        if case .once = once.schedule {} else { XCTFail("once") }
+    }
+
+    func testWhatIsWrongIsSaid() {
+        XCTAssertThrowsError(try TaskTool.parse(["title": "a", "prompt": "b", "when": "daily", "time": "25:00"]))
+        XCTAssertThrowsError(try TaskTool.parse(["title": "a", "prompt": "b", "when": "once", "at": "2001-01-01T09:00"]), "the past")
+        XCTAssertThrowsError(try TaskTool.parse(["title": "", "prompt": "b", "when": "daily", "time": "08:00"]))
+        XCTAssertThrowsError(try TaskTool.parse(["title": "a", "prompt": "b", "when": "soms"]))
+        XCTAssertNil(TaskTool.weekday("someday"))
+        XCTAssertEqual(TaskTool.weekday(1), 1)
+    }
+}
