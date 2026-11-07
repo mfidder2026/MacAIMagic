@@ -152,8 +152,9 @@ final class GapTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        WorkspaceTools.current = folder.path
-        defer { WorkspaceTools.current = nil }
+        let saved = Settings.shared.workspace
+        Settings.shared.workspace = folder.path
+        defer { Settings.shared.workspace = saved }
         let start = Date()
         let out = try await WorkspaceTools.runCommand("sleep 5 & echo hallo", timeout: 30)
         XCTAssertLessThan(Date().timeIntervalSince(start), 3)
@@ -165,8 +166,9 @@ final class GapTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        WorkspaceTools.current = folder.path
-        defer { WorkspaceTools.current = nil }
+        let saved = Settings.shared.workspace
+        Settings.shared.workspace = folder.path
+        defer { Settings.shared.workspace = saved }
         let start = Date()
         let out = try await WorkspaceTools.runCommand("sleep 30; echo te laat", timeout: 1)
         XCTAssertLessThan(Date().timeIntervalSince(start), 4)
@@ -177,8 +179,9 @@ final class GapTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        WorkspaceTools.current = folder.path
-        defer { WorkspaceTools.current = nil }
+        let saved = Settings.shared.workspace
+        Settings.shared.workspace = folder.path
+        defer { Settings.shared.workspace = saved }
         let start = Date()
         let task = Task { @MainActor in try await WorkspaceTools.runCommand("sleep 30", timeout: 60) }
         try await Task.sleep(for: .milliseconds(300))

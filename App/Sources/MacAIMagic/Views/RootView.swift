@@ -68,6 +68,7 @@ struct RootView: View {
 }
 
 struct Sidebar: View {
+    @EnvironmentObject var chat: ChatClient
     @EnvironmentObject var app: AppState
     @EnvironmentObject var store: ConversationStore
     @EnvironmentObject var metrics: LiveMetrics
@@ -111,13 +112,23 @@ struct Sidebar: View {
             }
             Section(L("Gesprekken")) {
                 ForEach(store.conversations) { c in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(c.displayTitle).lineLimit(1)
-                        Text(c.updated, style: .relative).font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(c.displayTitle).lineLimit(1)
+                            Text(c.updated, style: .relative).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        // at work, or waiting for the user's approval
+                        if chat.approvals[c.id] != nil {
+                            Circle().fill(Theme.amber).frame(width: 7, height: 7).help(L("Wacht op jouw goedkeuring"))
+                        } else if chat.isBusy(c.id) {
+                            ProgressView().controlSize(.mini).help(L("Bezig"))
+                        }
                     }
                     .tag(Pane.chat(c.id))
                     .contextMenu {
-                        Button(L("Verwijderen"), role: .destructive) { store.delete(c.id) }
+                        if chat.isBusy(c.id) { Button(L("Stoppen")) { chat.stop(c.id) } }
+                        Button(L("Verwijderen"), role: .destructive) { store.delete(c.id) }.disabled(chat.isBusy(c.id))
                     }
                 }
             }

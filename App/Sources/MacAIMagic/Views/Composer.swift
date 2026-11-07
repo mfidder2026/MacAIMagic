@@ -17,7 +17,7 @@ struct Composer: View {
     @FocusState private var focused: Bool
 
     private var canSend: Bool {
-        engine.state.isRunning && !chat.busy && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
+        engine.state.isRunning && !chat.isBusy(conversationID) && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
     var body: some View {
@@ -67,8 +67,8 @@ struct Composer: View {
                 WorkspaceButton(conversationID: conversationID)
                 RightsButton()
                 Spacer()
-                if chat.busy {
-                    Button { chat.stop() } label: { Image(systemName: "stop.circle.fill").font(.title2) }
+                if chat.isBusy(conversationID) {
+                    Button { chat.stop(conversationID) } label: { Image(systemName: "stop.circle.fill").font(.title2) }
                         .buttonStyle(.plain).help(L("Stop"))
                 } else {
                     Button(action: send) { Image(systemName: "arrow.up.circle.fill").font(.title2) }
@@ -82,7 +82,7 @@ struct Composer: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             // a turning gradient edge while the model writes; a calm one otherwise (no endless animation when idle)
-            if chat.busy {
+            if chat.isBusy(conversationID) {
                 TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
                     RoundedRectangle(cornerRadius: 18)
                         .stroke(AngularGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan], center: .center,

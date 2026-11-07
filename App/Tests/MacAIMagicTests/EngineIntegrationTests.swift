@@ -279,7 +279,7 @@ final class LongTaskIntegrationTests: XCTestCase {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
         print("LONG TASK: \(Int(Date().timeIntervalSince(t0))) s, \(after.messages.count) messages, nudges \(nudges), summary \(after.summary != nil), error \(after.messages.last?.error ?? "none"), files \(files.sorted())")
         print("LONG TASK last: \(after.messages.last?.text.prefix(300) ?? "")")
-        chat.stop()
+        chat.stopAll()
         XCTAssertNotNil(after.summary, "the small context must have been summarized")
         XCTAssertTrue(files.contains("klaar.txt"), "the task ran to its end")
         XCTAssertNil(after.messages.last?.error)
@@ -500,7 +500,7 @@ final class SystemIntegrationTests: XCTestCase {
         chat.send(text: text, attachments: [], in: id, store: store, baseURL: URL(string: "http://127.0.0.1:8080")!)
         let start = Date()
         while chat.busy && Date().timeIntervalSince(start) < 900 {
-            if let a = chat.pendingApproval { cards.append(a); chat.answer(a, allow: true) }
+            if let a = chat.approvals.values.first { cards.append(a); chat.answer(a, allow: true) }
             try await Task.sleep(for: .milliseconds(200))
         }
         for m in store.conversations[0].messages.suffix(14) {
@@ -612,7 +612,7 @@ final class ConnectorIntegrationTests: XCTestCase {
         var cards: [ChatClient.Approval] = []
         let start = Date()
         while chat.busy && Date().timeIntervalSince(start) < 600 {
-            if let a = chat.pendingApproval { cards.append(a); chat.answer(a, allow: true) }
+            if let a = chat.approvals.values.first { cards.append(a); chat.answer(a, allow: true) }
             try await Task.sleep(for: .milliseconds(200))
         }
         let c = store.conversations[0]
@@ -633,7 +633,7 @@ final class ConnectorIntegrationTests: XCTestCase {
                   baseURL: URL(string: "http://127.0.0.1:8080")!)
         let again = Date()
         while chat.busy && Date().timeIntervalSince(again) < 600 {
-            if let a = chat.pendingApproval { cards.append(a); chat.answer(a, allow: true) }
+            if let a = chat.approvals.values.first { cards.append(a); chat.answer(a, allow: true) }
             try await Task.sleep(for: .milliseconds(200))
         }
         print("CARDS:", cards.map { "\($0.title) \($0.detail.prefix(120))" })

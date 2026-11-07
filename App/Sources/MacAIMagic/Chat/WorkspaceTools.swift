@@ -72,7 +72,8 @@ enum WorkspaceTools {
     }
 
     /// The conversation's own folder while the chat client runs its tools; falls back to the last chosen folder.
-    @MainActor static var current: String?
+    /// A task-local value: each conversation's run carries its own, so two runs at once never use each other's folder.
+    @TaskLocal static var current: String?
 
     @MainActor static var workspace: URL? {
         let p = current ?? Settings.shared.workspace

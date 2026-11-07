@@ -14,7 +14,6 @@ final class WorkspaceToolsTests: XCTestCase {
     }
 
     override func tearDown() async throws {
-        WorkspaceTools.current = nil
         Settings.shared.workspace = saved
         try? FileManager.default.removeItem(at: dir)
     }
@@ -77,15 +76,12 @@ final class WorkspaceToolsTests: XCTestCase {
         let other = FileManager.default.temporaryDirectory.appendingPathComponent("mds-ws2-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: other) }
-        WorkspaceTools.current = dir.path
-        _ = await call("write_file", ["path": "a.txt", "content": "chat A"])
-        WorkspaceTools.current = other.path
-        let list = await call("list_dir", ["path": "."])
+        _ = await WorkspaceTools.$current.withValue(dir.path) { await call("write_file", ["path": "a.txt", "content": "chat A"]) }
+        let list = await WorkspaceTools.$current.withValue(other.path) { await call("list_dir", ["path": "."]) }
         XCTAssertFalse(list.contains("a.txt"), list)
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("a.txt").path))
         // a chat without a folder has no file tools
-        WorkspaceTools.current = ""
-        let none = await call("list_dir", ["path": "."])
+        let none = await WorkspaceTools.$current.withValue("") { await call("list_dir", ["path": "."]) }
         XCTAssertTrue(none.contains("No workspace"), none)
     }
 }

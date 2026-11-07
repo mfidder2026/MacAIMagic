@@ -4,7 +4,18 @@ import Foundation
 /// (web search, page reading) until the model answers without calling a tool.
 @MainActor
 final class ChatClient: ObservableObject {
-    @Published private(set) var busy = false
+    /// The conversations with a run going: each works on its own, and they take turns for the model (`gate`).
+    @Published private(set) var running: Set<Conversation.ID> = []
+    /// Any conversation at work.
+    var busy: Bool { !running.isEmpty }
+    func isBusy(_ id: Conversation.ID) -> Bool { running.contains(id) }
+    let gate = ModelGate()
+    /// The conversation a run works for, carried through every await of that run.
+    @TaskLocal static var runConversation: Conversation.ID?
+    /// Called when a conversation's run ends (the scheduler hears of its tasks this way).
+    var onFinished: ((Conversation.ID) -> Void)?
+    /// Called when a run waits for the user's approval (a task in the background gives a notification).
+    var onApproval: ((Approval) -> Void)?
     /// Summarizing the start of a conversation to free context.
     @Published private(set) var compacting = false
     /// Writing down what this task taught the model, for MACAIMAGIC.md.
@@ -12,7 +23,6 @@ final class ChatClient: ObservableObject {
     /// The notes as they were before this conversation's lessons went in: the model knows those already, and a changed
     /// system prompt would make the engine read the whole conversation again. An edit by the user counts at once.
     private var frozenNotes: (conversation: Conversation.ID, modified: Date?, text: String?)?
-    private var currentConversation: Conversation.ID?
     /// The engine's context in tokens (set when it starts).
     var contextLimit = 65_536
     /// At this share of the context the conversation is summarized before the next request.
@@ -21,11 +31,16 @@ final class ChatClient: ObservableObject {
     weak var metrics: LiveMetrics?
     /// The model the engine runs, for the system prompt.
     var modelName = "DeepSeek-V4.1-Flash"
-    private var task: Task<Void, Never>?
+    private var tasks: [Conversation.ID: Task<Void, Never>] = [:]
     /// Web questions need a few rounds; work in a folder (read, write, run, read the log, fix) needs many more.
     private var maxToolRounds: Int { workspaceActive || Settings.shared.systemManagement || !loadedConnectors.isEmpty ? 200 : 20 }
     /// The connectors of the conversation that runs, for its requests.
-    private var loadedConnectors: [String] = []
+    /// The connectors each running conversation loaded.
+    private var loaded: [Conversation.ID: [String]] = [:]
+    private var loadedConnectors: [String] {
+        get { Self.runConversation.flatMap { loaded[$0] } ?? [] }
+        set { if let id = Self.runConversation { loaded[id] = newValue } }
+    }
     private var workspaceActive: Bool { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil }
     /// How many times in a row the model is told to go on without it doing anything in between.
     private static let maxNudges = 3
@@ -55,16 +70,16 @@ final class ChatClient: ObservableObject {
     }
     /// The card's "make a local snapshot first" (admin plans).
     @Published var snapshot = true
-    @Published private(set) var pendingApproval: Approval?
-    private var approvalContinuation: CheckedContinuation<Bool, Never>?
+    /// The approval each conversation waits for.
+    @Published private(set) var approvals: [Conversation.ID: Approval] = [:]
+    private var continuations: [UUID: CheckedContinuation<Bool, Never>] = [:]
     /// Conversations where the user chose "always allow".
     private var trusted: Set<Conversation.ID> = []
 
     func answer(_ approval: Approval, allow: Bool, always: Bool = false) {
         if always { trusted.insert(approval.conversation) }
-        pendingApproval = nil
-        approvalContinuation?.resume(returning: allow)
-        approvalContinuation = nil
+        if approvals[approval.conversation]?.id == approval.id { approvals[approval.conversation] = nil }
+        continuations.removeValue(forKey: approval.id)?.resume(returning: allow)
     }
 
     private func askApproval(_ call: ToolCall, in conversation: Conversation.ID) async -> Bool {
@@ -76,9 +91,11 @@ final class ChatClient: ObservableObject {
     private func ask(_ approval: Approval) async -> Bool {
         if trusted.contains(approval.conversation) && !approval.admin { return true }
         if approval.admin { snapshot = true }
+        if Task.isCancelled { return false }
         return await withCheckedContinuation { cont in
-            approvalContinuation = cont
-            pendingApproval = approval
+            continuations[approval.id] = cont
+            approvals[approval.conversation] = approval
+            onApproval?(approval)
         }
     }
 
@@ -88,13 +105,16 @@ final class ChatClient: ObservableObject {
         return text.split(separator: "\n").contains { $0.hasPrefix(result) || $0.hasPrefix(user) }
     }
 
-    func stop() {
-        task?.cancel()
-        if let a = pendingApproval { answer(a, allow: false) }
+    /// Stops this conversation's run; the others go on.
+    func stop(_ id: Conversation.ID) {
+        tasks[id]?.cancel()
+        if let a = approvals[id] { answer(a, allow: false) }
     }
 
+    func stopAll() { for id in Array(running) { stop(id) } }
+
     func send(text: String, attachments: [Attachment], in conversation: Conversation.ID, store: ConversationStore, baseURL: URL) {
-        guard !busy else { return }
+        guard !running.contains(conversation) else { return }
         store.update(conversation) { c in
             c.messages.append(ChatMessage(role: .user, text: text, attachments: attachments))
             if c.title == "Nieuw gesprek" {
@@ -102,19 +122,25 @@ final class ChatClient: ObservableObject {
                 c.title = String(t.prefix(48)).replacingOccurrences(of: "\n", with: " ")
             }
         }
-        busy = true
-        task = Task {
-            await run(conversation, store: store, baseURL: baseURL)
-            await learn(conversation, store: store, baseURL: baseURL)
-            busy = false
+        running.insert(conversation)
+        // this conversation's folder for the tools and the system prompt, for the whole run
+        let folder = store.conversations.first { $0.id == conversation }?.workspace ?? ""
+        tasks[conversation] = Task {
+            await WorkspaceTools.$current.withValue(folder) {
+                await Self.$runConversation.withValue(conversation) {
+                    await run(conversation, store: store, baseURL: baseURL)
+                    await learn(conversation, store: store, baseURL: baseURL)
+                }
+            }
+            running.remove(conversation)
+            tasks[conversation] = nil
+            loaded[conversation] = nil
             store.save()
+            onFinished?(conversation)
         }
     }
 
     private func run(_ id: Conversation.ID, store: ConversationStore, baseURL: URL) async {
-        // this conversation's folder for the tools and the system prompt
-        WorkspaceTools.current = store.conversations.first { $0.id == id }?.workspace ?? ""
-        currentConversation = id
         loadedConnectors = store.conversations.first { $0.id == id }?.connectors ?? []
         // connectors loaded before (or always loaded) run again, so their tools are in the request
         await MCPManager.shared.ensureRunning(loadedConnectors)
@@ -425,7 +451,10 @@ final class ChatClient: ObservableObject {
         if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 900
-        guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+        guard await gate.acquire(id) else { return }
+        let reply = try? await URLSession.shared.data(for: req)
+        gate.release()
+        guard let (data, resp) = reply, (resp as? HTTPURLResponse)?.statusCode == 200,
               !Task.isCancelled,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let message = (json["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any],
@@ -441,7 +470,7 @@ final class ChatClient: ObservableObject {
     }
 
     private func notesForPrompt(_ ws: URL) -> String? {
-        if let f = frozenNotes, f.conversation == currentConversation, f.modified == WorkspaceNotes.modified(in: ws) { return f.text }
+        if let f = frozenNotes, f.conversation == Self.runConversation, f.modified == WorkspaceNotes.modified(in: ws) { return f.text }
         return WorkspaceNotes.forPrompt(in: ws)
     }
 
@@ -550,7 +579,10 @@ final class ChatClient: ObservableObject {
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 1800
         func complete() async -> String? {
-            guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+            guard await gate.acquire(id) else { return nil }
+            let reply = try? await URLSession.shared.data(for: req)
+            gate.release()
+            guard let (data, resp) = reply, (resp as? HTTPURLResponse)?.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let message = (json["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any] else { return nil }
             return message["content"] as? String
@@ -696,6 +728,10 @@ final class ChatClient: ObservableObject {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         req.timeoutInterval = 3600
 
+        // the model writes for one conversation at a time; the others wait here (and a stop while waiting is a stop)
+        let owner = Self.runConversation ?? UUID()
+        guard await gate.acquire(owner) else { throw CancellationError() }
+        defer { gate.release() }
         let (bytes, resp) = try await URLSession.shared.bytes(for: req)
         if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
             var msg = ""

@@ -739,5 +739,9 @@
  "Geef de connector een naam.": "Give the connector a name.",
  "Er is al een connector met deze naam.": "There is already a connector with this name.",
  "Vul het commando in.": "Fill in the command.",
- "Vul een adres in dat begint met https://.": "Fill in an address that starts with https://."
+ "Vul een adres in dat begint met https://.": "Fill in an address that starts with https://.",
+ "Wacht op jouw goedkeuring": "Waiting for your approval",
+ "Bezig": "Working",
+ "Stoppen": "Stop",
+ "Wacht op het model: het schrijft nu in '%@'. Daarna is dit gesprek aan de beurt.": "Waiting for the model: it is writing in '%@' now. This conversation is next."
 }

@@ -739,5 +739,9 @@
  "Geef de connector een naam.": "Donnez un nom au connecteur.",
  "Er is al een connector met deze naam.": "Un connecteur porte déjà ce nom.",
  "Vul het commando in.": "Saisissez la commande.",
- "Vul een adres in dat begint met https://.": "Saisissez une adresse qui commence par https://."
+ "Vul een adres in dat begint met https://.": "Saisissez une adresse qui commence par https://.",
+ "Wacht op jouw goedkeuring": "Attend votre accord",
+ "Bezig": "En cours",
+ "Stoppen": "Arrêter",
+ "Wacht op het model: het schrijft nu in '%@'. Daarna is dit gesprek aan de beurt.": "En attente du modèle : il écrit dans « %@ ». Cette conversation passe ensuite."
 }

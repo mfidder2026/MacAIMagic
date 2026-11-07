@@ -22,7 +22,7 @@ struct ChatView: View {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 20) {
                             ForEach(c.messages.filter { !$0.isHidden }) { m in
-                                MessageRow(message: m, streaming: chat.busy && m.id == c.messages.last?.id)
+                                MessageRow(message: m, streaming: chat.isBusy(conversationID) && m.id == c.messages.last?.id)
                                     .id(m.id)
                                     .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
                                 if m.id == lastShownSummarized(c), let summary = c.summary { SummaryDivider(summary: summary) }
@@ -47,7 +47,8 @@ struct ChatView: View {
             }
             if !engine.state.isRunning { EngineBanner(fast: app.documentEngines.fast) }
             if engine.state.isRunning && metrics.engineBusy && !chat.busy { OtherRequestBanner() }
-            if let a = chat.pendingApproval, a.conversation == conversationID { ApprovalCard(approval: a) }
+            GateBanner(gate: chat.gate, conversationID: conversationID)
+            if let a = chat.approvals[conversationID] { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
         }
         .navigationTitle(conversation?.displayTitle ?? "MacAIMagic")
@@ -69,6 +70,24 @@ private struct OtherRequestBanner: View {
             .padding(.horizontal, 20).padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Theme.amber.opacity(0.08))
+    }
+}
+
+/// This conversation waits while the model writes for another one of ours (a task, another chat).
+private struct GateBanner: View {
+    @ObservedObject var gate: ModelGate
+    @EnvironmentObject var store: ConversationStore
+    let conversationID: Conversation.ID
+
+    var body: some View {
+        if gate.waiting.contains(conversationID), let other = gate.holder, other != conversationID {
+            let title = store.conversations.first { $0.id == other }?.displayTitle ?? ""
+            Label(L("Wacht op het model: het schrijft nu in '\(title)'. Daarna is dit gesprek aan de beurt."), systemImage: "hourglass")
+                .font(.callout).foregroundStyle(Theme.amber)
+                .padding(.horizontal, 20).padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.amber.opacity(0.08))
+        }
     }
 }
 
@@ -134,7 +153,7 @@ private struct ContextMeter: View {
                     guard let id = store.selection else { return }
                     Task { await chat.compact(id, store: store, baseURL: engine.baseURL) }
                 }
-                .disabled(chat.busy || chat.compacting || !engine.state.isRunning)
+                .disabled(store.selection.map(chat.isBusy) ?? true || chat.compacting || !engine.state.isRunning)
             }
             .padding(14).frame(width: 300)
         }
