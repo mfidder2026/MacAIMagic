@@ -3,8 +3,9 @@ import SwiftUI
 /// Instellingen → Connectors: the MCP servers the model may use, each with its own right.
 struct ConnectorsView: View {
     @ObservedObject var mcp = MCPManager.shared
-    @State private var editing: MCPServerConfig?
-    @State private var isNew = false
+    /// The connector in the editor; `isNew` goes with it, so the sheet never sees an old value.
+    private struct Editing: Identifiable { let config: MCPServerConfig; let isNew: Bool; let id = UUID() }
+    @State private var editing: Editing?
     @State private var showLog: String?
     @State private var notice: String?
 
@@ -24,7 +25,7 @@ struct ConnectorsView: View {
                         }
                     }
                     .fixedSize()
-                    Button(L("Toevoegen…")) { isNew = true; editing = MCPServerConfig(name: "", command: "", right: "ask") }
+                    Button(L("Toevoegen…")) { editing = Editing(config: MCPServerConfig(name: "", command: "", right: "ask"), isNew: true) }
                     Button(L("Importeer")) { importOthers() }
                         .help(L("Neemt connectors over uit Claude Desktop en Claude Code; ze komen uitgeschakeld binnen."))
                 }
@@ -38,8 +39,8 @@ struct ConnectorsView: View {
             }
         }
         .formStyle(.grouped)
-        .sheet(item: $editing) { c in
-            ConnectorEditor(original: isNew ? nil : c.name, config: c) { editing = nil; isNew = false }
+        .sheet(item: $editing) { e in
+            ConnectorEditor(original: e.isNew ? nil : e.config.name, config: e.config) { editing = nil }
         }
         .sheet(item: Binding(get: { showLog.map { LogItem(name: $0) } }, set: { showLog = $0?.name })) { item in
             VStack(alignment: .leading) {
@@ -74,7 +75,7 @@ struct ConnectorsView: View {
             .labelsHidden().fixedSize()
             Menu {
                 Button(L("Test verbinding")) { Task { await test(s) } }
-                Button(L("Bewerken…")) { isNew = false; editing = s }
+                if s.builtin == nil { Button(L("Bewerken…")) { editing = Editing(config: s, isNew: false) } }
                 Button(L("Log")) { showLog = s.name }
                 if s.isRemote, s.oauth != false, let u = s.url.flatMap(URL.init(string:)) {
                     Button(L("Uitloggen")) { Task { await MCPOAuth.shared.logOut(u); mcp.stop(s.name) } }
@@ -119,8 +120,7 @@ struct ConnectorsView: View {
             return
         }
         if p.askToken {
-            isNew = true
-            editing = p.config
+            editing = Editing(config: p.config, isNew: true)
         } else {
             mcp.upsert(p.config)
             notice = L("\(p.name) is toegevoegd en staat aan.")
@@ -170,8 +170,9 @@ struct ConnectorEditor: View {
                 }
                 if kind == 0 && config.builtin == nil {
                     TextField(L("Commando, bijvoorbeeld npx"), text: Binding(get: { config.command ?? "" }, set: { config.command = $0 }))
-                    TextField(L("Argumenten, één per regel"), text: $argsText, axis: .vertical).lineLimit(2...6).font(.callout.monospaced())
-                    TextField(L("Omgeving, NAAM=waarde per regel"), text: $envText, axis: .vertical).lineLimit(1...4).font(.callout.monospaced())
+                    // a text editor, not a text field: Return starts a new line instead of saving the sheet
+                    lines(L("Argumenten, één per regel"), $argsText, height: 64)
+                    lines(L("Omgeving, NAAM=waarde per regel"), $envText, height: 44)
                 } else if kind == 1 {
                     TextField(L("Adres (URL)"), text: Binding(get: { config.url ?? "" }, set: { config.url = $0 }))
                     Toggle(L("Inloggen in de browser als de dienst daarom vraagt (OAuth)"), isOn: Binding(get: { config.oauth ?? true }, set: { config.oauth = $0 }))
@@ -189,11 +190,36 @@ struct ConnectorEditor: View {
                 Spacer()
                 Button(L("Annuleren"), role: .cancel) { done() }
                 Button(L("Bewaar")) { save() }.keyboardShortcut(.defaultAction)
-                    .disabled(config.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(problem != nil)
             }
+            if let problem { Text(problem).font(.caption).foregroundStyle(.secondary) }
         }
         .padding(16)
         .frame(width: 560, height: 520)
+    }
+
+    private func lines(_ title: String, _ text: Binding<String>, height: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+            TextEditor(text: text).font(.callout.monospaced()).frame(height: height)
+                .scrollContentBackground(.hidden).padding(4)
+                .background(RoundedRectangle(cornerRadius: 5).fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.secondary.opacity(0.3)))
+        }
+    }
+
+    /// Why it cannot be saved yet, or nil.
+    private var problem: String? {
+        let name = config.name.trimmingCharacters(in: .whitespaces)
+        if name.isEmpty { return L("Geef de connector een naam.") }
+        if name.lowercased() != original?.lowercased(), MCPManager.shared.config(name) != nil { return L("Er is al een connector met deze naam.") }
+        if config.builtin != nil { return nil }
+        if kind == 0, (config.command ?? "").trimmingCharacters(in: .whitespaces).isEmpty { return L("Vul het commando in.") }
+        if kind == 1 {
+            guard let u = URL(string: (config.url ?? "").trimmingCharacters(in: .whitespaces)), ["http", "https"].contains(u.scheme ?? ""), u.host != nil
+            else { return L("Vul een adres in dat begint met https://.") }
+        }
+        return nil
     }
 
     private func describe(_ r: Result<[MCPTool], Error>) -> String {

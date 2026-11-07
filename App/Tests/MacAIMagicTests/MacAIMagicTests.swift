@@ -469,6 +469,18 @@ final class UnfinishedTurnTests: XCTestCase {
         XCTAssertTrue(check("half antwoord", cutOff: true, working: false), "the context was full")
     }
 
+    /// The done-word is for the app; the user sees the answer without it (the first one is from the calendar connector).
+    func testDoneWordIsNotShown() {
+        XCTAssertEqual(ChatClient.withoutDoneWord("KLAAR — morgen (zondag 8 november 2026) staat er niets in je agenda."),
+                       "Morgen (zondag 8 november 2026) staat er niets in je agenda.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("KLAAR: het spel draait in VICE."), "Het spel draait in VICE.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("**KLAAR**\n\nHet staat in uit.txt."), "Het staat in uit.txt.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("DONE. The file is written."), "The file is written.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("Klaar! Het bestand is er."), "Klaar! Het bestand is er.", "ordinary language stays")
+        XCTAssertEqual(ChatClient.withoutDoneWord("KLAARZETTEN gaat zo."), "KLAARZETTEN gaat zo.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("KLAAR"), "KLAAR", "nothing after it: leave it")
+    }
+
     /// After steps only the model's own word ends a task; the remark below ended a real conversation on the Mac Studio.
     func testARemarkIsNoEnding() {
         XCTAssertTrue(ChatClient.looksUnfinished(text: "dtruss levert geen uitvoer, exit code 0. Dit werkt niet lekker.", reasoning: "", cutOff: false, working: true, tookSteps: true))
@@ -547,7 +559,7 @@ final class ChatFolderTests: XCTestCase {
     override func tearDown() async throws { Settings.shared.workspace = saved }
 
     func testEmptyChatWithoutFolderGetsTheLastFolder() {
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         store.newConversation()
         XCTAssertEqual(store.conversations.count, 1)
@@ -556,7 +568,7 @@ final class ChatFolderTests: XCTestCase {
     }
 
     func testNewChatAfterAChatGetsTheLastFolder() {
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var old = Conversation(title: "Oud")
         old.messages = [ChatMessage(role: .user, text: "hallo")]
         store.conversations = [old]
@@ -567,7 +579,7 @@ final class ChatFolderTests: XCTestCase {
     }
 
     func testChatKeepsItsOwnFolder() {
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var own = Conversation()
         own.workspace = "/tmp/eigen-map"
         store.conversations = [own]
@@ -577,7 +589,7 @@ final class ChatFolderTests: XCTestCase {
 
     func testNoFolderChosenYetLeavesTheChatWithout() {
         Settings.shared.workspace = ""
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         store.newConversation()
         XCTAssertNil(store.conversations[0].workspace)

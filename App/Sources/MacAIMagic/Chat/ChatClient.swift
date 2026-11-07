@@ -172,7 +172,13 @@ final class ChatClient: ObservableObject {
                 let m = store.conversations.first { $0.id == id }?.messages.last { $0.id == reply.id }
                 let cutOff = result.finishReason == "length"
                 guard Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
-                                           working: workspaceActive || !activities.isEmpty, tookSteps: changedFiles) else { return }
+                                           working: workspaceActive || !activities.isEmpty, tookSteps: changedFiles) else {
+                    // KLAAR is a word for the app, not for the user
+                    store.update(id) { c in
+                        if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].text = Self.withoutDoneWord(c.messages[i].text) }
+                    }
+                    return
+                }
                 guard nudges < Self.maxNudges else {
                     // it keeps stopping: say so, instead of just falling silent
                     store.update(id) { c in
@@ -469,6 +475,18 @@ final class ChatClient: ObservableObject {
                          " lass mich ", " lassen sie mich ", " ich werde ", " jetzt werde ", " ich versuche ",
                          " je vais ", " laisse-moi ", " laissez-moi ", " je vais maintenant"]
         return announces.contains { last.contains($0) }
+    }
+
+    /// The answer without the done-word the model was asked to start with: "KLAAR — morgen staat er niets" becomes
+    /// "Morgen staat er niets". Only the word in capitals counts: "Klaar! Het bestand is er" is ordinary language.
+    nonisolated static func withoutDoneWord(_ text: String) -> String {
+        let lead = text.prefix { $0.isWhitespace || $0 == "*" }
+        let rest = text.dropFirst(lead.count)
+        let word = rest.prefix { $0.isLetter }
+        guard ["KLAAR", "DONE", "FERTIG", "TERMINÉ", "TERMINE"].contains(String(word)) else { return text }
+        let after = rest.dropFirst(word.count).drop { $0.isWhitespace || "*.:!—–-,".contains($0) }
+        guard let first = after.first else { return text }
+        return String(first).uppercased() + after.dropFirst()
     }
 
     // MARK: - compacting

@@ -735,5 +735,9 @@
  "Wat je met deze connector deelt, gaat naar die dienst op internet.": "What you share with this connector goes to that service on the internet.",
  "Web ophalen": "Fetch web",
  "Werkt niet: %@": "Does not work: %@",
- "Werkt: %@ tools (%@).": "Works: %@ tools (%@)."
+ "Werkt: %@ tools (%@).": "Works: %@ tools (%@).",
+ "Geef de connector een naam.": "Give the connector a name.",
+ "Er is al een connector met deze naam.": "There is already a connector with this name.",
+ "Vul het commando in.": "Fill in the command.",
+ "Vul een adres in dat begint met https://.": "Fill in an address that starts with https://."
 }

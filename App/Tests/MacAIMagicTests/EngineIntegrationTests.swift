@@ -11,7 +11,7 @@ final class EngineIntegrationTests: XCTestCase {
         guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
         Settings.shared.webSearch = true
         Settings.shared.thinking = false
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         let id = store.conversations[0].id
         let chat = ChatClient()
@@ -64,7 +64,7 @@ final class WorkspaceIntegrationTests: XCTestCase {
         defer { (s.workspace, s.workspaceTools, s.autoApprove, s.webSearch, s.thinking) = saved }
         (s.workspace, s.workspaceTools, s.autoApprove, s.webSearch, s.thinking) = (dir.path, true, true, false, false)
 
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation(workspace: dir.path)]
         let id = store.conversations[0].id
         let chat = ChatClient()
@@ -215,7 +215,7 @@ final class ClusterIntegrationTests: XCTestCase {
 final class CompactIntegrationTests: XCTestCase {
     func testCompactKeepsWhatMatters() async throws {
         guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var c = Conversation(title: "Compact-test")
         let turns = [("Mijn kat heet Pluis en is drie jaar.", "Leuk, Pluis!"), ("Ik werk aan avontuur.bas in de map Werkmap.", "Goed, ik help mee."),
                      ("Het spel heeft vijf kamers.", "Duidelijk."), ("Wat is 2+2?", "4.")]
@@ -264,7 +264,7 @@ final class LongTaskIntegrationTests: XCTestCase {
         Settings.shared.workspaceTools = true
         (Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = ("allow", "allow", "allow")
 
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var c = Conversation(title: "Lange taak")
         c.workspace = folder.path
         store.conversations = [c]   // in memory only
@@ -302,7 +302,7 @@ final class LearningIntegrationTests: XCTestCase {
         Settings.shared.learnFromChats = true
         (Settings.shared.rightRead, Settings.shared.rightWrite, Settings.shared.rightRun) = ("allow", "allow", "allow")
 
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var first = Conversation(title: "Leren")
         first.workspace = folder.path
         var second = Conversation(title: "Volgende")
@@ -343,7 +343,7 @@ final class QuietStepsIntegrationTests: XCTestCase {
             let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-quiet-\(UUID().uuidString)")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: folder) }
-            let store = ConversationStore()
+            let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
             var c = Conversation(title: "Stille stappen")
             c.workspace = folder.path
             store.conversations = [c]   // in memory only
@@ -379,7 +379,7 @@ final class OutsideFolderIntegrationTests: XCTestCase {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("macaimagic-outside-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var c = Conversation(title: "Buiten de map")
         c.workspace = folder.path
         store.conversations = [c]   // in memory only
@@ -509,7 +509,7 @@ final class SystemIntegrationTests: XCTestCase {
     }
 
     func testDiagnosisOnlyReads() async throws {
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         let chat = ChatClient()
         chat.modelName = "Qwen3.8-Flash-Next"
@@ -535,7 +535,7 @@ final class SystemIntegrationTests: XCTestCase {
                 try? FileManager.default.removeItem(at: Paths.changes.appendingPathComponent(c.id))
             }
         }
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         let id = store.conversations[0].id
         let chat = ChatClient()
@@ -560,7 +560,7 @@ final class SystemIntegrationTests: XCTestCase {
     }
 
     func testSkillIsUsedForASubject() async throws {
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         let chat = ChatClient()
         chat.modelName = "Qwen3.8-Flash-Next"
@@ -602,7 +602,7 @@ final class ConnectorIntegrationTests: XCTestCase {
         files.enabled = true
         MCPManager.shared.upsert(files)
 
-        let store = ConversationStore()
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         store.conversations = [Conversation()]
         let id = store.conversations[0].id
         let chat = ChatClient()

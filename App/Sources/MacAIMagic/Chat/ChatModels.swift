@@ -86,15 +86,19 @@ final class ConversationStore: ObservableObject {
     /// The file could not be read: it is kept as .bad and this says so to the user.
     @Published private(set) var loadProblem: String?
 
-    init() {
-        if let data = try? Data(contentsOf: Paths.conversationsFile) {
+    /// Where the conversations are kept; the tests use a file of their own, so they never touch the user's.
+    let file: URL
+
+    init(file: URL = Paths.conversationsFile) {
+        self.file = file
+        if let data = try? Data(contentsOf: file) {
             if let list = try? JSONDecoder().decode([Conversation].self, from: data) {
                 conversations = list.sorted { $0.updated > $1.updated }
             } else {
                 // the next save would overwrite it: what can still be rescued stays
-                let bad = Paths.conversationsFile.appendingPathExtension("bad")
+                let bad = file.appendingPathExtension("bad")
                 try? FileManager.default.removeItem(at: bad)
-                try? FileManager.default.moveItem(at: Paths.conversationsFile, to: bad)
+                try? FileManager.default.moveItem(at: file, to: bad)
                 loadProblem = L("De gesprekken konden niet worden gelezen. Het bestand is bewaard als \(bad.lastPathComponent).")
             }
         }
@@ -138,6 +142,6 @@ final class ConversationStore: ObservableObject {
 
     func save() {
         guard let data = try? JSONEncoder().encode(conversations) else { return }
-        try? data.write(to: Paths.conversationsFile, options: .atomic)
+        try? data.write(to: file, options: .atomic)
     }
 }
