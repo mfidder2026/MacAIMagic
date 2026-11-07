@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `c769d2d`** (2026-11-07: version 0.2.12). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `eccb3d8`** (2026-11-07: version 1.11.0, made from here). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -36,7 +36,7 @@ Commit on `main` and push: the other machine only sees `main`.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
 
-**Still open after the take-over of `c769d2d`:**
+**Still open after the take-over of `eccb3d8`:**
 
 - `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
 - `3505bb6`: the 8-bit KV cache costs 9-17% of the writing speed here (docs/RESEARCH.md section 9), so the Mac keeps 16 bits. Its "Exporteer meting" and "Deel op GitHub" were added here on the owner's request (`942aead`), with the Mac's own form in `.github/ISSUE_TEMPLATE/meting.yml`.
