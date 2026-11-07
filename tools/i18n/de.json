@@ -1008,5 +1008,9 @@
  "Model laden, je vraag gaat daarna vanzelf": "Modell wird geladen, deine Frage geht danach von selbst",
  "Er werd niets verstaan.": "Es wurde nichts verstanden.",
  "Werkt de microfoon niet, zet dan Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren. Op macOS 26 en nieuwer gebruikt MacAIMagic de nieuwere spraakherkenning van Apple; macOS downloadt de taal de eerste keer.": "Funktioniert das Mikrofon nicht, schalte Diktieren ein unter Systemeinstellungen → Tastatur → Diktieren. Auf macOS 26 und neuer nutzt MacAIMagic die neuere Spracherkennung von Apple; macOS lädt die Sprache beim ersten Mal.",
- "%@ eerdere stappen": "%@ frühere Schritte"
+ "%@ eerdere stappen": "%@ frühere Schritte",
+ "Verwijder dit gesprek": "Dieses Gespräch löschen",
+ "Nieuw gesprek (⌘N)": "Neues Gespräch (⌘N)",
+ "Dit gesprek verwijderen?": "Dieses Gespräch löschen?",
+ "'%@' verdwijnt met alle berichten. Dit kun je niet ongedaan maken.": "'%@' verschwindet mit allen Nachrichten. Das lässt sich nicht rückgängig machen."
 }

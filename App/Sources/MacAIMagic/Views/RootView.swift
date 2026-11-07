@@ -85,6 +85,10 @@ struct Sidebar: View {
     @EnvironmentObject var store: ConversationStore
     @EnvironmentObject var metrics: LiveMetrics
     @Binding var pane: Pane?
+    /// The conversation the pointer is over: it shows its trash button.
+    @State private var hovered: Conversation.ID?
+    /// The conversation the user asked to delete, waiting for the yes.
+    @State private var deleting: Conversation?
 
     /// Room for the window's close, minimize and zoom buttons. The sidebar reaches the top of the window, and macOS does
     /// not always keep a list clear of them, so the name stands outside the list at a fixed place.
@@ -123,7 +127,7 @@ struct Sidebar: View {
                 Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)
                 Label(L("Hulp"), systemImage: "questionmark.circle").tag(Pane.help)
             }
-            Section(L("Gesprekken")) {
+            Section {
                 ForEach(store.conversations.filter { $0.hidden != true }) { c in
                     HStack(spacing: 6) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -136,15 +140,46 @@ struct Sidebar: View {
                             Circle().fill(Theme.amber).frame(width: 7, height: 7).help(L("Wacht op jouw goedkeuring"))
                         } else if chat.isBusy(c.id) {
                             ProgressView().controlSize(.mini).help(L("Bezig"))
+                        } else if hovered == c.id {
+                            Button { deleting = c } label: { Image(systemName: "trash").foregroundStyle(.secondary) }
+                                .buttonStyle(.plain).help(L("Verwijder dit gesprek"))
                         }
                     }
+                    .contentShape(Rectangle())
+                    .onHover { inside in hovered = inside ? c.id : (hovered == c.id ? nil : hovered) }
                     .tag(Pane.chat(c.id))
                     .contextMenu {
                         if chat.isBusy(c.id) { Button(L("Stoppen")) { chat.stop(c.id) } }
-                        Button(L("Verwijderen"), role: .destructive) { store.delete(c.id) }.disabled(chat.isBusy(c.id))
+                        Button(L("Verwijderen"), role: .destructive) { deleting = c }.disabled(chat.isBusy(c.id))
                     }
                 }
+            } header: {
+                HStack {
+                    Text(L("Gesprekken"))
+                    Spacer()
+                    Button {
+                        store.newConversation()
+                        if let id = store.selection { pane = .chat(id) }
+                    } label: { Image(systemName: "plus") }
+                        .buttonStyle(.plain).help(L("Nieuw gesprek (⌘N)"))
+                }
             }
+        }
+        // the Delete key on the conversation that is selected
+        .onDeleteCommand {
+            if case .chat(let id)? = pane, let c = store.conversations.first(where: { $0.id == id }), !chat.isBusy(id) { deleting = c }
+        }
+        .confirmationDialog(L("Dit gesprek verwijderen?"), isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                            presenting: deleting) { c in
+            Button(L("Verwijderen"), role: .destructive) {
+                let wasOpen = pane == .chat(c.id)
+                store.delete(c.id)
+                if wasOpen, let next = store.selection { pane = .chat(next) }
+                deleting = nil
+            }
+            Button(L("Annuleer"), role: .cancel) { deleting = nil }
+        } message: { c in
+            Text(L("'\(c.displayTitle)' verdwijnt met alle berichten. Dit kun je niet ongedaan maken."))
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {

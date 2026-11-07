@@ -6,6 +6,10 @@ keywords: gesprek vraag denken nadenken temperatuur systeemprompt context samenv
 ## Een vraag stellen
 Typ je vraag onderin en druk op **↩** of **⌘↩**. Met **⌥↩** begin je een nieuwe regel. Het antwoord verschijnt terwijl het model schrijft; **Stop** breekt het af.
 
+## Gesprekken beheren
+- **Nieuw gesprek**: de **+** naast Gesprekken in de zijbalk, het potlood rechtsboven, of ⌘N. Er is geen maximum; de lijst scrolt.
+- **Verwijderen**: beweeg over een gesprek en klik op de prullenbak, of selecteer het en druk op Delete (ook met een rechtermuisklik). De app vraagt eerst of je het zeker weet. Een gesprek dat bezig is, stop je eerst.
+
 ## Knoppen onder het invoerveld
 | Knop | Wat het doet |
 |---|---|

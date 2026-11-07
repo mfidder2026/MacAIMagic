@@ -1008,5 +1008,9 @@
  "Model laden, je vraag gaat daarna vanzelf": "Loading the model, your question goes by itself after that",
  "Er werd niets verstaan.": "Nothing was understood.",
  "Werkt de microfoon niet, zet dan Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren. Op macOS 26 en nieuwer gebruikt MacAIMagic de nieuwere spraakherkenning van Apple; macOS downloadt de taal de eerste keer.": "If the microphone does not work, switch on Dictation in System Settings → Keyboard → Dictation. On macOS 26 and later MacAIMagic uses Apple's newer speech recognition; macOS downloads the language the first time.",
- "%@ eerdere stappen": "%@ earlier steps"
+ "%@ eerdere stappen": "%@ earlier steps",
+ "Verwijder dit gesprek": "Delete this conversation",
+ "Nieuw gesprek (⌘N)": "New conversation (⌘N)",
+ "Dit gesprek verwijderen?": "Delete this conversation?",
+ "'%@' verdwijnt met alle berichten. Dit kun je niet ongedaan maken.": "'%@' goes with all its messages. This cannot be undone."
 }
