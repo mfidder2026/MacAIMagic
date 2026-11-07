@@ -622,6 +622,11 @@ final class ChatClient: ObservableObject {
     /// The answer without the done-word the model was asked to start with: "KLAAR — morgen staat er niets" becomes
     /// "Morgen staat er niets". Only the word in capitals counts: "Klaar! Het bestand is er" is ordinary language.
     nonisolated static func withoutDoneWord(_ text: String) -> String {
+        // also at the very end: "… verder zoek. KLAAR"
+        var text = text
+        if let r = text.range(of: #"[\s*]*\b(KLAAR|DONE|FERTIG|TERMINÉ|TERMINE)[\s*.!]*$"#, options: .regularExpression), r.lowerBound != text.startIndex {
+            text.removeSubrange(r)
+        }
         let lead = text.prefix { $0.isWhitespace || $0 == "*" }
         let rest = text.dropFirst(lead.count)
         let word = rest.prefix { $0.isLetter }

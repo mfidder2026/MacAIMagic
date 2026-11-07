@@ -318,7 +318,9 @@ private struct EngineBanner: View {
             switch engine.state {
             case .starting(let s):
                 ProgressView().controlSize(.small)
-                Text(L("\(s) Het eerste laden van 115 GB duurt enkele minuten."))
+                // only a large model takes minutes; a small one is there in seconds
+                let gb = Int((app.selectedModel?.files.reduce(UInt64(0)) { $0 + $1.size } ?? 0) / 1_000_000_000)
+                Text(gb >= 50 ? L("\(s) Het eerste laden van \(gb) GB duurt enkele minuten.") : s)
             case .failed(let e):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 Text(e).lineLimit(2)

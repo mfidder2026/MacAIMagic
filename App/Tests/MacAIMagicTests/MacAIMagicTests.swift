@@ -481,6 +481,9 @@ final class UnfinishedTurnTests: XCTestCase {
         XCTAssertEqual(ChatClient.withoutDoneWord("KLAAR — morgen (zondag 8 november 2026) staat er niets in je agenda."),
                        "Morgen (zondag 8 november 2026) staat er niets in je agenda.")
         XCTAssertEqual(ChatClient.withoutDoneWord("KLAAR: het spel draait in VICE."), "Het spel draait in VICE.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("Laat maar weten als je verder wilt zoeken. KLAAR"), "Laat maar weten als je verder wilt zoeken.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("Het is af.\n\n**KLAAR**"), "Het is af.")
+        XCTAssertEqual(ChatClient.withoutDoneWord("Ik ben klaar"), "Ik ben klaar")
         XCTAssertEqual(ChatClient.withoutDoneWord("**KLAAR**\n\nHet staat in uit.txt."), "Het staat in uit.txt.")
         XCTAssertEqual(ChatClient.withoutDoneWord("DONE. The file is written."), "The file is written.")
         XCTAssertEqual(ChatClient.withoutDoneWord("Klaar! Het bestand is er."), "Klaar! Het bestand is er.", "ordinary language stays")

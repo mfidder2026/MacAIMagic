@@ -999,5 +999,6 @@
  "Verwijder": "Retirer",
  "Vraag toegang": "Demander l'accès",
  "macOS moet MacAIMagic eerst toegang geven (Toegankelijkheid).": "macOS doit d'abord donner l'accès à MacAIMagic (Accessibilité).",
- "verbeterd": "améliorée"
+ "verbeterd": "améliorée",
+ "%@ Het eerste laden van %@ GB duurt enkele minuten.": "%@ Le premier chargement de %@ Go prend quelques minutes."
 }
