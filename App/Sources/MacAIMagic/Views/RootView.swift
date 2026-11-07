@@ -62,6 +62,7 @@ struct RootView: View {
             Settings.shared.systemCheckSeen = true
         }
         .onReceive(HelpCenter.shared.$openRequest.dropFirst()) { _ in pane = .help }
+        .onReceive(AppNavigator.shared.$pane.compactMap { $0 }) { p in pane = p; AppNavigator.shared.pane = nil }
         // a click on a notification: its conversation
         .onReceive(Notifier.shared.$openRequest.compactMap { $0 }) { id in
             guard store.conversations.contains(where: { $0.id == id }) else { return }

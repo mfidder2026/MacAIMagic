@@ -819,5 +819,20 @@
  "Laatste controle %@: niets te melden.": "Letzte Kontrolle %@: nichts zu melden.",
  "MacAIMagic heeft iets voor je": "MacAIMagic hat etwas für dich",
  "Nu controleren": "Jetzt prüfen",
- "Open checklist": "Checkliste öffnen"
+ "Open checklist": "Checkliste öffnen",
+ "Alleen als er taken of een heartbeat aan staan. Dan kunnen ze doorgaan met het venster dicht; MacAIMagic staat dan rechtsboven in de menubalk.": "Nur wenn Aufgaben oder ein Heartbeat eingeschaltet sind. Dann laufen sie bei geschlossenem Fenster weiter; MacAIMagic steht dann oben rechts in der Menüleiste.",
+ "Alles stoppen": "Alles stoppen",
+ "Bezig met een gesprek": "Arbeitet an einem Gespräch",
+ "Taken bezig: %@": "Laufende Aufgaben: %@",
+ "Dat lukte niet: %@": "Das hat nicht geklappt: %@",
+ "Het model stoppen als het venster dicht gaat": "Das Modell stoppen, wenn das Fenster geschlossen wird",
+ "In de menubalk blijven als het venster dicht is": "In der Menüleiste bleiben, wenn das Fenster geschlossen ist",
+ "Model geladen: %@": "Modell geladen: %@",
+ "Model niet geladen": "Modell nicht geladen",
+ "Op de achtergrond": "Im Hintergrund",
+ "Open MacAIMagic": "MacAIMagic öffnen",
+ "Start bij inloggen": "Beim Anmelden starten",
+ "Stop MacAIMagic": "MacAIMagic beenden",
+ "Volgende taak: %@, %@": "Nächste Aufgabe: %@, %@",
+ "macOS wil dit eerst laten goedkeuren: Systeeminstellingen → Algemeen → Inloggen.": "macOS möchte das zuerst genehmigen lassen: Systemeinstellungen → Allgemein → Anmeldeobjekte."
 }

@@ -1,10 +1,13 @@
 import SwiftUI
 import AppKit
+import ServiceManagement
 
 /// Instellingen → Taken: the heartbeat, and what the model does around tasks.
 struct TasksSettingsView: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var settings: Settings
+    @State private var atLogin = SMAppService.mainApp.status == .enabled
+    @State private var loginProblem: String?
 
     var body: some View {
         Form {
@@ -45,12 +48,34 @@ struct TasksSettingsView: View {
                     if let status = app.heartbeatStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
                 }
             }
+            Section(L("Op de achtergrond")) {
+                Toggle(L("In de menubalk blijven als het venster dicht is"), isOn: $settings.stayInMenuBar)
+                Text(L("Alleen als er taken of een heartbeat aan staan. Dan kunnen ze doorgaan met het venster dicht; MacAIMagic staat dan rechtsboven in de menubalk."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("Het model stoppen als het venster dicht gaat"), isOn: $settings.stopModelOnClose)
+                    .disabled(!settings.stayInMenuBar)
+                Toggle(L("Start bij inloggen"), isOn: Binding(get: { atLogin }, set: { on in setLogin(on) }))
+                if let loginProblem { Text(loginProblem).font(.caption).foregroundStyle(.orange) }
+                if SMAppService.mainApp.status == .requiresApproval {
+                    Text(L("macOS wil dit eerst laten goedkeuren: Systeeminstellingen → Algemeen → Inloggen.")).font(.caption).foregroundStyle(.orange)
+                }
+            }
             Section(L("Taken")) {
                 Toggle(L("Het model na een taak weer stoppen"), isOn: $settings.tasksStopModel)
                 Text(L("Als een taak het model laadde en jij het intussen niet gebruikte, stopt het weer als de taken klaar zijn, zodat het geheugen vrij is."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
+    }
+
+    private func setLogin(_ on: Bool) {
+        do {
+            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            loginProblem = nil
+        } catch {
+            loginProblem = L("Dat lukte niet: \(error.localizedDescription)")
+        }
+        atLogin = SMAppService.mainApp.status == .enabled
     }
 
     @ViewBuilder private var hours: some View {

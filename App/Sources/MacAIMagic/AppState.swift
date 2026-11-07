@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import AppKit
 import SwiftUI
 
@@ -25,6 +26,19 @@ final class AppState: ObservableObject {
     var taskActivity: NSObjectProtocol?
     /// What the last heartbeat found, for Instellingen → Taken.
     @Published var heartbeatStatus: String?
+    private var tasksChanged: AnyCancellable?
+
+    /// There is something that may run with the window closed.
+    var hasBackgroundWork: Bool { tasks.tasks.contains(where: \.enabled) || Settings.shared.heartbeat || !taskRuns.isEmpty }
+
+    /// The window closed and the app stays in the menu bar: no Dock icon, and the model stops unless something runs.
+    func windowClosed() {
+        NSApp.setActivationPolicy(.accessory)
+        if Settings.shared.stopModelOnClose && !chat.busy && taskRuns.isEmpty {
+            engine.stop()
+            documentEngines.fast.stop()
+        }
+    }
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
         didSet {
@@ -43,6 +57,8 @@ final class AppState: ObservableObject {
     init() {
         chat.metrics = metrics
         chat.taskStore = tasks
+        // the menu bar item depends on the tasks
+        tasksChanged = tasks.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         LocalModel.metrics = metrics
         engine.onStateChange = { [weak metrics] state in
             switch state {

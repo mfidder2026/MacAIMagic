@@ -7,7 +7,7 @@ struct MacAIMagicApp: App {
     @ObservedObject private var settings = Settings.shared
 
     var body: some Scene {
-        WindowGroup("MacAIMagic") {
+        WindowGroup("MacAIMagic", id: "main") {
             RootView()
                 // a new language redraws every view, and dates follow it
                 .id(settings.language)
@@ -31,6 +31,7 @@ struct MacAIMagicApp: App {
                 .onAppear {
                     delegate.app = app
                     app.startTasks()
+                    NSApp.setActivationPolicy(.regular)
                     if Settings.shared.autoStart && app.canStart { app.startEngine() }
                 }
         }
@@ -44,6 +45,19 @@ struct MacAIMagicApp: App {
                 Button(L("Problemen oplossen")) { HelpCenter.shared.open("troubleshooting") }
                 Button(L("Sneltoetsen")) { HelpCenter.shared.open("shortcuts") }
             }
+        }
+
+        // while tasks or a heartbeat can run with the window closed (Instellingen → Taken)
+        MenuBarExtra(isInserted: Binding(get: { settings.stayInMenuBar && app.hasBackgroundWork }, set: { _ in })) {
+            MenuBarView()
+                .environment(\.locale, Locale(identifier: settings.language))
+                .environmentObject(app)
+                .environmentObject(app.engine)
+                .environmentObject(app.chat)
+                .environmentObject(app.tasks)
+                .environmentObject(Settings.shared)
+        } label: {
+            Image(systemName: app.taskRuns.isEmpty ? "sparkles" : "sparkles.rectangle.stack")
         }
 
         SwiftUI.Settings {
@@ -75,5 +89,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// The window closed: the app stops, unless tasks or a heartbeat should go on; then it stays in the menu bar.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        MainActor.assumeIsolated {
+            guard let app, Settings.shared.stayInMenuBar, app.hasBackgroundWork else { return true }
+            app.windowClosed()
+            return false
+        }
+    }
+
+    /// A click on the Dock icon (or opening the app again) with no window: it comes back.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { NSApp.setActivationPolicy(.regular) }
+        return true
+    }
 }
