@@ -110,14 +110,28 @@ Mac-tests om in Windows-vorm over te nemen · Mac tests to take over in Windows 
 - [ ] **Scherm · screen**: tab Connectors (schakelaar, status, rechten, Test, Bewerken, Log, Uitloggen, Verwijderen; Voorbeeld toevoegen, Toevoegen, Importeer). Hulp-onderwerp `19-connectors.md` (NL/EN), aangepast voor Windows-paden en `cmd`.
 - [ ] Tests: neem `MCPTests.swift` over (stdio-nep-server, HTTP met SSE, OAuth van begin tot eind, naamregels, rechten, mcp.json heen en terug) en `ConnectorIntegrationTests` (een echt model leest een map zonder kaart en schrijft na een kaart).
 
-## Later (fase 3–6) · Later (phases 3–6)
+## 7. Taken, heartbeat en achtergrond, fase 3 · Tasks, heartbeat and background, phase 3
+
+- [ ] **Gesprekken tegelijk · conversations at once**: een run per gesprek (eigen kaart, eigen stop, eigen geladen connectors); een FIFO-wachtrij voor het model (`ModelGate`) die alleen vastgehouden wordt **tijdens het schrijven**, zodat een gesprek dat op goedkeuring wacht de andere niet ophoudt; de werkmap per run (op de Mac een `@TaskLocal`; in C# een `AsyncLocal<string>`). Zijbalk: draaiend bolletje bij bezig, oranje stip bij wacht op goedkeuring; "Wacht op het model: het schrijft nu in 'X'". Windows heeft twee engines: de snelle engine kan een tweede gesprek nemen, met een eigen wachtrij.
+      A run per conversation; a FIFO queue for the model held only while it writes; the folder per run (AsyncLocal in C#). With two engines, the fast one can take a second conversation.
+- [ ] **Stappenlijst · step list**: tool `task_list` (`steps: [{title, status: todo|doing|done}]`, maximaal 30), bewaard in `Conversation.steps`, een kaart boven het invoerveld; een lijst die helemaal klaar is, verdwijnt bij de volgende vraag. Alleen aangeboden met werkmap, systeembeheer of een connector.
+- [ ] **Geplande taken · scheduled tasks**: `ScheduledTask` (titel, opdracht, schema, werkmap, aan/uit, laatste/volgende run) in `%APPDATA%\WinAIMagic\tasks.json`. Schema's: eenmalig, dagelijks (werkdagen), wekelijks, elke N uur binnen actieve uren (ook over middernacht). Volgende run met de kalender, zodat 08:00 08:00 blijft rond zomer- en wintertijd. Een gemiste run loopt één keer als hij hooguit 12 uur te laat is; ouder wordt overgeslagen. Neem `TasksTests.swift` over (schema's, Europe/Amsterdam rond 29 maart en 25 oktober 2026).
+      Same schedules and rules; take over TasksTests.swift.
+- [ ] **Uitvoeren · running**: een timer van 30 s en bij ontwaken (`SystemEvents.PowerModeChanged`); elke run een eigen gesprek "⏱ titel · datum"; het model laden als het nodig is en daarna weer stoppen als een taak het laadde en de gebruiker het niet gebruikte; PC wakker houden tijdens een run (`SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)`).
+- [ ] **Meldingen · notifications**: Toast-meldingen voor klaar (eerste regel), gestopt (fout) en goedkeuring nodig; een klik opent het gesprek. Een goedkeuring van een taak zonder antwoord geldt na een dag als nee.
+- [ ] **Model plant zelf · the model plans**: tool `schedule_task` (`title, prompt, when: once|daily|weekdays|weekly|every, at, time, weekday, hours, from, to`), altijd via de kaart; fouten (25:00, verleden) terug naar het model.
+- [ ] **Heartbeat**: standaard uit; elk half uur, 1, 2 of 4 uur binnen actieve uren (standaard 08–22); `HEARTBEAT.md` met een voorbeeld waarvan alles uitleg is (regels met `#` of `>`), zodat een onaangeraakte lijst niets controleert. Antwoord NIETS/NOTHING/NICHTS/RIEN = geen gesprek over, alleen "Laatste controle …: niets te melden"; anders blijft het gesprek staan en komt er een melding. Overslaan als de gebruiker chat of een taak loopt; als het model niet geladen is alleen laden met "Het model mag hiervoor laden" (standaard uit).
+- [ ] **Achtergrond · background**: een tray-icoon in plaats van de menubalk (status, volgende taak, Open, Taken, Nu controleren, Alles stoppen, Afsluiten). Venster dicht met taken of heartbeat aan = app blijft in de tray en het model stopt (instelbaar); zonder taken sluit de app zoals nu. "Opstarten met Windows" via de Run-sleutel of een geplande taak bij aanmelden, standaard uit.
+- [ ] **Scherm · screen**: pane Taken (lijst, Nu uitvoeren, Bewerken, Verwijderen, Laatste uitvoeringen), venster Nieuwe taak, tab Taken in Instellingen. Hulp-onderwerp `20-tasks.md` (NL/EN), aangepast voor de tray.
+- [ ] Tests: `ModelGateTests`, `ConcurrentChatTests` met de nep-engine `App/Tests/MacAIMagicTests/Fixtures/fake_engine.py` (één gesprek wacht op goedkeuring terwijl het andere antwoordt, elk in zijn eigen map, nooit twee verzoeken tegelijk bij de engine), `WorkStepsTests`, `TaskToolTests`, `HeartbeatTests`, en `TasksIntegrationTests` met een echt model.
+
+## Later (fase 4–6) · Later (phases 4–6)
 
 Nog niet gebouwd; elke fase krijgt een eigen plan en een eigen stuk in dit bestand.
 Not built yet; each phase gets its own plan and its own part of this file.
 
 | Fase | Functie · feature | Schakelaar · switch |
 |---|---|---|
-| 3 | Takenlijst, achtergrond, heartbeat en cron · task list, background, heartbeat and cron | `featureTasks`, `featureHeartbeat` |
 | 4 | Telegram, daarna iMessage (alleen Mac) · Telegram, then iMessage (Mac only) | `featureTelegram` |
 | 5 | Browser-agent en e-mail · browser agent and mail | `featureBrowser`, `featureMail` |
 | 6 | Computer besturen en spraak · computer use and voice | `featureComputerUse`, `featureVoice` |

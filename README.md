@@ -166,6 +166,27 @@ Tested with Qwen3.8-Flash-Next on the M3 Max: the model loaded Files, listed a f
 wrote a file after the card (`ConnectorIntegrationTests`); OAuth was tested end to end against a local server, not yet
 against a real service.
 
+## Tasks, heartbeat and the menu bar
+
+The model also works while you are not watching (**Taken** in the sidebar, Settings → **Tasks**).
+
+- **Scheduled tasks:** an instruction with a schedule (once, daily or on weekdays, weekly, every few hours within
+  active hours) and an optional work folder, or asked for in a chat ("give me my agenda every weekday at 8"); the model
+  plans it with `schedule_task` after the approval card. Each run is a conversation of its own. The model is loaded for
+  it and stopped again afterwards if the task loaded it. A notification says when a task is done or needs approval.
+  A missed run (the Mac slept, the app was closed) is made up for once if it is at most 12 hours late.
+- **Heartbeat** (off by default): every half hour to 4 hours within active hours the model goes through `HEARTBEAT.md`
+  and only speaks up when there is something; a check with nothing to report leaves no conversation behind.
+- **In the background:** with tasks or a heartbeat on, closing the window keeps MacAIMagic in the menu bar and stops the
+  model; **Start at login** is there too (off by default).
+- **Conversations at the same time:** each conversation has its own run and approval card. The model writes one answer
+  at a time, so conversations take turns, but one waiting for approval does not hold up the others.
+- **Step list:** for larger work the model sets out its steps (`task_list`) and ticks them off above the input field.
+
+Tested with Qwen3.8-Flash-Next on the M3 Max (`TasksIntegrationTests`): the model planned "every weekday at 08:00"
+through the card, a heartbeat with nothing to report answered NIETS, and one conversation answered while another
+waited for its approval.
+
 ## Requirements
 
 - Apple Silicon Mac (M1 or later). Models that do not fit in memory stream from the SSD: with **128 GB** the compact

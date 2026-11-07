@@ -119,6 +119,18 @@ token). Een connector op internet die om inloggen vraagt, opent je browser; het 
 laadt een connector pas als het hem nodig heeft. Per connector kies je Toestaan, Eerst vragen of Weigeren; tools die
 alleen lezen mogen standaard.
 
+## Taken en heartbeat
+
+Het model werkt ook als je er niet naast zit (**Taken** in de zijbalk, Instellingen → **Taken**):
+- **Geplande taken**: een opdracht op een vast moment (eenmalig, dagelijks of op werkdagen, wekelijks of elke paar uur).
+  Je maakt er een zelf, of je vraagt het in een gesprek ("geef me elke werkdag om 8 uur mijn agenda"). Elke uitvoering
+  wordt een eigen gesprek, met een melding als hij klaar is of je goedkeuring nodig heeft.
+- **Heartbeat** (standaard uit): het model loopt af en toe `HEARTBEAT.md` na en meldt zich alleen als er iets is.
+- **Menubalk**: met taken of een heartbeat aan blijft MacAIMagic in de menubalk als je het venster sluit, en het model
+  stopt. Je kunt de app ook laten starten bij inloggen.
+- **Gesprekken tegelijk**: een gesprek dat op je goedkeuring wacht, houdt de andere niet op.
+- **Stappenlijst**: bij een grotere klus zie je de stappen boven het invoerveld, en ze worden afgevinkt.
+
 ## Hulp
 
 Onder **Hulp** in de zijbalk, met de **?** rechtsboven op elk scherm of met ⌘?: doorzoekbare hulp bij elk onderdeel

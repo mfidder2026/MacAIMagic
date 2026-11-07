@@ -642,3 +642,96 @@ final class ConnectorIntegrationTests: XCTestCase {
         XCTAssertEqual(written?.trimmingCharacters(in: .whitespacesAndNewlines), "hallo")
     }
 }
+
+/// Phase 3 with a real model: the model plans a task, a heartbeat with nothing to report, and two conversations at
+/// once. Starts the engine itself. MACAIMAGIC_TASKS_TEST=1 (optionally MACAIMAGIC_TASKS_MODEL=<id>), engine stopped.
+@MainActor
+final class TasksIntegrationTests: XCTestCase {
+    func testTasksHeartbeatAndTwoConversations() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["MACAIMAGIC_TASKS_TEST"] == "1" else { throw XCTSkip("set MACAIMAGIC_TASKS_TEST=1") }
+        let app = AppState()
+        let s = Settings.shared
+        let saved = (app.selectedModelID, s.systemManagement, s.skills, s.webSearch, s.thinking, s.workspaceTools, s.rightWrite, s.autoApprove)
+        defer {
+            app.engine.stop()
+            (app.selectedModelID, s.systemManagement, s.skills, s.webSearch, s.thinking, s.workspaceTools, s.rightWrite, s.autoApprove) = saved
+        }
+        (s.systemManagement, s.skills, s.webSearch, s.thinking, s.workspaceTools, s.rightWrite, s.autoApprove) = (true, false, false, false, true, "ask", false)
+        app.selectedModelID = env["MACAIMAGIC_TASKS_MODEL"] ?? "qwen3.8-flash-next-q4"
+        app.startEngine()
+        let t0 = Date()
+        while !app.engine.state.isRunning && Date().timeIntervalSince(t0) < 1200 {
+            if case .failed(let e) = app.engine.state { XCTFail(e); return }
+            try await Task.sleep(for: .seconds(1))
+        }
+        print("ENGINE READY after", Int(Date().timeIntervalSince(t0)), "s:", app.selectedModelID)
+        let base = app.engine.baseURL
+        let chat = ChatClient()
+        chat.modelName = app.selectedModel?.name ?? "model"
+        let tasks = TaskStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        chat.taskStore = tasks
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        func dump(_ id: UUID) {
+            for m in store.conversations.first(where: { $0.id == id })?.messages ?? [] {
+                print("  [\(m.role)] calls=\(m.toolCalls.map { "\($0.name) \($0.arguments.prefix(160))" }) text=\(m.text.prefix(240).replacingOccurrences(of: "\n", with: " "))")
+            }
+        }
+        func answer(_ id: UUID) -> String { store.conversations.first { $0.id == id }?.messages.last { $0.role == .assistant && !$0.text.isEmpty }?.text ?? "" }
+
+        // 1. the model plans a task, through the card
+        let plan = Conversation()
+        store.conversations = [plan]
+        var cards: [ChatClient.Approval] = []
+        chat.send(text: "Geef me elke werkdag om 8 uur 's ochtends een overzicht van mijn agenda. Plan dat als taak.", attachments: [], in: plan.id, store: store, baseURL: base)
+        var start = Date()
+        while chat.isBusy(plan.id) && Date().timeIntervalSince(start) < 600 {
+            if let a = chat.approvals[plan.id] { cards.append(a); chat.answer(a, allow: true) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        print("PLAN:"); dump(plan.id)
+        print("CARDS:", cards.map { "\($0.title) | \($0.detail.prefix(160))" })
+        XCTAssertTrue(cards.contains { $0.title.hasPrefix(L("Taak plannen: \("")")) }, "it showed the card")
+        let planned = try XCTUnwrap(tasks.tasks.first, "a task was planned")
+        XCTAssertEqual(planned.schedule, .daily(hour: 8, minute: 0, weekdaysOnly: true))
+        print("TASK:", planned.title, "|", planned.prompt, "| next", planned.nextRun as Any)
+
+        // 2. a heartbeat with nothing to report answers NIETS
+        let beat = Conversation()
+        store.conversations.insert(beat, at: 0)
+        let missing = "zzz-bestaat-niet-\(UUID().uuidString.prefix(6)).txt"
+        chat.send(text: Heartbeat.prompt("- Staat er een bestand \(missing) in de map /tmp? Meld het alleen als het er is."), attachments: [], in: beat.id, store: store, baseURL: base)
+        start = Date()
+        while chat.isBusy(beat.id) && Date().timeIntervalSince(start) < 600 {
+            if let a = chat.approvals[beat.id] { chat.answer(a, allow: true) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        print("HEARTBEAT:"); dump(beat.id)
+        XCTAssertTrue(Heartbeat.isNothing(answer(beat.id)), "nothing to report: \(answer(beat.id))")
+
+        // 3. one conversation waits for approval, the other answers meanwhile
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("mds-two-\(UUID().uuidString)").resolvingSymlinksInPath()
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        var a = Conversation(), b = Conversation()
+        a.workspace = folder.path
+        store.conversations.insert(contentsOf: [a, b], at: 0)
+        chat.send(text: "Maak in de werkmap een bestand notitie.txt met de tekst hallo.", attachments: [], in: a.id, store: store, baseURL: base)
+        start = Date()
+        while chat.approvals[a.id] == nil && chat.isBusy(a.id) && Date().timeIntervalSince(start) < 600 { try await Task.sleep(for: .milliseconds(200)) }
+        XCTAssertNotNil(chat.approvals[a.id], "A asks before it writes")
+        chat.send(text: "Wat is de hoofdstad van Frankrijk? Alleen het woord.", attachments: [], in: b.id, store: store, baseURL: base)
+        start = Date()
+        while chat.isBusy(b.id) && Date().timeIntervalSince(start) < 300 { try await Task.sleep(for: .milliseconds(200)) }
+        print("B:"); dump(b.id)
+        XCTAssertTrue(answer(b.id).localizedCaseInsensitiveContains("Parijs") || answer(b.id).localizedCaseInsensitiveContains("Paris"), answer(b.id))
+        XCTAssertTrue(chat.isBusy(a.id), "A still waits for its card")
+        start = Date()
+        while chat.isBusy(a.id) && Date().timeIntervalSince(start) < 600 {
+            if let card = chat.approvals[a.id] { chat.answer(card, allow: true) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        print("A:"); dump(a.id)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("notitie.txt").path))
+    }
+}

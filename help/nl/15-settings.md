@@ -1,7 +1,7 @@
 ---
 title: Instellingen
 icon: gearshape
-keywords: instellingen taal voorkeuren context vision MTP poort adres systeembeheer skills
+keywords: instellingen taal voorkeuren context vision MTP poort adres systeembeheer skills taken heartbeat menubalk inloggen
 ---
 Open de instellingen met **⌘,**.
 
@@ -21,3 +21,6 @@ Gereedschap van andere programma's en diensten, met rechten per connector (zie *
 
 ## Systeembeheer
 **Skills** en **Deze Mac**: of het model deze Mac mag bekijken en instellen, en de rechten om het systeem te lezen en te wijzigen. Ze staan standaard aan.
+
+## Taken
+De **heartbeat** (aan of uit, hoe vaak, tussen welke uren, en of het model ervoor mag laden), **Op de achtergrond** (in de menubalk blijven, het model stoppen als het venster dichtgaat, starten bij inloggen) en of het model na een taak weer stopt (zie *Taken en heartbeat*).

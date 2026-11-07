@@ -1,7 +1,7 @@
 ---
 title: Settings
 icon: gearshape
-keywords: settings language preferences context vision MTP port address system management skills
+keywords: settings language preferences context vision MTP port address system management skills tasks heartbeat menu bar login
 ---
 Open the settings with **⌘,**.
 
@@ -21,3 +21,6 @@ Tools from other programs and services, with rights per connector (see *Connecto
 
 ## System management
 **Skills** and **This Mac**: whether the model may look at and set up this Mac, and the rights to read and to change the system. They are on by default.
+
+## Tasks
+The **heartbeat** (on or off, how often, between which hours, and whether the model may load for it), **In the background** (stay in the menu bar, stop the model when the window closes, start at login) and whether the model stops again after a task (see *Tasks and heartbeat*).
