@@ -48,6 +48,10 @@ struct ChatView: View {
             if !engine.state.isRunning { EngineBanner(fast: app.documentEngines.fast) }
             if engine.state.isRunning && metrics.engineBusy && !chat.busy { OtherRequestBanner() }
             GateBanner(gate: chat.gate, conversationID: conversationID)
+            // a finished list goes with the next question (ChatClient.send)
+            if let steps = conversation?.steps, !steps.isEmpty {
+                StepsCard(steps: steps, busy: chat.isBusy(conversationID))
+            }
             if let a = chat.approvals[conversationID] { ApprovalCard(approval: a) }
             Composer(conversationID: conversationID, text: $draft)
         }

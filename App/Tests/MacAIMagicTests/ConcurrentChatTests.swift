@@ -122,6 +122,21 @@ final class ConcurrentChatTests: XCTestCase {
         XCTAssertEqual(stats["most"] as? Int, 1, "the model wrote for one conversation at a time")
     }
 
+    func testTheModelsStepListIsKept() async throws {
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        var a = Conversation()
+        a.workspace = try folder().path
+        store.conversations = [a]
+        let chat = ChatClient()
+        chat.send(text: "PLAN iets groots", attachments: [], in: a.id, store: store, baseURL: URL(string: "http://127.0.0.1:\(port)")!)
+        try await waitUntil { !chat.isBusy(a.id) }
+        let steps = try XCTUnwrap(store.conversations[0].steps)
+        XCTAssertEqual(steps.map(\.title), ["Eerst kijken", "Dan bouwen", "Testen"])
+        XCTAssertEqual(steps.map(\.status), ["done", "doing", "todo"])
+        let result = store.conversations[0].messages.first { $0.role == .tool }?.text ?? ""
+        XCTAssertTrue(result.contains("1 of 3 done"), result)
+    }
+
     func testStoppingOneConversationLeavesTheOther() async throws {
         let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
         var a = Conversation(), b = Conversation()
@@ -137,5 +152,16 @@ final class ConcurrentChatTests: XCTestCase {
         try await waitUntil { !chat.isBusy(b.id) }
         XCTAssertNil(chat.approvals[a.id])
         XCTAssertEqual(lastAnswer(store, b.id), "Antwoord op: nog een vraag")
+    }
+}
+
+final class WorkStepsTests: XCTestCase {
+    func testParse() {
+        let steps = WorkSteps.parse(["steps": [["title": " Kijken ", "status": "DONE"], ["title": "Bouwen", "status": "bezig"], ["title": "", "status": "todo"]]])
+        XCTAssertEqual(steps?.map(\.title), ["Kijken", "Bouwen"])
+        XCTAssertEqual(steps?.map(\.status), ["done", "todo"], "an unknown status counts as todo; an empty step is left out")
+        XCTAssertNil(WorkSteps.parse(["steps": "nee"]))
+        XCTAssertNil(WorkSteps.parse(["steps": []]))
+        XCTAssertEqual(WorkSteps.summary([WorkStep(title: "a", status: "done"), WorkStep(title: "b", status: "doing")]), "Task list updated: 1 of 2 done; now: b.")
     }
 }

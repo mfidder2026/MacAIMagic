@@ -117,6 +117,7 @@ final class ChatClient: ObservableObject {
         guard !running.contains(conversation) else { return }
         store.update(conversation) { c in
             c.messages.append(ChatMessage(role: .user, text: text, attachments: attachments))
+            if c.steps?.allSatisfy(\.isDone) == true { c.steps = nil }
             if c.title == "Nieuw gesprek" {
                 let t = text.isEmpty ? (attachments.first?.filename ?? "Afbeelding") : text
                 c.title = String(t.prefix(48)).replacingOccurrences(of: "\n", with: " ")
@@ -231,10 +232,12 @@ final class ChatClient: ObservableObject {
                 if isWorkspace { changedFiles = true }
                 let isSystem = SystemTools.names.contains(call.name)
                 let isSkill = call.name == Skills.toolName
+                let isSteps = call.name == WorkSteps.toolName
                 let isLoadConnector = call.name == MCPManager.loadTool
                 let connectorTool = MCPManager.shared.route(call.name)
                 let label = isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
                     : isSkill ? Skills.label(for: call)
+                    : isSteps ? WorkSteps.label(WorkSteps.parse(WorkspaceTools.args(call)))
                     : isLoadConnector ? L("Connector laden: \(WorkspaceTools.args(call)["name"] as? String ?? "")")
                     : connectorTool != nil ? MCPManager.shared.label(for: call) : WebTools.label(for: call)
                 activities.append(ToolActivity(label: label, done: false))
@@ -257,6 +260,13 @@ final class ChatClient: ObservableObject {
                     let out = await runSystem(call, in: id, store: store)
                     text = out.text
                     if out.denied { activities[activities.count - 1].denied = true }
+                } else if isSteps {
+                    if let steps = WorkSteps.parse(WorkspaceTools.args(call)) {
+                        store.update(id) { $0.steps = steps }
+                        text = WorkSteps.summary(steps)
+                    } else {
+                        text = "Error: give steps as a list of {title, status} with status todo, doing or done."
+                    }
                 } else if isSkill {
                     text = Skills.run(call)
                 } else if isLoadConnector {
@@ -608,6 +618,7 @@ final class ChatClient: ObservableObject {
         // skills and system management come last: with them off the request starts the same as before
         if s.skills && !Skills.all.isEmpty { tools.append(Skills.definition) }
         if s.systemManagement { tools += SystemTools.definitions }
+        if offersSteps { tools.append(WorkSteps.definition) }
         // connectors: only when one is switched on, and then the tools of those this conversation loaded
         let mcp = MCPManager.shared
         if !mcp.enabled.isEmpty {
@@ -615,6 +626,12 @@ final class ChatClient: ObservableObject {
             tools += mcp.definitions(loaded: loadedConnectors)
         }
         return tools
+    }
+
+    /// The step list is there when the model can do work of several steps: in a folder, on the system, with connectors.
+    private var offersSteps: Bool {
+        let s = Settings.shared
+        return (s.workspaceTools && WorkspaceTools.workspace != nil) || s.systemManagement || !MCPManager.shared.enabled.isEmpty
     }
 
     private func requestMessages(_ history: [ChatMessage], summary: String? = nil) -> [[String: Any]] {
@@ -646,6 +663,9 @@ final class ChatClient: ObservableObject {
         if s.skills {
             let section = Skills.promptSection(Skills.all)
             if !section.isEmpty { system += "\n\n" + section }
+        }
+        if offersSteps {
+            system += "\n\n" + L("Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.")
         }
         let connectors = MCPManager.shared.promptSection()
         if !connectors.isEmpty { system += "\n\n" + connectors }

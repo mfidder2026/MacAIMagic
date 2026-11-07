@@ -743,5 +743,10 @@
  "Wacht op jouw goedkeuring": "Attend votre accord",
  "Bezig": "En cours",
  "Stoppen": "Arrêter",
- "Wacht op het model: het schrijft nu in '%@'. Daarna is dit gesprek aan de beurt.": "En attente du modèle : il écrit dans « %@ ». Cette conversation passe ensuite."
+ "Wacht op het model: het schrijft nu in '%@'. Daarna is dit gesprek aan de beurt.": "En attente du modèle : il écrit dans « %@ ». Cette conversation passe ensuite.",
+ "Stappenlijst": "Liste des étapes",
+ "Stappenlijst: %@ van %@ klaar": "Liste des étapes : %@ sur %@ terminées",
+ "Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.": "Pour une tâche de trois étapes ou plus, crée-la d'abord avec task_list et mets la liste à jour quand une étape commence ou se termine. L'utilisateur voit la liste au-dessus du champ de saisie.",
+ "Stappen": "Étapes",
+ "Stappen: %@ van %@ klaar": "Étapes : %@ sur %@ terminées"
 }

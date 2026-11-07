@@ -66,6 +66,12 @@ struct Conversation: Codable, Identifiable, Hashable {
     var summaryUpTo: UUID? = nil
     /// Connectors whose tools the model loaded in this conversation (use_connector); they stay in its requests.
     var connectors: [String]? = nil
+    /// The model's list of steps for a larger piece of work (task_list), shown above the composer.
+    var steps: [WorkStep]? = nil
+    /// The scheduled task this conversation is a run of (Taken), if any.
+    var task: UUID? = nil
+    /// Not in the sidebar: a heartbeat check that had nothing to report is removed, one that has stays under Taken.
+    var hidden: Bool? = nil
 
     /// The title in the chosen language while it is still the default.
     var displayTitle: String { title == "Nieuw gesprek" ? L("Nieuw gesprek") : title }
@@ -75,6 +81,13 @@ struct Conversation: Codable, Identifiable, Hashable {
         guard let last = summaryUpTo, let i = messages.firstIndex(where: { $0.id == last }) else { return messages[...] }
         return messages[(i + 1)...]
     }
+}
+
+/// One step of the model's list: what, and how far (todo, doing, done).
+struct WorkStep: Codable, Hashable {
+    var title: String
+    var status: String
+    var isDone: Bool { status == "done" }
 }
 
 /// Conversations saved as one JSON file in Application Support.

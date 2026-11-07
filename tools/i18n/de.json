@@ -743,5 +743,10 @@
  "Wacht op jouw goedkeuring": "Wartet auf deine Freigabe",
  "Bezig": "In Arbeit",
  "Stoppen": "Stoppen",
- "Wacht op het model: het schrijft nu in '%@'. Daarna is dit gesprek aan de beurt.": "Wartet auf das Modell: es schreibt gerade in '%@'. Danach ist dieses Gespräch dran."
+ "Wacht op het model: het schrijft nu in '%@'. Daarna is dit gesprek aan de beurt.": "Wartet auf das Modell: es schreibt gerade in '%@'. Danach ist dieses Gespräch dran.",
+ "Stappenlijst": "Schrittliste",
+ "Stappenlijst: %@ van %@ klaar": "Schrittliste: %@ von %@ erledigt",
+ "Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.": "Arbeitest du an einer Aufgabe mit drei oder mehr Schritten, lege sie zuerst mit task_list an und aktualisiere die Liste, wenn ein Schritt beginnt oder fertig ist. Der Benutzer sieht die Liste über dem Eingabefeld.",
+ "Stappen": "Schritte",
+ "Stappen: %@ van %@ klaar": "Schritte: %@ von %@ erledigt"
 }
