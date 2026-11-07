@@ -1039,5 +1039,6 @@
  "Bereidt een stap voor": "Preparing a step",
  "Bereidt voor: %@": "Preparing: %@",
  "%@ tekens": "%@ characters",
- "Bezig…": "Working…"
+ "Bezig…": "Working…",
+ "Skill geladen: %@ (vanzelf)": "Skill loaded: %@ (by itself)"
 }

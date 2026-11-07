@@ -81,6 +81,35 @@ enum Skills {
         return "There is no skill named \"\(name)\". Available: " + skills.map(\.name).joined(separator: ", ")
     }
 
+    /// Words that say nothing about a subject.
+    nonisolated static let common: Set<String> = [
+        "voor", "met", "een", "het", "van", "naar", "zodra", "worden", "wordt", "moet", "laden", "plus", "geteste", "vaste",
+        "code", "harde", "regels", "this", "that", "with", "when", "from", "load", "loaded", "into", "your", "what", "alle",
+        "deze", "maken", "schrijven", "programmeren", "gebruik", "door", "over", "wilt", "skill", "instructies", "macos",
+    ]
+
+    nonisolated static func words(_ text: String) -> Set<String> {
+        Set(text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
+    }
+
+    /// The skills a question is clearly about: a word of the skill's name, and at least three words of its name and
+    /// description together in the question. A small model often skips use_skill; then the app loads these itself.
+    static func matching(_ question: String, in skills: [Skill] = all) -> [Skill] {
+        let asked = words(question)
+        let scored: [(Skill, Int)] = skills.compactMap { s in
+            let name = words(s.name.replacingOccurrences(of: "-", with: " ")).subtracting(common)
+            let terms = name.union(words(s.description).filter { ($0.count >= 4 || $0.contains { $0.isNumber }) }).subtracting(common)
+            // "sprite" counts for "sprites": a shared start of at least four letters
+            func found(_ term: String) -> Bool {
+                asked.contains { $0 == term || (min($0.count, term.count) >= 4 && ($0.hasPrefix(term) || term.hasPrefix($0))) }
+            }
+            let hits = terms.filter(found).count
+            guard name.contains(where: found), hits >= 3 else { return nil }
+            return (s, hits)
+        }
+        return scored.sorted { $0.1 > $1.1 }.prefix(2).map(\.0)
+    }
+
     static func label(for call: ToolCall) -> String {
         L("Skill laden: \(WorkspaceTools.args(call)["name"] as? String ?? "")")
     }

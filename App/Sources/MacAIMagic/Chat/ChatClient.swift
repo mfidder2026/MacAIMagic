@@ -152,11 +152,32 @@ final class ChatClient: ObservableObject {
         }
     }
 
+    /// A question clearly about a skill's subject gets that skill before the first answer, as if the model had called
+    /// use_skill: a small model often answers or searches the web without loading it. Once per skill per conversation.
+    private func loadMatchingSkills(_ id: Conversation.ID, store: ConversationStore) {
+        guard Settings.shared.skills, let c = store.conversations.first(where: { $0.id == id }),
+              let question = c.messages.last(where: { $0.role == .user && $0.automatic != true })?.text else { return }
+        let loaded = Set(c.messages.flatMap(\.toolCalls).filter { $0.name == Skills.toolName }
+            .compactMap { (WorkspaceTools.args($0)["name"] as? String)?.lowercased() })
+        for skill in Skills.matching(question) where !loaded.contains(skill.name.lowercased()) {
+            let args = String(decoding: (try? JSONSerialization.data(withJSONObject: ["name": skill.name])) ?? Data(), as: UTF8.self)
+            let call = ToolCall(id: "auto_skill_" + UUID().uuidString.prefix(8), name: Skills.toolName, arguments: args)
+            var step = ChatMessage(role: .assistant, text: "", toolCalls: [call])
+            step.activities = [ToolActivity(label: L("Skill geladen: \(skill.name) (vanzelf)"), done: true)]
+            step.automatic = true
+            store.update(id) { c in
+                c.messages.append(step)
+                c.messages.append(ChatMessage(role: .tool, text: "# Skill: \(skill.name)\n\n\(skill.body)", toolCallId: call.id))
+            }
+        }
+    }
+
     private func run(_ id: Conversation.ID, store: ConversationStore, baseURL: URL) async {
         loadedConnectors = store.conversations.first { $0.id == id }?.connectors ?? []
         // connectors loaded before (or always loaded) run again, so their tools are in the request
         await MCPManager.shared.ensureRunning(loadedConnectors)
         if keepsNotes, let ws = WorkspaceTools.workspace { WorkspaceNotes.createIfNeeded(in: ws) }
+        loadMatchingSkills(id, store: store)
         var activities: [ToolActivity] = []
         var sources: [Source] = []
         var nudges = 0
