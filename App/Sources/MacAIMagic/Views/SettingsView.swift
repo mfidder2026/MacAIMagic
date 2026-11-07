@@ -122,6 +122,9 @@ struct SettingsView: View {
 
             ConnectorsView()
                 .tabItem { Label(L("Connectors"), systemImage: "puzzlepiece.extension") }
+
+            TasksSettingsView()
+                .tabItem { Label(L("Taken"), systemImage: "clock.badge.checkmark") }
         }
         .formStyle(.grouped)
         .frame(width: 640, height: 560)

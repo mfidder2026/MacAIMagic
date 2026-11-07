@@ -23,6 +23,8 @@ final class AppState: ObservableObject {
     var modelStartedByTasks = false
     var taskTimer: Timer?
     var taskActivity: NSObjectProtocol?
+    /// What the last heartbeat found, for Instellingen → Taken.
+    @Published var heartbeatStatus: String?
 
     @AppStorage("selectedModel") var selectedModelID = "deepseek-v4.1-flash-compact" {
         didSet {

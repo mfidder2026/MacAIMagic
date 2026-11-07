@@ -143,3 +143,35 @@ final class TaskToolTests: XCTestCase {
         XCTAssertEqual(TaskTool.weekday(1), 1)
     }
 }
+
+final class HeartbeatTests: XCTestCase {
+    private func at(_ hour: Int, _ minute: Int = 0) -> Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date())!
+    }
+
+    func testOnlyInsideTheActiveHoursAndAfterTheInterval() {
+        XCTAssertTrue(Heartbeat.isDue(now: at(10), last: nil, minutes: 60, from: 8, to: 22))
+        XCTAssertFalse(Heartbeat.isDue(now: at(23), last: nil, minutes: 60, from: 8, to: 22), "outside the active hours")
+        XCTAssertFalse(Heartbeat.isDue(now: at(10, 30), last: at(10), minutes: 60, from: 8, to: 22), "too soon")
+        XCTAssertTrue(Heartbeat.isDue(now: at(11), last: at(10), minutes: 60, from: 8, to: 22))
+        XCTAssertTrue(Heartbeat.isDue(now: at(23), last: nil, minutes: 30, from: 22, to: 6), "a window past midnight")
+        XCTAssertTrue(Heartbeat.isDue(now: at(3), last: nil, minutes: 30, from: 0, to: 0), "the whole day")
+    }
+
+    func testNothingToReport() {
+        XCTAssertTrue(Heartbeat.isNothing("NIETS"))
+        XCTAssertTrue(Heartbeat.isNothing(" **Niets.** \n"))
+        XCTAssertTrue(Heartbeat.isNothing("NOTHING"))
+        XCTAssertFalse(Heartbeat.isNothing("Om 14:00 heb je een afspraak met de tandarts."))
+        XCTAssertFalse(Heartbeat.isNothing("Niets bijzonders, behalve dat de schijf vol is."))
+    }
+
+    func testTheExampleChecklistCountsAsEmpty() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+        defer { try? FileManager.default.removeItem(at: file) }
+        XCTAssertNil(Heartbeat.checklist(file: file), "the example has only explanation: nothing to check yet")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path), "it was written for the user to fill in")
+        try (Heartbeat.example + "\n- Staat er in het komende uur een afspraak?\n").write(to: file, atomically: true, encoding: .utf8)
+        XCTAssertNotNil(Heartbeat.checklist(file: file))
+    }
+}

@@ -26,6 +26,38 @@ extension AppState {
         for task in tasks.takeDue(now: now) {
             Task { await runTask(task) }
         }
+        if Heartbeat.isDue(now: now) { Task { await heartbeat() } }
+    }
+
+    /// One heartbeat: the model goes through the checklist and only speaks up when something needs the user. A check
+    /// with nothing to report leaves no conversation behind.
+    func heartbeat(now: Date = Date(), forced: Bool = false) async {
+        Heartbeat.lastRun = now
+        let time = now.formatted(date: .omitted, time: .shortened)
+        guard let checklist = Heartbeat.checklist() else {
+            heartbeatStatus = L("\(time): overgeslagen, de checklist is leeg.")
+            return
+        }
+        // the user and the tasks go first
+        guard forced || (!chat.busy && taskRuns.isEmpty) else {
+            heartbeatStatus = L("\(time): overgeslagen, het model was bezig.")
+            return
+        }
+        guard engine.state.isRunning || forced || Settings.shared.heartbeatMayLoad else {
+            heartbeatStatus = L("\(time): overgeslagen, het model was niet geladen.")
+            return
+        }
+        guard await ensureModel() else {
+            heartbeatStatus = L("\(time): het model kon niet starten.")
+            return
+        }
+        var c = Conversation(title: "♥ " + L("Controle") + " · " + now.formatted(date: .abbreviated, time: .shortened))
+        c.task = Heartbeat.taskID
+        c.hidden = true
+        store.conversations.insert(c, at: 0)
+        taskRuns[c.id] = Heartbeat.taskID
+        heartbeatStatus = L("\(time): bezig met controleren…")
+        chat.send(text: Heartbeat.prompt(checklist), attachments: [], in: c.id, store: store, baseURL: engine.baseURL)
     }
 
     /// One run of a task: a new conversation with its prompt. Nil when the model could not start.
@@ -74,13 +106,10 @@ extension AppState {
 
     private func runFinished(_ id: Conversation.ID) {
         guard let taskID = taskRuns.removeValue(forKey: id) else { return }
-        let title = tasks.task(taskID)?.title ?? L("Taak")
-        let last = store.conversations.first { $0.id == id }?.messages.last { $0.role == .assistant }
-        if let error = last?.error {
-            Notifier.shared.post(title: L("Taak gestopt: \(title)"), body: error, conversation: id)
+        if taskID == Heartbeat.taskID {
+            heartbeatFinished(id)
         } else {
-            let answer = (last?.text ?? "").split(separator: "\n").first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            Notifier.shared.post(title: L("Taak klaar: \(title)"), body: answer.map(String.init) ?? L("Open het gesprek voor de uitkomst."), conversation: id)
+            taskNotification(id, taskID)
         }
         guard taskRuns.isEmpty else { return }
         if let a = taskActivity { ProcessInfo.processInfo.endActivity(a); taskActivity = nil }
@@ -89,6 +118,33 @@ extension AppState {
             engine.stop()
         }
         modelStartedByTasks = false
+    }
+
+    private func heartbeatFinished(_ id: Conversation.ID) {
+        let time = Date().formatted(date: .omitted, time: .shortened)
+        let last = store.conversations.first { $0.id == id }?.messages.last { $0.role == .assistant }
+        if last?.error == nil, Heartbeat.isNothing(last?.text ?? "") {
+            store.delete(id)
+            heartbeatStatus = L("Laatste controle \(time): niets te melden.")
+            return
+        }
+        // something to say: the conversation shows, under Taken and in the sidebar
+        store.update(id) { $0.hidden = nil }
+        store.save()
+        let answer = last?.error ?? (last?.text ?? "").split(separator: "\n").first.map(String.init) ?? ""
+        heartbeatStatus = L("Laatste controle \(time): er is iets te melden.")
+        Notifier.shared.post(title: L("MacAIMagic heeft iets voor je"), body: answer, conversation: id)
+    }
+
+    private func taskNotification(_ id: Conversation.ID, _ taskID: UUID) {
+        let title = tasks.task(taskID)?.title ?? L("Taak")
+        let last = store.conversations.first { $0.id == id }?.messages.last { $0.role == .assistant }
+        if let error = last?.error {
+            Notifier.shared.post(title: L("Taak gestopt: \(title)"), body: error, conversation: id)
+        } else {
+            let answer = (last?.text ?? "").split(separator: "\n").first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            Notifier.shared.post(title: L("Taak klaar: \(title)"), body: answer.map(String.init) ?? L("Open het gesprek voor de uitkomst."), conversation: id)
+        }
     }
 
     /// A run waits for the user: say so when nobody is looking (a task, or the app in the background). A task's
@@ -104,5 +160,80 @@ extension AppState {
             guard let self, let still = self.chat.approvals[a.conversation], still.id == a.id else { return }
             self.chat.answer(still, allow: false)
         }
+    }
+}
+
+/// The heartbeat: every so often, within the active hours, the model goes through HEARTBEAT.md.
+enum Heartbeat {
+    /// Marks heartbeat conversations (Conversation.task) and runs.
+    static let taskID = UUID(uuidString: "00000000-0000-0000-0000-0000000000AB")!
+
+    static var lastRun: Date? {
+        get { let t = UserDefaults.standard.double(forKey: "heartbeatLast"); return t > 0 ? Date(timeIntervalSince1970: t) : nil }
+        set { UserDefaults.standard.set(newValue?.timeIntervalSince1970 ?? 0, forKey: "heartbeatLast") }
+    }
+
+    /// On, inside the active hours, and the interval has passed since the last one.
+    @MainActor static func isDue(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let s = Settings.shared
+        guard s.heartbeat else { return false }
+        return isDue(now: now, last: lastRun, minutes: s.heartbeatMinutes, from: s.heartbeatFrom, to: s.heartbeatTo, calendar: calendar)
+    }
+
+    static func isDue(now: Date, last: Date?, minutes: Int, from: Int, to: Int, calendar: Calendar = .current) -> Bool {
+        let hour = calendar.component(.hour, from: now)
+        let inside = from == to || (from < to ? (from..<to).contains(hour) : (hour >= from || hour < to))
+        guard inside else { return false }
+        guard let last else { return true }
+        return now.timeIntervalSince(last) >= Double(max(minutes, 5)) * 60 - 1
+    }
+
+    /// The checklist, made with an example the first time; nil when there is nothing on it but headings and comments.
+    static func checklist(file: URL = Paths.heartbeat) -> String? {
+        if !FileManager.default.fileExists(atPath: file.path) {
+            try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? example.write(to: file, atomically: true, encoding: .utf8)
+        }
+        guard let text = try? String(contentsOf: file, encoding: .utf8) else { return nil }
+        let items = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix("<!--") && !$0.hasPrefix(">") }
+        return items.isEmpty ? nil : String(text.prefix(6000))
+    }
+
+    static func prompt(_ checklist: String) -> String {
+        L("Dit is een geplande controle (heartbeat), de gebruiker kijkt nu niet mee. Loop de checklist hieronder na met je gereedschap. Is er niets dat de gebruiker nu moet weten, antwoord dan alleen met het woord NIETS. Is er wel iets, zeg dan in een paar zinnen wat en waarom; begin met het belangrijkste.")
+            + "\n\n" + checklist
+    }
+
+    /// The model had nothing to report.
+    static func isNothing(_ answer: String) -> Bool {
+        let word = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "*_.!\"'`")).uppercased()
+        return ["NIETS", "NOTHING", "NICHTS", "RIEN", "HEARTBEAT_OK", "KLAAR: NIETS", "KLAAR NIETS"].contains(word)
+    }
+
+    /// The first checklist, in Dutch or English (the file is the user's to edit, in any language).
+    static var example: String {
+        AppLanguage.current == .nl ? """
+        # Checklist voor de heartbeat
+
+        > Het model loopt deze lijst na, elke keer dat de heartbeat komt. Het meldt zich alleen als er iets is.
+        > Regels die beginnen met # of > zijn uitleg; zet je eigen punten eronder, één per regel.
+
+        > Voorbeelden (haal het > weg om er een te gebruiken):
+        > - Staat er in het komende uur een afspraak in mijn agenda? Noem hem dan.
+        > - Is er een herinnering voor vandaag die nog open staat?
+        > - Is de schijf van deze Mac voor meer dan 90% vol?
+        """ : """
+        # Heartbeat checklist
+
+        > The model goes through this list at every heartbeat. It only speaks up when something needs you.
+        > Lines starting with # or > are explanation; put your own points below, one per line.
+
+        > Examples (remove the > to use one):
+        > - Is there an appointment in my calendar in the coming hour? Then name it.
+        > - Is there a reminder for today that is still open?
+        > - Is this Mac's disk more than 90% full?
+        """
     }
 }
