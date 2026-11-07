@@ -1013,5 +1013,22 @@
  "Nieuw gesprek (⌘N)": "New conversation (⌘N)",
  "Dit gesprek verwijderen?": "Delete this conversation?",
  "'%@' verdwijnt met alle berichten. Dit kun je niet ongedaan maken.": "'%@' goes with all its messages. This cannot be undone.",
- "Vraagt de gebruiker om een skill te maken of aan te passen, gebruik dan create_skill; een skill hoort niet in de werkmap of in MACAIMAGIC.md. Een skill is één compact, op zichzelf staand md-bestand: zet alles wat je leerde of verzamelde erin, en verwijs niet naar bestanden in de werkmap, want een later gesprek werkt in een andere map.": "When the user asks to make or change a skill, use create_skill; a skill does not belong in the work folder or in MACAIMAGIC.md. A skill is one compact Markdown file that stands on its own: put everything you learned or gathered in it, and do not refer to files in the work folder, because a later conversation works in another folder."
+ "Vraagt de gebruiker om een skill te maken of aan te passen, gebruik dan create_skill; een skill hoort niet in de werkmap of in MACAIMAGIC.md. Een skill is één compact, op zichzelf staand md-bestand: zet alles wat je leerde of verzamelde erin, en verwijs niet naar bestanden in de werkmap, want een later gesprek werkt in een andere map.": "When the user asks to make or change a skill, use create_skill; a skill does not belong in the work folder or in MACAIMAGIC.md. A skill is one compact Markdown file that stands on its own: put everything you learned or gathered in it, and do not refer to files in the work folder, because a later conversation works in another folder.",
+ "Start dit model": "Start this model",
+ "Laadt dit model; een ander model dat draait, stopt eerst.": "Loads this model; another model that runs stops first.",
+ "Laden…": "Loading…",
+ "Gekozen model": "Chosen model",
+ "Stop model": "Stop model",
+ "Start %@": "Start %@",
+ "Het gekozen model staat er nog niet: kies of download er een bij Modellen.": "The chosen model is not there yet: choose or download one under Models.",
+ "%@ draait nu alleen als snel model, voor Documenten en Beeld. Start het om ermee te chatten; dan stopt het snelle exemplaar.": "%@ runs only as the fast model now, for Documents and Images. Start it to chat with it; the fast copy then stops.",
+ "Er is geen model gestart. Je vraag start het vanzelf, of klik op Start.": "No model is started. Your question starts it by itself, or click Start.",
+ "Geen model · klik om te starten": "No model · click to start",
+ "Welk model er draait. Klik om een model te starten of te stoppen.": "Which model runs. Click to start or stop a model.",
+ "Nog geen model gedownload": "No model downloaded yet",
+ "Start een model": "Start a model",
+ "Modellen…": "Models…",
+ "Live-dashboard": "Live dashboard",
+ "%@ actief": "%@ active",
+ "%@ laden…": "Loading %@…"
 }

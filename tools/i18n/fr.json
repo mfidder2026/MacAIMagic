@@ -1013,5 +1013,22 @@
  "Nieuw gesprek (⌘N)": "Nouvelle conversation (⌘N)",
  "Dit gesprek verwijderen?": "Supprimer cette conversation ?",
  "'%@' verdwijnt met alle berichten. Dit kun je niet ongedaan maken.": "« %@ » disparaît avec tous ses messages. Cette action est irréversible.",
- "Vraagt de gebruiker om een skill te maken of aan te passen, gebruik dan create_skill; een skill hoort niet in de werkmap of in MACAIMAGIC.md. Een skill is één compact, op zichzelf staand md-bestand: zet alles wat je leerde of verzamelde erin, en verwijs niet naar bestanden in de werkmap, want een later gesprek werkt in een andere map.": "Si l'utilisateur demande de créer ou de modifier une compétence, utilisez create_skill ; une compétence n'a pas sa place dans le dossier de travail ni dans MACAIMAGIC.md. Une compétence est un seul fichier md compact et autonome : mettez-y tout ce que vous avez appris ou rassemblé, et ne renvoyez pas à des fichiers du dossier de travail, car une conversation ultérieure travaille dans un autre dossier."
+ "Vraagt de gebruiker om een skill te maken of aan te passen, gebruik dan create_skill; een skill hoort niet in de werkmap of in MACAIMAGIC.md. Een skill is één compact, op zichzelf staand md-bestand: zet alles wat je leerde of verzamelde erin, en verwijs niet naar bestanden in de werkmap, want een later gesprek werkt in een andere map.": "Si l'utilisateur demande de créer ou de modifier une compétence, utilisez create_skill ; une compétence n'a pas sa place dans le dossier de travail ni dans MACAIMAGIC.md. Une compétence est un seul fichier md compact et autonome : mettez-y tout ce que vous avez appris ou rassemblé, et ne renvoyez pas à des fichiers du dossier de travail, car une conversation ultérieure travaille dans un autre dossier.",
+ "Start dit model": "Démarrer ce modèle",
+ "Laadt dit model; een ander model dat draait, stopt eerst.": "Charge ce modèle ; un autre modèle en cours s'arrête d'abord.",
+ "Laden…": "Chargement…",
+ "Gekozen model": "Modèle choisi",
+ "Stop model": "Arrêter le modèle",
+ "Start %@": "Démarrer %@",
+ "Het gekozen model staat er nog niet: kies of download er een bij Modellen.": "Le modèle choisi n'est pas encore là : choisissez-en ou téléchargez-en un dans Modèles.",
+ "%@ draait nu alleen als snel model, voor Documenten en Beeld. Start het om ermee te chatten; dan stopt het snelle exemplaar.": "%@ tourne seulement comme modèle rapide, pour Documents et Image. Démarrez-le pour discuter ; la copie rapide s'arrête alors.",
+ "Er is geen model gestart. Je vraag start het vanzelf, of klik op Start.": "Aucun modèle n'est démarré. Votre question le démarre d'elle-même, ou cliquez sur Démarrer.",
+ "Geen model · klik om te starten": "Aucun modèle · cliquez pour démarrer",
+ "Welk model er draait. Klik om een model te starten of te stoppen.": "Quel modèle tourne. Cliquez pour démarrer ou arrêter un modèle.",
+ "Nog geen model gedownload": "Aucun modèle téléchargé",
+ "Start een model": "Démarrer un modèle",
+ "Modellen…": "Modèles…",
+ "Live-dashboard": "Tableau de bord en direct",
+ "%@ actief": "%@ actif",
+ "%@ laden…": "Chargement de %@…"
 }

@@ -320,6 +320,23 @@ final class AppState: ObservableObject {
     }
 
     /// Switch to another model: stops the engine first when it runs a different one.
+    /// "Start dit model": choose it and start it, in one go. Another model that runs stops first; this one running
+    /// or loading already is left as it is.
+    func startModel(_ id: String) async {
+        let active: Bool
+        switch engine.state {
+        case .running, .starting: active = true
+        default: active = false
+        }
+        if active && engine.model?.id == id { return }
+        if active {
+            await engine.stopAndWait()
+            await documentEngines.fast.stopAndWait()
+        }
+        selectedModelID = id
+        if canStart { startEngine() }
+    }
+
     func select(_ id: String) async {
         let wasActive: Bool
         switch engine.state {

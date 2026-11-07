@@ -328,11 +328,11 @@ private struct EngineBanner: View {
                 Button(L("Opnieuw")) { app.startEngine() }.disabled(!app.canStart)
             default:
                 Image(systemName: "power").foregroundStyle(.secondary)
-                Text(!app.canStart ? L("Model of engine nog niet klaar: zie Engine & model.")
-                     : app.chatModelOnFast.map { L("\($0.shortName) draait nu alleen als snel model, voor Documenten en Beeld. Start de engine om ermee te chatten; dan stopt het snelle exemplaar.") }
-                     ?? L("De engine staat uit."))
+                Text(!app.canStart ? L("Het gekozen model staat er nog niet: kies of download er een bij Modellen.")
+                     : app.chatModelOnFast.map { L("\($0.shortName) draait nu alleen als snel model, voor Documenten en Beeld. Start het om ermee te chatten; dan stopt het snelle exemplaar.") }
+                     ?? L("Er is geen model gestart. Je vraag start het vanzelf, of klik op Start."))
                 Spacer()
-                Button(L("Start engine")) { app.startEngine() }.buttonStyle(.borderedProminent).disabled(!app.canStart)
+                Button(L("Start \(app.selectedModel?.shortName ?? L("model"))")) { app.startEngine() }.buttonStyle(.borderedProminent).disabled(!app.canStart)
             }
         }
         .font(.callout)

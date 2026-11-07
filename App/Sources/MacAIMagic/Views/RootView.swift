@@ -36,7 +36,7 @@ struct RootView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
-                EngineStatusPill().onTapGesture { pane = .live }
+                ModelMenu(pane: $pane)
             }
             ToolbarItem(placement: .primaryAction) {
                 // the help for the page on screen
@@ -286,6 +286,46 @@ struct MiniSpark: View {
     }
 }
 
+/// The pill at the top as a menu: start any downloaded model with one click, stop the one that runs, or go to Live or
+/// Modellen. The one place to start a model, on every page.
+struct ModelMenu: View {
+    @Binding var pane: Pane?
+    @EnvironmentObject var app: AppState
+    @EnvironmentObject var engine: EngineController
+    @EnvironmentObject var models: ModelStore
+
+    var body: some View {
+        Menu {
+            let ready = models.catalog.models.filter { models.status($0.id).isComplete }
+            if ready.isEmpty {
+                Text(L("Nog geen model gedownload"))
+            } else {
+                Section(L("Start een model")) {
+                    ForEach(ready, id: \.id) { m in
+                        let active = engine.model?.id == m.id && engine.state != .stopped
+                        Button { Task { await app.startModel(m.id) } } label: {
+                            Label(m.name + "  " + m.totalSize.gbShort, systemImage: active ? "checkmark.circle.fill" : "play.circle")
+                        }
+                        .disabled(active)
+                    }
+                }
+            }
+            if engine.state != .stopped {
+                Button(role: .destructive) { engine.stop() } label: { Label(L("Stop model"), systemImage: "stop.fill") }
+            }
+            Divider()
+            Button(L("Modellen…")) { pane = .models }
+            Button(L("Live-dashboard")) { pane = .live }
+        } label: {
+            EngineStatusPill()
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+}
+
 struct EngineStatusPill: View {
     @EnvironmentObject var app: AppState
     /// False: only the app's own engine, beside its Start and Stop.
@@ -307,18 +347,20 @@ private struct PillBody: View {
 
     private struct Part { let text: String; let color: Color; let rank: Int }
 
-    private func part(_ e: EngineController, role: String) -> Part? {
+    private func part(_ e: EngineController, role: String?) -> Part? {
         let name = e.model?.shortName ?? L("Model")
         switch e.state {
-        case .running: return Part(text: L("\(name) actief (\(role))"), color: Theme.mint, rank: 1)
-        case .starting: return Part(text: L("\(name) laden… (\(role))"), color: Theme.amber, rank: 2)
+        case .running: return Part(text: role.map { L("\(name) actief (\($0))") } ?? L("\(name) actief"), color: Theme.mint, rank: 1)
+        case .starting: return Part(text: role.map { L("\(name) laden… (\($0))") } ?? L("\(name) laden…"), color: Theme.amber, rank: 2)
         case .failed: return Part(text: L("\(name): fout"), color: .red, rank: 3)
         case .stopped: return nil
         }
     }
 
     private var parts: [Part] {
-        var list = [part(engine, role: L("Zwaar"))].compactMap { $0 }
+        // the role only matters when a second (fast) model runs beside the chat model
+        let both = all && fast.state != .stopped
+        var list = [part(engine, role: both ? L("Zwaar") : nil)].compactMap { $0 }
         guard all else { return list }
         if let p = part(fast, role: L("Snel")) { list.append(p) }
         if images.busy { list.append(Part(text: L("\(app.imageModel?.shortName ?? L("Beeld")) tekent"), color: Theme.mint, rank: 1)) }
@@ -330,12 +372,12 @@ private struct PillBody: View {
         let color = list.max { $0.rank < $1.rank }?.color ?? .gray
         HStack(spacing: 7) {
             Circle().fill(color).frame(width: 8, height: 8).shadow(color: color, radius: 4)
-            Text(list.isEmpty ? L("Geen model geladen") : list.map(\.text).joined(separator: " · "))
+            Text(list.isEmpty ? L("Geen model · klik om te starten") : list.map(\.text).joined(separator: " · "))
                 .font(.callout.weight(.medium)).lineLimit(1)
         }
         .padding(.horizontal, 11).padding(.vertical, 5)
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().stroke(color.opacity(0.4), lineWidth: 1))
-        .help(L("Welke modellen in het geheugen staan: klik voor het live dashboard"))
+        .help(L("Welk model er draait. Klik om een model te starten of te stoppen."))
     }
 }

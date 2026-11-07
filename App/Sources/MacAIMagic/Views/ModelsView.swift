@@ -154,11 +154,6 @@ private struct ModelCard: View {
                         app.objectWillChange.send()
                     }
                 } else {
-                    RoleButton(title: L("Zwaar"), icon: "brain", on: selected, color: Theme.family(model.family)) {
-                        if Settings.shared.fastModel == model.id { Settings.shared.fastModel = "" }
-                        Task { await app.select(model.id) }
-                    }
-                    .disabled(!status.headersAvailable && !selected)
                     RoleButton(title: L("Snel"), icon: "bolt.fill", on: isFast, color: Theme.family(model.family)) {
                         // the chosen one again: back to the automatic choice
                         Settings.shared.fastModel = isFast && !Settings.shared.fastModel.isEmpty ? "" : model.id
@@ -166,6 +161,21 @@ private struct ModelCard: View {
                     }
                     .disabled(selected || !status.isComplete)
                     .help(selected ? L("Dit is het zware model.") : L("Het snelle model doet in Documenten het kleine werk: notities, spelling, korter maken."))
+                    // the one thing to do with a downloaded model: start it (another one stops)
+                    if running {
+                        Button(role: .destructive) { engine.stop() } label: { Label(L("Stop"), systemImage: "stop.fill") }
+                            .buttonStyle(.bordered)
+                    } else if engine.model?.id == model.id, case .starting = engine.state {
+                        ProgressView().controlSize(.small)
+                        Text(L("Laden…")).font(.callout).foregroundStyle(.secondary)
+                    } else if status.isComplete {
+                        Button {
+                            if Settings.shared.fastModel == model.id { Settings.shared.fastModel = "" }
+                            Task { await app.startModel(model.id) }
+                        } label: { Label(L("Start dit model"), systemImage: "play.fill") }
+                            .buttonStyle(.borderedProminent).tint(Theme.family(model.family))
+                            .help(L("Laadt dit model; een ander model dat draait, stopt eerst."))
+                    }
                 }
             }
         }
@@ -256,7 +266,7 @@ private struct EngineCard: View {
     @State private var showLog = false
 
     var body: some View {
-        GlassCard(title: L("Engine"), icon: "bolt.horizontal.fill", glow: Theme.mint) {
+        GlassCard(title: L("Gekozen model"), icon: "bolt.horizontal.fill", glow: Theme.mint) {
             HStack {
                 EngineStatusPill(all: false)
                 Text(app.selectedModel?.name ?? "").foregroundStyle(.secondary)

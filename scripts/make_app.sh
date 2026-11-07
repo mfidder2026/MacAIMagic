@@ -74,8 +74,11 @@ echo "ondertekend: ${SIGN_ID:-ad hoc}"
 
 # Notarization by Apple, when signed with Developer ID and the credentials are stored
 # (once: xcrun notarytool store-credentials macaimagic --apple-id … --team-id … --password <app-specific password>)
+# NOTARIZE=0: a quick build to look at on this Mac (signed, not notarized); a release always notarizes.
 NOTARY_PROFILE="${NOTARY_PROFILE:-macaimagic}"
-if [ -n "$SIGN_ID" ] && xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
+if [ "${NOTARIZE:-1}" = "0" ]; then
+  echo "niet genotariseerd (NOTARIZE=0): alleen voor deze Mac"
+elif [ -n "$SIGN_ID" ] && xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1; then
   ZIP="$ROOT/dist/MacAIMagic-notarize.zip"
   ditto -c -k --keepParent "$APP" "$ZIP"
   xcrun notarytool submit "$ZIP" --keychain-profile "$NOTARY_PROFILE" --wait
