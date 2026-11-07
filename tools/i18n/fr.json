@@ -1012,5 +1012,6 @@
  "Verwijder dit gesprek": "Supprimer cette conversation",
  "Nieuw gesprek (⌘N)": "Nouvelle conversation (⌘N)",
  "Dit gesprek verwijderen?": "Supprimer cette conversation ?",
- "'%@' verdwijnt met alle berichten. Dit kun je niet ongedaan maken.": "« %@ » disparaît avec tous ses messages. Cette action est irréversible."
+ "'%@' verdwijnt met alle berichten. Dit kun je niet ongedaan maken.": "« %@ » disparaît avec tous ses messages. Cette action est irréversible.",
+ "Vraagt de gebruiker om een skill te maken of aan te passen, gebruik dan create_skill; een skill hoort niet in de werkmap of in MACAIMAGIC.md. Een skill is één compact, op zichzelf staand md-bestand: zet alles wat je leerde of verzamelde erin, en verwijs niet naar bestanden in de werkmap, want een later gesprek werkt in een andere map.": "Si l'utilisateur demande de créer ou de modifier une compétence, utilisez create_skill ; une compétence n'a pas sa place dans le dossier de travail ni dans MACAIMAGIC.md. Une compétence est un seul fichier md compact et autonome : mettez-y tout ce que vous avez appris ou rassemblé, et ne renvoyez pas à des fichiers du dossier de travail, car une conversation ultérieure travaille dans un autre dossier."
 }
