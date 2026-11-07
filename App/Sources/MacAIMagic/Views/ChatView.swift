@@ -38,6 +38,16 @@ struct ChatView: View {
                     .modifier(OpenAtEnd(enabled: scrollToEnd))
                     .onChange(of: c.messages.last?.text) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     .onChange(of: c.messages.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+                    // back from another page: the anchor alone can land at the top while the lazy stack still guesses
+                    // its heights; after the pane transition, go to the end once more, and again when heights are known
+                    .task(id: conversationID) {
+                        guard scrollToEnd else { return }
+                        for wait in [350, 450] {
+                            try? await Task.sleep(for: .milliseconds(wait))
+                            if Task.isCancelled { return }
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                    }
                 }
             } else {
                 EmptyChat(draft: $draft)
