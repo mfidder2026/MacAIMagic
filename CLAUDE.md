@@ -58,3 +58,5 @@ cd App && swift test
 ```
 
 `./scripts/make_app.sh` builds `dist/MacAIMagic.app`. The README explains the rest, including the engine tests. `python3 tools/check_catalog.py` checks the model catalog against the server (headers only); every address in `tools/models.json` names one commit. New texts need translations in `tools/i18n/{en,de,fr}.json`, and `python3 tools/i18n.py build` writes `Translations.swift` from them. Publish a release only when the owner asks.
+
+**Version:** `CFBundleShortVersionString` in `scripts/make_app.sh`. WinAIMagic and MacAIMagic carry the same version number (since 1.11.0, on the owner's request). A new version on either side takes the next number after the highest of the two (check the other repository's `main` first), and when one side takes the other's work over, it takes that side's number. A number may be skipped on one side; it never goes below the other side. Windows keeps its number in `Directory.Build.props`.
