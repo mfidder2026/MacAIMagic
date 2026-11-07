@@ -63,7 +63,10 @@ extension AppState {
     /// One run of a task: a new conversation with its prompt. Nil when the model could not start.
     @discardableResult
     func runTask(_ task: ScheduledTask) async -> Conversation.ID? {
-        guard await ensureModel() else {
+        tasksStarting.insert(task.id)
+        let ready = await ensureModel()
+        tasksStarting.remove(task.id)
+        guard ready else {
             Notifier.shared.post(title: L("Taak niet uitgevoerd: \(task.title)"),
                                  body: L("Het model kon niet starten. Kijk in MacAIMagic bij Modellen of Engine."), conversation: nil)
             return nil

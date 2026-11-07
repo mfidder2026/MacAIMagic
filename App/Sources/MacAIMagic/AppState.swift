@@ -22,6 +22,8 @@ final class AppState: ObservableObject {
     /// The conversations of task runs that are going on, with their task.
     @Published var taskRuns: [Conversation.ID: UUID] = [:]
     var modelStartedByTasks = false
+    /// Tasks waiting for the model to load before their run starts.
+    @Published var tasksStarting: Set<UUID> = []
     var taskTimer: Timer?
     var taskActivity: NSObjectProtocol?
     /// What the last heartbeat found, for Instellingen → Taken.

@@ -113,10 +113,10 @@ struct Sidebar: View {
                 Label(L("Modellen"), systemImage: "square.stack.3d.up").tag(Pane.models)
                 Label(L("Documenten"), systemImage: "doc.richtext").tag(Pane.documents)
                 Label(L("Beeld"), systemImage: "photo").tag(Pane.images)
-                Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
-                Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
-                Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)
                 Label(L("Taken"), systemImage: "clock.badge.checkmark").tag(Pane.tasks)
+                Label(L("Cluster"), systemImage: "point.3.connected.trianglepath.dotted").tag(Pane.cluster)
+                Label(L("Vergelijken"), systemImage: "chart.bar.xaxis").tag(Pane.compare)
+                Label(L("Systeem"), systemImage: "checkmark.shield").tag(Pane.system)
                 Label(L("Hulp"), systemImage: "questionmark.circle").tag(Pane.help)
             }
             Section(L("Gesprekken")) {

@@ -67,7 +67,8 @@ struct TasksView: View {
     }
 
     @ViewBuilder private func row(_ t: ScheduledTask) -> some View {
-        let running = app.taskRuns.values.contains(t.id)
+        let starting = app.tasksStarting.contains(t.id)
+        let running = starting || app.taskRuns.values.contains(t.id)
         HStack(spacing: 10) {
             Toggle("", isOn: Binding(get: { t.enabled }, set: { on in var c = t; c.enabled = on; tasks.upsert(c) }))
                 .labelsHidden().toggleStyle(.switch).controlSize(.small)
@@ -75,6 +76,7 @@ struct TasksView: View {
                 HStack(spacing: 6) {
                     Text(t.title).font(.body.weight(.medium))
                     if running { ProgressView().controlSize(.mini) }
+                    if starting { Text(L("Model laden…")).font(.caption).foregroundStyle(.secondary) }
                 }
                 Text(subtitle(t)).font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
