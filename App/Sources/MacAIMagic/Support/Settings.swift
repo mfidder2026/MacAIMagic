@@ -83,6 +83,11 @@ final class Settings: ObservableObject {
     @AppStorage("stayInMenuBar") var stayInMenuBar = true
     /// Closing the window stops the model (unless something is running), so its memory is free again.
     @AppStorage("stopModelOnClose") var stopModelOnClose = true
+    // Instellingen → Telegram
+    /// Talk with the model on this Mac through a Telegram bot of your own (off by default).
+    @AppStorage("featureTelegram") var featureTelegram = false
+    /// Tasks and the heartbeat report in Telegram too, to the first account paired.
+    @AppStorage("telegramNotify") var telegramNotify = true
     /// Reading the system (diagnosis) and changing it: "allow", "ask" or "deny". Admin changes always ask.
     @AppStorage("rightSystemRead") var rightSystemRead = "allow"
     @AppStorage("rightSystemChange") var rightSystemChange = "ask"

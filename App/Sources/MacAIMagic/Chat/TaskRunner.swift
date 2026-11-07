@@ -12,7 +12,13 @@ extension AppState {
             // the user used the model: it is theirs now, a task must not stop it
             if self?.taskRuns[id] == nil { self?.modelStartedByTasks = false }
         }
-        chat.onApproval = { [weak self] a in self?.approvalNeeded(a) }
+        chat.onApproval = { [weak self] a in
+            guard let self else { return }
+            self.approvalNeeded(a)
+            self.telegram.approval(a, isTask: self.taskRuns[a.conversation] != nil)
+        }
+        _ = telegram
+        TelegramService.shared.start()
         taskTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tickTasks() }
         }
@@ -137,6 +143,7 @@ extension AppState {
         let answer = last?.error ?? (last?.text ?? "").split(separator: "\n").first.map(String.init) ?? ""
         heartbeatStatus = L("Laatste controle \(time): er is iets te melden.")
         Notifier.shared.post(title: L("MacAIMagic heeft iets voor je"), body: answer, conversation: id)
+        telegram.notify(L("MacAIMagic heeft iets voor je"), last?.error ?? last?.text ?? "")
     }
 
     private func taskNotification(_ id: Conversation.ID, _ taskID: UUID) {
@@ -144,9 +151,11 @@ extension AppState {
         let last = store.conversations.first { $0.id == id }?.messages.last { $0.role == .assistant }
         if let error = last?.error {
             Notifier.shared.post(title: L("Taak gestopt: \(title)"), body: error, conversation: id)
+            telegram.notify(L("Taak gestopt: \(title)"), error)
         } else {
             let answer = (last?.text ?? "").split(separator: "\n").first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
             Notifier.shared.post(title: L("Taak klaar: \(title)"), body: answer.map(String.init) ?? L("Open het gesprek voor de uitkomst."), conversation: id)
+            telegram.notify(L("Taak klaar: \(title)"), ChatClient.withoutDoneWord(last?.text ?? ""))
         }
     }
 

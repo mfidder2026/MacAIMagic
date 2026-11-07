@@ -72,6 +72,8 @@ struct Conversation: Codable, Identifiable, Hashable {
     var task: UUID? = nil
     /// Not in the sidebar: a heartbeat check that had nothing to report is removed, one that has stays under Taken.
     var hidden: Bool? = nil
+    /// The Telegram account this conversation talks with (Instellingen → Telegram), if any.
+    var telegram: Int64? = nil
 
     /// The title in the chosen language while it is still the default.
     var displayTitle: String { title == "Nieuw gesprek" ? L("Nieuw gesprek") : title }

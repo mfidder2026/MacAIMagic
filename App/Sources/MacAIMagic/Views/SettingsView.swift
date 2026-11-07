@@ -130,6 +130,9 @@ struct SettingsView: View {
 
             TasksSettingsView()
                 .tabItem { Label(L("Taken"), systemImage: "clock.badge.checkmark") }
+
+            TelegramSettingsView()
+                .tabItem { Label(L("Telegram"), systemImage: "paperplane") }
         }
         .formStyle(.grouped)
         .frame(width: 640, height: 560)

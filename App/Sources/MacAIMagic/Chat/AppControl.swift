@@ -81,6 +81,8 @@ final class AppControl: AppControlling {
         ("heartbeatMinutes", number(\.heartbeatMinutes, [30, 60, 120, 240])),
         ("tasksStopModel", flag(\.tasksStopModel)),
         ("stayInMenuBar", flag(\.stayInMenuBar)),
+        ("featureTelegram", flag(\.featureTelegram)),
+        ("telegramNotify", flag(\.telegramNotify)),
     ]
 
     static func setting(_ name: String) -> (name: String, setting: Setting)? {
@@ -355,6 +357,7 @@ final class AppControl: AppControlling {
         case "set_setting":
             let (key, setting) = Self.setting(arg(a, "setting"))!
             guard setting.set(arg(a, "value")) else { return "Error: that is not a value for \(key)." }
+            if key == "featureTelegram" { TelegramService.shared.restart() }
             let later = ["contextSize", "mtp", "vision"].contains(key) ? " It counts after the engine restarts." : ""
             return "\(key) is now \(setting.get()).\(later)"
         case "find_helpers":

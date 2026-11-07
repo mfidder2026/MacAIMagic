@@ -31,9 +31,32 @@ final class AppState: ObservableObject {
     /// What the last heartbeat found, for Instellingen → Taken.
     @Published var heartbeatStatus: String?
     private var tasksChanged: AnyCancellable?
+    /// Telegram as a way into the chat (TelegramBridge.swift).
+    private(set) lazy var telegram = TelegramBridge(
+        service: .shared, chat: chat, store: store,
+        baseURL: { [unowned self] in self.engine.baseURL },
+        modelRunning: { [unowned self] in self.engine.state.isRunning },
+        ensureModel: { [unowned self] in await self.ensureModel() },
+        statusText: { [unowned self] in self.shortStatus() })
+
+    /// For /status in Telegram: the model, what runs, the next task.
+    func shortStatus() -> String {
+        var o: [String] = []
+        if let m = engine.model, engine.state.isRunning { o.append(L("Model: \(m.name), geladen.")) } else { o.append(L("Model: niet geladen (laadt bij je volgende vraag).")) }
+        if chat.busy { o.append(L("Bezig in \(chat.running.count) gesprek(ken).")) }
+        if let next = tasks.tasks.filter(\.enabled).compactMap({ t in t.nextRun.map { (t, $0) } }).min(by: { $0.1 < $1.1 }) {
+            o.append(L("Volgende taak: \(next.0.title), \(next.1.formatted(date: .abbreviated, time: .shortened))."))
+        }
+        o.append(L("Vrij op schijf: \(system.freeDisk / 1_000_000_000) GB."))
+        return o.joined(separator: "\n")
+    }
+
 
     /// There is something that may run with the window closed.
-    var hasBackgroundWork: Bool { tasks.tasks.contains(where: \.enabled) || Settings.shared.heartbeat || !taskRuns.isEmpty }
+    var hasBackgroundWork: Bool {
+        tasks.tasks.contains(where: \.enabled) || Settings.shared.heartbeat || !taskRuns.isEmpty
+            || (Settings.shared.featureTelegram && TelegramService.shared.token != nil)
+    }
 
     /// The window closed and the app stays in the menu bar: no Dock icon, and the model stops unless something runs.
     func windowClosed() {
