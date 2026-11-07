@@ -1,6 +1,6 @@
-# MacAIMagic 1.11.0 (macOS, Apple Silicon)
+# MacAIMagic 1.12.0 (macOS, Apple Silicon)
 
-`MacAIMagic-1.11.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.12.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,15 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.11.0-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.12.0-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.12.0:
+- **Telegram** (Settings → Telegram, off by default): talk with the model on your Mac from your phone, through a Telegram bot of your own. Make the bot at @BotFather and paste its token (it goes into the Keychain); the Mac calls Telegram itself, so nothing on your Mac is open to the internet. **Pair an account** shows a 6-digit code, valid for 10 minutes and usable once: only paired accounts get an answer, and the bot stays silent to everyone else. Each account has one conversation that goes on (also in the sidebar); the answer grows while the model writes, and `/new`, `/stop` and `/status` do what they say. Photos go to the model, and text files up to 1 MB are read along. A change asks for approval with buttons in Telegram; administrator rights are only approved on the Mac. Tasks and the heartbeat report there too. Messages go through Telegram's servers, which do not encrypt them end to end; the model and your files stay on the Mac.
+- **Settings** now has a gear at the top right of the window. The settings window is larger and can be resized, so all eight tabs fit.
+- **Tables** in an answer show as tidy columns, in the chat and in Telegram.
+- WinAIMagic now has the same version number as MacAIMagic.
 
 New in 1.11.0:
 - **Tasks** (new in the sidebar). The model does a task on its own at a set time: once, every day or every weekday, every week, or every few hours. Make one under **Taken → Nieuwe taak**, or just ask: "give me my agenda every weekday at 8". Each run becomes a conversation of its own, with a notification when it is done or needs your approval. The model loads for the task and stops again afterwards. A change by a task always waits for your approval.
