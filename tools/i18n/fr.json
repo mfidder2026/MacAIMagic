@@ -1000,5 +1000,12 @@
  "Vraag toegang": "Demander l'accès",
  "macOS moet MacAIMagic eerst toegang geven (Toegankelijkheid).": "macOS doit d'abord donner l'accès à MacAIMagic (Accessibilité).",
  "verbeterd": "améliorée",
- "%@ Het eerste laden van %@ GB duurt enkele minuten.": "%@ Le premier chargement de %@ Go prend quelques minutes."
+ "%@ Het eerste laden van %@ GB duurt enkele minuten.": "%@ Le premier chargement de %@ Go prend quelques minutes.",
+ "macOS geeft de spraakherkenning niet vrij. Zet Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren, en probeer het opnieuw.": "macOS ne libère pas la reconnaissance vocale. Activez Dictée dans Réglages Système → Clavier → Dictée, puis réessayez.",
+ "Er werd niets verstaan. Spreek iets dichter bij de microfoon, en druk pas daarna op stoppen.": "Rien n'a été compris. Parlez un peu plus près du micro, puis appuyez sur arrêter.",
+ "De spraakherkenning voor deze taal staat nog niet op deze Mac. Zet Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren; macOS downloadt de taal dan.": "La reconnaissance vocale pour cette langue n'est pas encore sur ce Mac. Activez Dictée dans Réglages Système → Clavier → Dictée ; macOS télécharge alors la langue.",
+ "De spraakherkenning stopte: %@": "La reconnaissance vocale s'est arrêtée : %@",
+ "Model laden, je vraag gaat daarna vanzelf": "Chargement du modèle, votre question partira ensuite d'elle-même",
+ "Er werd niets verstaan.": "Rien n'a été compris.",
+ "Werkt de microfoon niet, zet dan Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren. Op macOS 26 en nieuwer gebruikt MacAIMagic de nieuwere spraakherkenning van Apple; macOS downloadt de taal de eerste keer.": "Si le micro ne fonctionne pas, activez Dictée dans Réglages Système → Clavier → Dictée. Sur macOS 26 et plus récent, MacAIMagic utilise la reconnaissance vocale plus récente d'Apple ; macOS télécharge la langue la première fois."
 }

@@ -35,7 +35,7 @@ Switch on **The model may control these apps** and add the apps it may use with 
 
 ## Speech
 Switch on **Speech**.
-- **Dictate**: press the microphone next to the input field and speak your question. Press again to stop. Recognition happens on this Mac. The first time, macOS asks for the microphone and for speech recognition.
+- **Dictate**: press the microphone next to the input field and speak your question. After two seconds of silence your question goes by itself; if the model is not loaded, it loads first. If the microphone does not work, switch on Dictation in System Settings → Keyboard → Dictation. Recognition happens on this Mac. The first time, macOS asks for the microphone and for speech recognition.
 - **Read aloud**: the speaker under an answer reads it aloud. With **Read answers aloud by themselves** that happens after every answer in the window.
 - **Voice**: choose a voice in the app's language. Better voices can be downloaded in System Settings → Accessibility → Spoken Content.
 - **Telegram**: a voice message to your bot becomes text on the Mac. The bot shows what it heard ("🎙 …") and the model answers that.

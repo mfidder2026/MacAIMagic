@@ -19,8 +19,15 @@ struct Composer: View {
     /// The text before speaking started: what is heard comes after it.
     @State private var beforeSpeaking = ""
 
+    /// A question sent while the model is not loaded: it loads first, and the question goes when it is there.
+    @State private var waitingForModel = false
+    /// Stops listening and sends after a pause in speaking.
+    @State private var silence: Task<Void, Never>?
+
     private var canSend: Bool {
-        engine.state.isRunning && !chat.isBusy(conversationID) && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
+        let modelThere = engine.state.isRunning || app.canStart || { if case .starting = engine.state { return true } else { return false } }()
+        return modelThere && !waitingForModel && !chat.isBusy(conversationID)
+            && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty)
     }
 
     var body: some View {
@@ -86,6 +93,20 @@ struct Composer: View {
                     .popover(isPresented: Binding(get: { voice.problem != nil }, set: { if !$0 { voice.problem = nil } })) {
                         Text(voice.problem ?? "").padding().frame(width: 300)
                     }
+                    .onChange(of: voice.heard) { _, heard in
+                        // a pause of two seconds after speaking: the question is done, and it goes by itself
+                        silence?.cancel()
+                        guard voice.listening, !heard.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                        silence = Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            guard !Task.isCancelled, voice.listening, voice.heard == heard else { return }
+                            send()
+                        }
+                    }
+                }
+                if waitingForModel {
+                    ProgressView().controlSize(.small)
+                    Text(L("Model laden, je vraag gaat daarna vanzelf")).font(.caption).foregroundStyle(.secondary)
                 }
                 if chat.isBusy(conversationID) {
                     Button { chat.stop(conversationID) } label: { Image(systemName: "stop.circle.fill").font(.title2) }
@@ -131,7 +152,18 @@ struct Composer: View {
 
     private func send() {
         if voice.listening { voice.stopListening() }
+        silence?.cancel()
         guard canSend else { return }
+        guard engine.state.isRunning else {
+            // load the model first; the question waits in the field and goes as soon as the model is there
+            waitingForModel = true
+            Task {
+                let ready = await app.ensureModel()
+                waitingForModel = false
+                if ready { send() }
+            }
+            return
+        }
         chat.modelName = engine.model?.name ?? app.selectedModel?.name ?? L("DeepSeek-V4.1-Flash")
         chat.send(text: text.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments,
                   in: conversationID, store: store, baseURL: engine.baseURL)

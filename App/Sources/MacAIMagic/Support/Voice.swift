@@ -19,6 +19,10 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var recognition: SFSpeechRecognitionTask?
     private let synth = AVSpeechSynthesizer()
+    /// SpeechAnalyzer on macOS 26 and later: how to stop it.
+    private var modernStop: (() async -> Void)?
+    /// Which recognizer listens now, for the settings ("SpeechAnalyzer" or the older one).
+    @Published private(set) var engineName = ""
 
     override init() {
         super.init()
@@ -49,12 +53,38 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     /// Starts listening; every partial result goes to `onText`. Stop with `stopListening`.
     func startListening(onText: @escaping (String) -> Void) async {
         problem = nil
-        guard await Self.authorize() else {
-            problem = L("Spraakherkenning is niet toegestaan. Zet MacAIMagic aan in Systeeminstellingen → Privacy en beveiliging → Spraakherkenning.")
-            return
-        }
         guard await AVCaptureDevice.requestAccess(for: .audio) else {
             problem = L("De microfoon is niet toegestaan. Zet MacAIMagic aan in Systeeminstellingen → Privacy en beveiliging → Microfoon.")
+            return
+        }
+        // macOS 26 and later: the newer on-device model, without Siri or Dictation switched on
+        if #available(macOS 26, *) {
+            let modern = ModernSpeech()
+            heard = ""
+            do {
+                let started = try await modern.start(locale: Self.locale, onText: { [weak self] text in
+                    Task { @MainActor in self?.heard = text; onText(text) }
+                }, onError: { [weak self] why in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        if self.heard.isEmpty { self.problem = L("De spraakherkenning stopte: \(why)") }
+                        self.stopListening()
+                    }
+                })
+                if started {
+                    modernStop = { await modern.stop() }
+                    engineName = "SpeechAnalyzer"
+                    listening = true
+                    return
+                }
+            } catch {
+                // the model could not be downloaded or started: the older recognizer may still work
+                await modern.stop()
+            }
+        }
+        engineName = "SFSpeechRecognizer"
+        guard await Self.authorize() else {
+            problem = L("Spraakherkenning is niet toegestaan. Zet MacAIMagic aan in Systeeminstellingen → Privacy en beveiliging → Spraakherkenning.")
             return
         }
         guard let recognizer = SFSpeechRecognizer(locale: Self.locale), recognizer.isAvailable else {
@@ -79,20 +109,45 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
         }
         heard = ""
         listening = true
+        let onDevice = req.requiresOnDeviceRecognition
         recognition = recognizer.recognitionTask(with: req) { [weak self] result, error in
             let text = result?.bestTranscription.formattedString
             let final = result?.isFinal == true || error != nil
+            let why = error.map { Self.explain($0, onDevice: onDevice) }
             Task { @MainActor in
                 guard let self else { return }
                 if let text { self.heard = text; onText(text) }
+                // a stop by the user ends with an error too; only say it when nothing was heard
+                if let why, self.heard.isEmpty, self.listening { self.problem = why }
                 if final { self.stopListening() }
             }
         }
     }
 
+    /// The recognizer's error in plain words, with what to do.
+    nonisolated static func explain(_ error: Error, onDevice: Bool) -> String {
+        let e = error as NSError
+        let text = e.localizedDescription
+        if e.code == 1101 || e.code == 1700 || text.lowercased().contains("siri") || text.lowercased().contains("dictation") {
+            return L("macOS geeft de spraakherkenning niet vrij. Zet Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren, en probeer het opnieuw.") + " (\(e.domain) \(e.code))"
+        }
+        if e.code == 1110 || text.lowercased().contains("no speech") {
+            return L("Er werd niets verstaan. Spreek iets dichter bij de microfoon, en druk pas daarna op stoppen.")
+        }
+        if onDevice && (text.lowercased().contains("asset") || text.lowercased().contains("model") || e.code == 1107 || e.code == 1100) {
+            return L("De spraakherkenning voor deze taal staat nog niet op deze Mac. Zet Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren; macOS downloadt de taal dan.") + " (\(e.domain) \(e.code))"
+        }
+        return L("De spraakherkenning stopte: \(text)") + " (\(e.domain) \(e.code))"
+    }
+
     func stopListening() {
         guard listening else { return }
         listening = false
+        if let stop = modernStop {
+            modernStop = nil
+            Task { await stop() }
+            return
+        }
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         request?.endAudio()
@@ -106,6 +161,9 @@ final class Voice: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     /// The text of an audio file (Ogg/Opus from Telegram, m4a, wav …); nil with the reason when it fails.
     static func transcribe(_ file: URL, locale given: Locale? = nil) async -> (text: String?, error: String?) {
         let locale = given ?? Voice.locale
+        if #available(macOS 26, *), let text = try? await ModernSpeech.transcribe(file, locale: locale) {
+            return text.isEmpty ? (nil, L("Er werd niets verstaan.")) : (text, nil)
+        }
         guard await authorize() else { return (nil, L("Spraakherkenning is niet toegestaan op de Mac.")) }
         guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
             return (nil, L("Spraakherkenning is er niet voor deze taal op deze Mac."))

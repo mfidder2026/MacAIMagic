@@ -193,15 +193,18 @@ final class VoiceTests: XCTestCase {
         XCTAssertTrue(text.contains("Dit is vet en een link."), text)
     }
 
-    /// A spoken sentence as Ogg/Opus (Telegram's format) becomes text. Only where speech recognition is allowed.
+    /// A spoken sentence as Ogg/Opus (Telegram's format) becomes text: with SpeechAnalyzer on macOS 26 and later,
+    /// else only where speech recognition is allowed for the test runner.
     func testAVoiceMessageBecomesText() async throws {
-        try XCTSkipUnless(SFSpeechRecognizer.authorizationStatus() == .authorized, "speech recognition is not allowed for the test runner")
+        // speech recognition stops a process without the usage text in its Info.plist: only the app has it
+        try XCTSkipUnless(Bundle.main.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") != nil
+                          && SFSpeechRecognizer.authorizationStatus() == .authorized, "only in the app: the test runner has no speech permission")
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let aiff = dir.appendingPathComponent("s.aiff"), ogg = dir.appendingPathComponent("s.ogg")
         for (tool, args) in [("/usr/bin/say", ["-v", "Samantha", "-o", aiff.path, "What is the weather tomorrow"]),
-                             ("/usr/bin/afconvert", ["-f", "Oggf", "-d", "opus", aiff.path, ogg.path])] {
+                             ("/usr/bin/afconvert", ["-f", "Oggf", "-d", "opus@48000", aiff.path, ogg.path])] {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: tool)
             p.arguments = args

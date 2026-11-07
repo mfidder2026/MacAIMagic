@@ -1000,5 +1000,12 @@
  "Vraag toegang": "Zugriff anfragen",
  "macOS moet MacAIMagic eerst toegang geven (Toegankelijkheid).": "macOS muss MacAIMagic zuerst Zugriff geben (Bedienungshilfen).",
  "verbeterd": "verbessert",
- "%@ Het eerste laden van %@ GB duurt enkele minuten.": "%@ Das erste Laden von %@ GB dauert einige Minuten."
+ "%@ Het eerste laden van %@ GB duurt enkele minuten.": "%@ Das erste Laden von %@ GB dauert einige Minuten.",
+ "macOS geeft de spraakherkenning niet vrij. Zet Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren, en probeer het opnieuw.": "macOS gibt die Spracherkennung nicht frei. Schalte Diktieren ein unter Systemeinstellungen → Tastatur → Diktieren und versuche es erneut.",
+ "Er werd niets verstaan. Spreek iets dichter bij de microfoon, en druk pas daarna op stoppen.": "Es wurde nichts verstanden. Sprich etwas näher am Mikrofon und drücke erst danach auf Stopp.",
+ "De spraakherkenning voor deze taal staat nog niet op deze Mac. Zet Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren; macOS downloadt de taal dan.": "Die Spracherkennung für diese Sprache ist noch nicht auf diesem Mac. Schalte Diktieren ein unter Systemeinstellungen → Tastatur → Diktieren; macOS lädt die Sprache dann.",
+ "De spraakherkenning stopte: %@": "Die Spracherkennung stoppte: %@",
+ "Model laden, je vraag gaat daarna vanzelf": "Modell wird geladen, deine Frage geht danach von selbst",
+ "Er werd niets verstaan.": "Es wurde nichts verstanden.",
+ "Werkt de microfoon niet, zet dan Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren. Op macOS 26 en nieuwer gebruikt MacAIMagic de nieuwere spraakherkenning van Apple; macOS downloadt de taal de eerste keer.": "Funktioniert das Mikrofon nicht, schalte Diktieren ein unter Systemeinstellungen → Tastatur → Diktieren. Auf macOS 26 und neuer nutzt MacAIMagic die neuere Spracherkennung von Apple; macOS lädt die Sprache beim ersten Mal."
 }

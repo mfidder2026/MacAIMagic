@@ -72,6 +72,8 @@ struct AgentSettingsView: View {
                 .disabled(!settings.featureVoice)
                 Text(L("Met de microfoon naast het invoerveld spreek je een vraag in; de herkenning gebeurt op deze Mac. De luidspreker onder een antwoord leest het voor. Spraakberichten in Telegram worden ook op de Mac tekst. Betere stemmen download je in Systeeminstellingen → Toegankelijkheid → Gesproken materiaal."))
                     .font(.caption).foregroundStyle(.secondary)
+                Label(L("Werkt de microfoon niet, zet dan Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren. Op macOS 26 en nieuwer gebruikt MacAIMagic de nieuwere spraakherkenning van Apple; macOS downloadt de taal de eerste keer."), systemImage: "info.circle")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

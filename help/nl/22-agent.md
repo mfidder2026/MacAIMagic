@@ -35,7 +35,7 @@ Zet **Het model mag deze apps besturen** aan en voeg met **App toevoegen…** de
 
 ## Spraak
 Zet **Spraak** aan.
-- **Inspreken**: druk op de microfoon naast het invoerveld en spreek je vraag in. Druk nog eens om te stoppen. De herkenning gebeurt op deze Mac. macOS vraagt de eerste keer om de microfoon en om spraakherkenning.
+- **Inspreken**: druk op de microfoon naast het invoerveld en spreek je vraag in. Na twee seconden stilte gaat je vraag vanzelf weg; staat het model nog niet aan, dan laadt het eerst. Werkt de microfoon niet, zet dan Dicteren aan in Systeeminstellingen → Toetsenbord → Dicteren. De herkenning gebeurt op deze Mac. macOS vraagt de eerste keer om de microfoon en om spraakherkenning.
 - **Voorlezen**: de luidspreker onder een antwoord leest het voor. Met **Lees antwoorden vanzelf voor** gebeurt dat na elk antwoord in het venster.
 - **Stem**: kies een stem in de taal van de app. Betere stemmen download je in Systeeminstellingen → Toegankelijkheid → Gesproken materiaal.
 - **Telegram**: een spraakbericht aan je bot wordt op de Mac tekst. De bot laat zien wat hij verstond ("🎙 …") en het model antwoordt daarop.
