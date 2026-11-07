@@ -275,3 +275,16 @@ final class TelegramBridgeTests: XCTestCase {
         XCTAssertFalse(after.contains { self.text($0).contains("Stil") })
     }
 }
+
+final class ChatTableTests: XCTestCase {
+    func testAMarkdownTableBecomesATable() {
+        let blocks = MarkdownText.blocks("Je Mac heeft **150 GB** vrij.\n\n| | |\n|---|---|\n| Totale schijf | 1,8 TB |\n| **Vrij** | 150 GB |\n\nDe rest staat elders.")
+        XCTAssertEqual(blocks, [.text("Je Mac heeft **150 GB** vrij."),
+                                .table(nil, [["Totale schijf", "1,8 TB"], ["**Vrij**", "150 GB"]]),
+                                .text("De rest staat elders.")])
+        let withHeader = MarkdownText.blocks("| Model | GB |\n|:--|--:|\n| Qwen | 20 |")
+        XCTAssertEqual(withHeader, [.table(["Model", "GB"], [["Qwen", "20"]])])
+        XCTAssertEqual(MarkdownText.blocks("```\n| a | b |\n```"), [.code("", "| a | b |")], "not inside code")
+        XCTAssertEqual(MarkdownText.blocks("a | b"), [.text("a | b")], "a pipe in a sentence is no table")
+    }
+}

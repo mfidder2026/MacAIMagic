@@ -506,22 +506,55 @@ struct MarkdownText: View {
                         .padding(.top, 4)
                 case .text(let s):
                     Text(Self.inline(s)).textSelection(.enabled).lineSpacing(3)
+                case .table(let header, let rows):
+                    TableBlock(header: header, rows: rows)
                 }
             }
         }
     }
 
-    enum Block { case text(String), code(String, String), heading(Int, String) }
+    enum Block: Equatable { case text(String), code(String, String), heading(Int, String), table([String]?, [[String]]) }
+
+    /// A Markdown table row: "| a | b |" → ["a", "b"]; nil for any other line.
+    static func tableCells(_ line: String) -> [String]? {
+        let s = line.trimmingCharacters(in: .whitespaces)
+        guard s.count > 1, s.hasPrefix("|"), s.hasSuffix("|") else { return nil }
+        return s.dropFirst().dropLast().components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// The line under the header: |---|:--:|
+    static func isSeparator(_ cells: [String]) -> Bool {
+        cells.allSatisfy { !$0.isEmpty && $0.allSatisfy { "-: ".contains($0) } } && cells.contains { $0.contains("-") }
+    }
+
+    /// Rows of a table: the header (the row above the separator, unless it is empty) and the body without empty rows.
+    static func table(_ lines: [[String]]) -> Block {
+        var header: [String]?
+        var rows = lines
+        if let sep = rows.firstIndex(where: isSeparator) {
+            if sep == 1 { header = rows[0]; rows.removeFirst(2) } else { rows.remove(at: sep) }
+        }
+        if header?.allSatisfy(\.isEmpty) == true { header = nil }
+        return .table(header, rows.filter { !$0.allSatisfy(\.isEmpty) })
+    }
 
     static func blocks(_ s: String) -> [Block] {
         var out: [Block] = []
         var para: [String] = []
         var code: [String]? = nil
         var lang = ""
+        var rows: [[String]] = []
         func flush() {
             if !para.isEmpty { out.append(.text(para.joined(separator: "\n"))); para = [] }
+            if !rows.isEmpty { out.append(table(rows)); rows = [] }
         }
         for line in s.components(separatedBy: "\n") {
+            if code == nil, let cells = tableCells(line) {
+                if !para.isEmpty { out.append(.text(para.joined(separator: "\n"))); para = [] }
+                rows.append(cells)
+                continue
+            }
+            if !rows.isEmpty { out.append(table(rows)); rows = [] }
             if line.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                 if let c = code {
                     out.append(.code(lang, c.joined(separator: "\n"))); code = nil
@@ -553,6 +586,37 @@ struct MarkdownText: View {
     static func inline(_ s: String) -> AttributedString {
         (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
             ?? AttributedString(s)
+    }
+}
+
+/// A Markdown table as a grid: the header bold, a line under it, columns as wide as they need.
+struct TableBlock: View {
+    let header: [String]?
+    let rows: [[String]]
+    private var columns: Int { max(header?.count ?? 0, rows.map(\.count).max() ?? 0) }
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                if let header {
+                    GridRow { cells(header, bold: true) }
+                    Divider().gridCellUnsizedAxes(.horizontal)
+                }
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    GridRow { cells(row, bold: false) }
+                }
+            }
+            .padding(10)
+        }
+        .background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.accent.opacity(0.18)))
+        .textSelection(.enabled)
+    }
+
+    @ViewBuilder private func cells(_ row: [String], bold: Bool) -> some View {
+        ForEach(0..<columns, id: \.self) { i in
+            Text(MarkdownText.inline(i < row.count ? row[i] : "")).fontWeight(bold ? .semibold : nil)
+        }
     }
 }
 
