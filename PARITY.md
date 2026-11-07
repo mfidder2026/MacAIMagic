@@ -90,14 +90,33 @@ Mac-tests om in Windows-vorm over te nemen · Mac tests to take over in Windows 
 - [ ] De nieuwe teksten zijn Nederlands (de sleutel) en Engels. Duits en Frans hebben voorlopig de Engelse tekst; vertaal ze als de eigenaar dat wil.
       The new texts are Dutch (the key) and English. German and French have the English text for now; translate them when the owner wants that.
 
-## Later (fase 2–6) · Later (phases 2–6)
+## 6. Connectors (MCP), fase 2 · Connectors (MCP), phase 2
+
+- [ ] **Configuratie · configuration**: `%APPDATA%\WinAIMagic\mcp.json`, hetzelfde formaat als op de Mac en in Claude Desktop (`mcpServers: {naam: {command, args, env} | {url, headers}}`), plus `enabled`, `right`, `alwaysLoaded`, `description`, `builtin`, `oauth`. Waarden `keychain:<naam>` komen uit de Windows Credential Manager. **Importeer** uit `%APPDATA%\Claude\claude_desktop_config.json` en `%USERPROFILE%\.claude.json`, uitgeschakeld.
+      Same format as the Mac and Claude Desktop; `keychain:<name>` values come from the Windows Credential Manager; import from Claude Desktop and Claude Code, switched off.
+- [ ] **Stdio**: start via `cmd /c` (zodat `npx.cmd` en `uvx.exe` gevonden worden), JSON per regel, stderr naar een log per connector, en antwoord op een `ping` van de server. Regels die geen JSON-RPC zijn, gaan naar het log.
+      Start through `cmd /c`, one JSON message per line, stderr to a log, answer the server's ping; non-JSON-RPC lines go to the log.
+- [ ] **Streamable HTTP**: POST met `Accept: application/json, text/event-stream`; lees JSON of SSE; `Mcp-Session-Id`; een DELETE bij afsluiten.
+      POST, read JSON or SSE, keep the session id, DELETE on close.
+- [ ] **OAuth**: 401 → `resource_metadata` → protected-resource metadata → `/.well-known/oauth-authorization-server` (met het pad erachter en zonder) → dynamische registratie (`token_endpoint_auth_method: none`, redirect `http://127.0.0.1:<poort>/callback`) → PKCE S256 in de standaardbrowser → callback-listener → token (met `resource`) in de Credential Manager → verversen. Neem de nep-server `App/Tests/MacAIMagicTests/Fixtures/fake_mcp_http.py` over voor de test van begin tot eind.
+      Same flow; reuse the fake server fixture for the end-to-end test.
+- [ ] **Laden op verzoek · on demand**: tool `use_connector(name)`; geladen connectors per gesprek bewaren (`connectors`), na een herstart weer starten; toolnamen `<connector>__<tool>`, alleen `[A-Za-z0-9_-]`, maximaal 64 tekens.
+      Tool use_connector; loaded connectors kept per conversation and restarted; tool names as on the Mac.
+- [ ] **Rechten · rights** (`MCPManager.decision`): Weigeren wint; `readOnlyHint` zonder `destructiveHint` mag; verder volgens het recht. Na het lezen van het web vraagt ook "Toestaan" eerst. Kaart met de argumenten als JSON (zonder `\/`) en waarschuwingen voor destructief, internet en web.
+      Deny wins; read-only (not destructive) runs; else the right; after reading the web even Allow asks; card with JSON arguments and warnings.
+- [ ] **Voorbeelden · examples**: Bestanden (`npx -y @modelcontextprotocol/server-filesystem` met Documenten, Downloads, Bureaublad), Web ophalen (`uvx mcp-server-fetch`), GitHub (`https://api.githubcopilot.com/mcp/`, token in de Credential Manager, `oauth: false`).
+- [ ] **Agenda en Herinneringen**: op de Mac ingebouwd met EventKit (`CalendarConnector`, tools `list_events`, `create_event`, `list_reminders`, `create_reminder`, `complete_reminder`). Windows heeft geen EventKit: gebruik Microsoft Graph (Outlook-agenda en To Do) met OAuth, of laat dit voorbeeld weg en zeg dat in de lijst.
+      Windows has no EventKit: use Microsoft Graph (Outlook calendar and To Do) with OAuth, or leave this example out and say so.
+- [ ] **Scherm · screen**: tab Connectors (schakelaar, status, rechten, Test, Bewerken, Log, Uitloggen, Verwijderen; Voorbeeld toevoegen, Toevoegen, Importeer). Hulp-onderwerp `19-connectors.md` (NL/EN), aangepast voor Windows-paden en `cmd`.
+- [ ] Tests: neem `MCPTests.swift` over (stdio-nep-server, HTTP met SSE, OAuth van begin tot eind, naamregels, rechten, mcp.json heen en terug) en `ConnectorIntegrationTests` (een echt model leest een map zonder kaart en schrijft na een kaart).
+
+## Later (fase 3–6) · Later (phases 3–6)
 
 Nog niet gebouwd; elke fase krijgt een eigen plan en een eigen stuk in dit bestand.
 Not built yet; each phase gets its own plan and its own part of this file.
 
 | Fase | Functie · feature | Schakelaar · switch |
 |---|---|---|
-| 2 | MCP-connectors · MCP connectors | `featureMCP` |
 | 3 | Takenlijst, achtergrond, heartbeat en cron · task list, background, heartbeat and cron | `featureTasks`, `featureHeartbeat` |
 | 4 | Telegram, daarna iMessage (alleen Mac) · Telegram, then iMessage (Mac only) | `featureTelegram` |
 | 5 | Browser-agent en e-mail · browser agent and mail | `featureBrowser`, `featureMail` |

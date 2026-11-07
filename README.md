@@ -143,6 +143,29 @@ tools and system prompt it had before.
   undoes it when asked (`system_undo`, again through the card). For preference domains the app exports an exact copy first, so
   undo works even when the model's undo command is wrong; afterwards each check is compared with its value from before.
 
+## Connectors (MCP)
+
+Settings → **Connectors** gives the model tools from other programs and services through the Model Context Protocol,
+in the same `mcpServers` format as Claude Desktop (`~/Library/Application Support/MacAIMagic/mcp.json`; **Import**
+takes servers over from Claude Desktop and Claude Code, switched off).
+
+- **Programs on this Mac** (stdio, started in your login shell so `npx` and `uvx` are found) and **addresses on the
+  internet** (Streamable HTTP, JSON or server-sent events). An internet connector that asks to log in opens your
+  browser (OAuth 2.1 with PKCE and dynamic client registration; the answer comes back on 127.0.0.1); tokens go to the
+  Keychain and are refreshed. A service without a login page takes a token, also in the Keychain.
+- **Ready to switch on:** Calendar and Reminders (built into the app with EventKit, no third-party program), Files
+  (`@modelcontextprotocol/server-filesystem`), Fetch web (`mcp-server-fetch`) and GitHub (`api.githubcopilot.com/mcp`
+  with a personal token).
+- **Loaded on demand:** the model sees only the names of the connectors that are on and loads one with
+  `use_connector`; its tools then stay in that conversation, so the prompt stays short and the engine can reuse it.
+- **Rights per connector:** Allow, Ask first or Deny. Tools that declare themselves read-only run; others show the
+  approval card with the exact arguments, with a warning for destructive tools, internet connectors, and calls that
+  follow reading the web.
+
+Tested with Qwen3.8-Flash-Next on the M3 Max: the model loaded Files, listed a folder without a card (read-only) and
+wrote a file after the card (`ConnectorIntegrationTests`); OAuth was tested end to end against a local server, not yet
+against a real service.
+
 ## Requirements
 
 - Apple Silicon Mac (M1 or later). Models that do not fit in memory stream from the SSD: with **128 GB** the compact

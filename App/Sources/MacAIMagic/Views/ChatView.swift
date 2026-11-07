@@ -583,6 +583,7 @@ private struct ApprovalCard: View {
 
     private var icon: String {
         if approval.call.name.hasPrefix("system_") { return approval.admin ? "lock.shield.fill" : "gearshape.2.fill" }
+        if approval.call.name.contains("__") { return "puzzlepiece.extension.fill" }
         return approval.call.name == "run_command" ? "terminal.fill" : "doc.badge.plus"
     }
 

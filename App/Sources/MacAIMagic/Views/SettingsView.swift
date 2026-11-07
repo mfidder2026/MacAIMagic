@@ -119,9 +119,12 @@ struct SettingsView: View {
                 }
             }
             .tabItem { Label(L("Systeembeheer"), systemImage: "gearshape.2") }
+
+            ConnectorsView()
+                .tabItem { Label(L("Connectors"), systemImage: "puzzlepiece.extension") }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 520)
+        .frame(width: 640, height: 560)
     }
 
     @ViewBuilder private var rightOptions: some View {

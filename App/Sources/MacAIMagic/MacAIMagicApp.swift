@@ -69,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             app?.documentEngines.fast.stop()
             app?.cluster.stopHelper()
             app?.documents.save()
+            MCPManager.shared.stopAll()
         }
     }
 

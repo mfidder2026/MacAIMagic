@@ -64,6 +64,8 @@ struct Conversation: Codable, Identifiable, Hashable {
     /// Compacted: a summary of the messages up to and including `summaryUpTo`, sent instead of them.
     var summary: String? = nil
     var summaryUpTo: UUID? = nil
+    /// Connectors whose tools the model loaded in this conversation (use_connector); they stay in its requests.
+    var connectors: [String]? = nil
 
     /// The title in the chosen language while it is still the default.
     var displayTitle: String { title == "Nieuw gesprek" ? L("Nieuw gesprek") : title }

@@ -573,3 +573,72 @@ final class SystemIntegrationTests: XCTestCase {
         XCTAssertFalse(calls.contains { $0.name == "system_change" })
     }
 }
+
+/// A connector with a real model (MACAIMAGIC_ENGINE_TEST=1, engine running, npx on the Mac): the model loads the
+/// Bestanden connector (the official filesystem MCP server) with use_connector and lists a folder through it.
+/// Uses its own mcp.json, so the user's connectors are not touched.
+@MainActor
+final class ConnectorIntegrationTests: XCTestCase {
+    func testModelUsesFilesystemConnector() async throws {
+        guard ProcessInfo.processInfo.environment["MACAIMAGIC_ENGINE_TEST"] == "1" else { throw XCTSkip("no engine") }
+        guard ConnectorPresets.hasTool("npx") else { throw XCTSkip("no npx") }
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mcp-files-\(UUID().uuidString)").resolvingSymlinksInPath()
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        try "boodschappen: melk, brood".write(to: tmp.appendingPathComponent("lijstje.txt"), atomically: true, encoding: .utf8)
+        try "x".write(to: tmp.appendingPathComponent("rapport-2026.md"), atomically: true, encoding: .utf8)
+        let saved = MCPManager.shared
+        let s = Settings.shared
+        let savedSettings = (s.systemManagement, s.skills, s.autoApprove, s.webSearch, s.thinking, s.workspaceTools)
+        defer {
+            MCPManager.shared.stopAll()
+            MCPManager.shared = saved
+            (s.systemManagement, s.skills, s.autoApprove, s.webSearch, s.thinking, s.workspaceTools) = savedSettings
+            try? FileManager.default.removeItem(at: tmp)
+        }
+        (s.systemManagement, s.skills, s.autoApprove, s.webSearch, s.thinking, s.workspaceTools) = (false, false, false, false, false, false)
+        MCPManager.shared = MCPManager(file: tmp.appendingPathComponent("mcp.json"))
+        var files = MCPServerConfig(name: "Bestanden", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", tmp.path],
+                                    right: "ask", description: "Bestanden lezen en schrijven in de testmap")
+        files.enabled = true
+        MCPManager.shared.upsert(files)
+
+        let store = ConversationStore()
+        store.conversations = [Conversation()]
+        let id = store.conversations[0].id
+        let chat = ChatClient()
+        chat.modelName = "Qwen3.8-Flash-Next"
+        chat.send(text: "Welke bestanden staan er in de map \(tmp.path)? Gebruik de connector Bestanden.", attachments: [], in: id, store: store,
+                  baseURL: URL(string: "http://127.0.0.1:8080")!)
+        var cards: [ChatClient.Approval] = []
+        let start = Date()
+        while chat.busy && Date().timeIntervalSince(start) < 600 {
+            if let a = chat.pendingApproval { cards.append(a); chat.answer(a, allow: true) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        let c = store.conversations[0]
+        for m in c.messages {
+            print("[\(m.role)] calls=\(m.toolCalls.map { "\($0.name) \($0.arguments.prefix(200))" }) text=\(m.text.prefix(300).replacingOccurrences(of: "\n", with: " "))")
+        }
+        print("CARDS:", cards.map(\.title))
+        let calls = c.messages.flatMap(\.toolCalls).map(\.name)
+        XCTAssertTrue(calls.contains(MCPManager.loadTool), "it loaded the connector")
+        XCTAssertTrue(calls.contains { $0.hasPrefix("Bestanden__") }, "it used a tool of the connector")
+        XCTAssertEqual(c.connectors, ["Bestanden"], "the conversation keeps the loaded connector")
+        let answer = c.messages.last { $0.role == .assistant && !$0.text.isEmpty }?.text ?? ""
+        XCTAssertTrue(answer.contains("lijstje.txt") && answer.contains("rapport-2026.md"), answer)
+        XCTAssertTrue(cards.isEmpty, "listing a folder only reads: no card")
+
+        // writing is not read-only: the card comes, and after yes the file is there
+        chat.send(text: "Maak in die map met de connector een bestand notitie.txt met de tekst hallo.", attachments: [], in: id, store: store,
+                  baseURL: URL(string: "http://127.0.0.1:8080")!)
+        let again = Date()
+        while chat.busy && Date().timeIntervalSince(again) < 600 {
+            if let a = chat.pendingApproval { cards.append(a); chat.answer(a, allow: true) }
+            try await Task.sleep(for: .milliseconds(200))
+        }
+        print("CARDS:", cards.map { "\($0.title) \($0.detail.prefix(120))" })
+        XCTAssertTrue(cards.contains { $0.title.hasPrefix("Bestanden:") }, "writing asked first")
+        let written = try? String(contentsOf: tmp.appendingPathComponent("notitie.txt"), encoding: .utf8)
+        XCTAssertEqual(written?.trimmingCharacters(in: .whitespacesAndNewlines), "hallo")
+    }
+}

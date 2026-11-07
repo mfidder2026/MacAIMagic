@@ -110,6 +110,15 @@ precies dezelfde tools en systeemprompt als voorheen.
   geblokkeerd, maar krijgen een duidelijke waarschuwing**. Vraag het model om een wijziging ongedaan te
   maken; ook dat keur je eerst goed.
 
+## Connectors (MCP)
+
+Onder Instellingen → **Connectors** krijgt het model gereedschap van andere programma's en diensten, in hetzelfde
+formaat als Claude Desktop (**Importeer** neemt ze daaruit en uit Claude Code over, uitgeschakeld). Klaar om aan te
+zetten: **Agenda en Herinneringen** (ingebouwd, met EventKit), **Bestanden**, **Web ophalen** en **GitHub** (met een
+token). Een connector op internet die om inloggen vraagt, opent je browser; het token komt in de Keychain. Het model
+laadt een connector pas als het hem nodig heeft. Per connector kies je Toestaan, Eerst vragen of Weigeren; tools die
+alleen lezen mogen standaard.
+
 ## Hulp
 
 Onder **Hulp** in de zijbalk, met de **?** rechtsboven op elk scherm of met ⌘?: doorzoekbare hulp bij elk onderdeel

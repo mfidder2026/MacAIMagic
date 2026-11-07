@@ -52,6 +52,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSDocumentsFolderUsageDescription</key><string>MacAIMagic bewaart de concepten en documenten van een project in de map die je kiest.</string>
   <key>NSPicturesFolderUsageDescription</key><string>MacAIMagic bewaart de afbeeldingen die je maakt in Afbeeldingen/MacAIMagic.</string>
   <key>NSAppleEventsUsageDescription</key><string>MacAIMagic vraagt je wachtwoord om de GPU-geheugenlimiet te verhogen.</string>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>MacAIMagic laat het model je afspraken tonen en maken, als je dat vraagt (connector Agenda en Herinneringen).</string>
+  <key>NSCalendarsUsageDescription</key><string>MacAIMagic laat het model je afspraken tonen en maken, als je dat vraagt (connector Agenda en Herinneringen).</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>MacAIMagic laat het model je herinneringen tonen, maken en afvinken, als je dat vraagt (connector Agenda en Herinneringen).</string>
+  <key>NSRemindersUsageDescription</key><string>MacAIMagic laat het model je herinneringen tonen, maken en afvinken, als je dat vraagt (connector Agenda en Herinneringen).</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict>
 </dict>
 </plist>

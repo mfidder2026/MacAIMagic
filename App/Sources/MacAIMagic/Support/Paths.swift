@@ -56,6 +56,8 @@ enum Paths {
         for root in sourceRoots { candidates.append(root.appendingPathComponent("skills")) }
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
     }
+    /// The connectors (MCP servers), in the format of Claude Desktop.
+    static var mcpConfig: URL { appSupport.appendingPathComponent("mcp.json") }
     /// One folder per system change the model made: the plan, the values before and after, and exports for undo.
     static var changes: URL { appSupport.appendingPathComponent("Changes", isDirectory: true) }
 

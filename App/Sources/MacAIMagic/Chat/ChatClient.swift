@@ -23,7 +23,9 @@ final class ChatClient: ObservableObject {
     var modelName = "DeepSeek-V4.1-Flash"
     private var task: Task<Void, Never>?
     /// Web questions need a few rounds; work in a folder (read, write, run, read the log, fix) needs many more.
-    private var maxToolRounds: Int { workspaceActive || Settings.shared.systemManagement ? 200 : 20 }
+    private var maxToolRounds: Int { workspaceActive || Settings.shared.systemManagement || !loadedConnectors.isEmpty ? 200 : 20 }
+    /// The connectors of the conversation that runs, for its requests.
+    private var loadedConnectors: [String] = []
     private var workspaceActive: Bool { Settings.shared.workspaceTools && WorkspaceTools.workspace != nil }
     /// How many times in a row the model is told to go on without it doing anything in between.
     private static let maxNudges = 3
@@ -113,6 +115,9 @@ final class ChatClient: ObservableObject {
         // this conversation's folder for the tools and the system prompt
         WorkspaceTools.current = store.conversations.first { $0.id == id }?.workspace ?? ""
         currentConversation = id
+        loadedConnectors = store.conversations.first { $0.id == id }?.connectors ?? []
+        // connectors loaded before (or always loaded) run again, so their tools are in the request
+        await MCPManager.shared.ensureRunning(loadedConnectors)
         if keepsNotes, let ws = WorkspaceTools.workspace { WorkspaceNotes.createIfNeeded(in: ws) }
         var activities: [ToolActivity] = []
         var sources: [Source] = []
@@ -194,8 +199,13 @@ final class ChatClient: ObservableObject {
                 if isWorkspace { changedFiles = true }
                 let isSystem = SystemTools.names.contains(call.name)
                 let isSkill = call.name == Skills.toolName
-                activities.append(ToolActivity(label: isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
-                                               : isSkill ? Skills.label(for: call) : WebTools.label(for: call), done: false))
+                let isLoadConnector = call.name == MCPManager.loadTool
+                let connectorTool = MCPManager.shared.route(call.name)
+                let label = isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
+                    : isSkill ? Skills.label(for: call)
+                    : isLoadConnector ? L("Connector laden: \(WorkspaceTools.args(call)["name"] as? String ?? "")")
+                    : connectorTool != nil ? MCPManager.shared.label(for: call) : WebTools.label(for: call)
+                activities.append(ToolActivity(label: label, done: false))
                 store.update(id) { c in
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = activities }
                 }
@@ -217,6 +227,18 @@ final class ChatClient: ObservableObject {
                     if out.denied { activities[activities.count - 1].denied = true }
                 } else if isSkill {
                     text = Skills.run(call)
+                } else if isLoadConnector {
+                    let out = await MCPManager.shared.load(call)
+                    text = out.text
+                    if let name = out.name, !loadedConnectors.contains(name) {
+                        loadedConnectors.append(name)
+                        let now = loadedConnectors
+                        store.update(id) { $0.connectors = now }
+                    }
+                } else if let route = connectorTool {
+                    let out = await runConnector(call, route: route, in: id, store: store)
+                    text = out.text
+                    if out.denied { activities[activities.count - 1].denied = true }
                 } else {
                     let out = await WebTools.run(call)
                     text = out.text
@@ -324,6 +346,31 @@ final class ChatClient: ObservableObject {
         default:
             return ("Unknown tool \(call.name)", false)
         }
+    }
+
+    /// A connector's tool, with the connector's right: read-only tools run, others ask first unless the right says allow.
+    private func runConnector(_ call: ToolCall, route: (server: MCPServerConfig, tool: MCPTool), in id: Conversation.ID,
+                              store: ConversationStore) async -> (text: String, denied: Bool) {
+        let args = WorkspaceTools.args(call)
+        let afterWeb = readWeb(id, store: store)
+        var decision = MCPManager.decision(right: route.server.rightValue, tool: route.tool, autoApprove: Settings.shared.autoApprove)
+        // after reading the web a page could have chosen this call: then even "allow" asks
+        if decision == "allow" && afterWeb && route.tool.readOnly != true && !Settings.shared.autoApprove { decision = "ask" }
+        switch decision {
+        case "deny":
+            return ("The user's settings do not allow the connector \(route.server.name). Tell the user what you wanted to do.", true)
+        case "ask":
+            var warnings: [String] = []
+            if route.tool.destructive == true { warnings.append(L("Deze tool kan gegevens wijzigen of verwijderen bij \(route.server.name).")) }
+            if route.server.isRemote { warnings.append(L("Wat hieronder staat gaat naar \(route.server.name) op internet.")) }
+            if afterWeb { warnings.append(L("Dit volgt op het lezen van het web. Een webpagina kan het model instructies geven: controleer of dit is wat jij wilde.")) }
+            let pretty = (try? JSONSerialization.data(withJSONObject: args, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])).map { String(decoding: $0, as: UTF8.self) } ?? call.arguments
+            let approval = Approval(conversation: id, call: call, title: "\(route.server.name): \(route.tool.title ?? route.tool.name)",
+                                    detail: pretty, warnings: warnings)
+            guard await ask(approval) else { return ("The user did not allow this. Ask what they want instead, or continue without it.", true) }
+        default: break
+        }
+        return (await MCPManager.shared.call(server: route.server, tool: route.tool, arguments: args), false)
     }
 
     /// The current task (since the user's last question) read the web: a page could have put the plan in the model's mind.
@@ -511,6 +558,12 @@ final class ChatClient: ObservableObject {
         // skills and system management come last: with them off the request starts the same as before
         if s.skills && !Skills.all.isEmpty { tools.append(Skills.definition) }
         if s.systemManagement { tools += SystemTools.definitions }
+        // connectors: only when one is switched on, and then the tools of those this conversation loaded
+        let mcp = MCPManager.shared
+        if !mcp.enabled.isEmpty {
+            tools.append(mcp.loadDefinition)
+            tools += mcp.definitions(loaded: loadedConnectors)
+        }
         return tools
     }
 
@@ -544,6 +597,8 @@ final class ChatClient: ObservableObject {
             let section = Skills.promptSection(Skills.all)
             if !section.isEmpty { system += "\n\n" + section }
         }
+        let connectors = MCPManager.shared.promptSection()
+        if !connectors.isEmpty { system += "\n\n" + connectors }
         if !s.systemPrompt.isEmpty { system += "\n\n" + s.systemPrompt }
         if let summary {
             system += "\n\n" + L("Samenvatting van het begin van dit gesprek (die berichten zijn weggelaten om ruimte te maken in je context):") + "\n" + summary

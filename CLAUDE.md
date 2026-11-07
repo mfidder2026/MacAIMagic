@@ -45,7 +45,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ## Windows work from the branch `agent-features`
 
-[PARITY.md](PARITY.md) lists what WinAIMagic needs for the skills, system management and the help, with
+[PARITY.md](PARITY.md) lists what WinAIMagic needs for the skills, system management, the help and the connectors (MCP), with
 the Windows counterpart of each piece. Tick an item there when it is done on Windows.
 
 ## Building and testing

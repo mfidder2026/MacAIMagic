@@ -16,5 +16,8 @@ Open de instellingen met **⌘,**.
 - **Afbeeldingen (vision)**, **MTP**, **Engine starten bij openen app**, **Bewegende achtergrond**.
 - **Server**: adres, poort en API-sleutel (zie *Lokale API*).
 
+## Connectors
+Gereedschap van andere programma's en diensten, met rechten per connector (zie *Connectors*).
+
 ## Systeembeheer
 **Skills** en **Deze Mac**: of het model deze Mac mag bekijken en instellen, en de rechten om het systeem te lezen en te wijzigen. Ze staan standaard aan.
