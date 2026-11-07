@@ -32,3 +32,6 @@ platform: macos
 Schrijf hier de stappen en commando's.
 ```
 3. Een eigen skill met dezelfde naam als een ingebouwde, vervangt die ingebouwde.
+
+## Een skill laten maken
+Vraag het in de chat: *"Maak een skill voor programmeren in C64-assembler."* Het model schrijft hem, laat hem eerst op een kaart zien, en zet hem na jouw goedkeuring in de map met eigen skills. Daarna staat hij in de lijst.

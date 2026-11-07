@@ -735,3 +735,69 @@ final class TasksIntegrationTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("notitie.txt").path))
     }
 }
+
+/// The app knows itself, with a real model: which model it recommends (reads, downloads nothing), a setting through the
+/// card, and a skill in the skills folder. Starts the engine itself. MACAIMAGIC_TASKS_TEST=1.
+@MainActor
+final class AppToolsIntegrationTests: XCTestCase {
+    func testTheModelUsesTheApp() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard env["MACAIMAGIC_TASKS_TEST"] == "1" else { throw XCTSkip("set MACAIMAGIC_TASKS_TEST=1") }
+        let app = AppState()
+        let s = Settings.shared
+        let saved = (app.selectedModelID, s.systemManagement, s.skills, s.webSearch, s.thinking, s.appTools, s.rightSystemChange, s.workspaceTools)
+        let skillDir = Paths.userSkills.appendingPathComponent("proef-c64-assembler")
+        defer {
+            app.engine.stop()
+            (app.selectedModelID, s.systemManagement, s.skills, s.webSearch, s.thinking, s.appTools, s.rightSystemChange, s.workspaceTools) = saved
+            try? FileManager.default.removeItem(at: skillDir)
+        }
+        (s.systemManagement, s.skills, s.webSearch, s.thinking, s.appTools, s.rightSystemChange, s.workspaceTools) = (false, true, false, true, true, "ask", false)
+        app.selectedModelID = env["MACAIMAGIC_TASKS_MODEL"] ?? "qwen3.8-flash-next-q4"
+        app.startEngine()
+        let t0 = Date()
+        while !app.engine.state.isRunning && Date().timeIntervalSince(t0) < 1200 {
+            if case .failed(let e) = app.engine.state { XCTFail(e); return }
+            try await Task.sleep(for: .seconds(1))
+        }
+        let chat = ChatClient()
+        chat.modelName = app.selectedModel?.name ?? "model"
+        chat.appControl = app.appControl
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        var cards: [ChatClient.Approval] = []
+        func ask(_ text: String) async throws -> Conversation {
+            let c = Conversation()
+            store.conversations.insert(c, at: 0)
+            chat.send(text: text, attachments: [], in: c.id, store: store, baseURL: app.engine.baseURL)
+            let start = Date()
+            while chat.isBusy(c.id) && Date().timeIntervalSince(start) < 600 {
+                if let a = chat.approvals[c.id] { cards.append(a); chat.answer(a, allow: true) }
+                try await Task.sleep(for: .milliseconds(200))
+            }
+            let done = store.conversations.first { $0.id == c.id }!
+            for m in done.messages {
+                print("  [\(m.role)] calls=\(m.toolCalls.map { "\($0.name) \($0.arguments.prefix(160))" }) text=\(m.text.prefix(240).replacingOccurrences(of: "\n", with: " "))")
+            }
+            return done
+        }
+
+        print("RECOMMEND:")
+        let rec = try await ask("Welk model raad je aan voor deze Mac? Download niets.")
+        let recCalls = rec.messages.flatMap(\.toolCalls)
+        XCTAssertTrue(recCalls.contains { $0.name == "app_status" }, "it looked at the app")
+        XCTAssertFalse(recCalls.contains { $0.arguments.contains("download_model") }, "it downloaded nothing")
+
+        print("SETTING:")
+        cards = []
+        _ = try await ask("Zet het denken uit.")
+        print("CARDS:", cards.map(\.title))
+        XCTAssertFalse(s.thinking, "thinking is off after the card")
+        XCTAssertTrue(cards.contains { $0.title.contains("thinking") })
+
+        print("SKILL:")
+        cards = []
+        _ = try await ask("Maak een skill met de naam proef-c64-assembler voor programmeren in C64-assembler met ACME.")
+        print("CARDS:", cards.map(\.title))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: skillDir.appendingPathComponent("SKILL.md").path), "the skill is in the skills folder")
+    }
+}

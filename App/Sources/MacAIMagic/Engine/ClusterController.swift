@@ -1,4 +1,6 @@
 import Foundation
+import Network
+import Darwin
 import IOKit.pwr_mgt
 
 /// Several Macs as one memory. A helper Mac runs llama.cpp's RPC server (ggml-rpc-server) on its GPU and announces
@@ -59,6 +61,128 @@ final class ClusterController: NSObject, ObservableObject {
     /// Tests: a helper on this same Mac shares its memory, so the test says what the helper may take.
     var budgetOverride: [UInt64]?
     var rpcArgument: String? { active.isEmpty ? nil : active.map { "\($0.host):\($0.port)" }.joined(separator: ",") }
+
+    // MARK: - main Mac: before and during a start with helpers
+
+    /// While the engine loads with helpers: bytes sent since the start, the rate now, and about how much has to go.
+    struct Transfer: Equatable {
+        var sent: UInt64
+        var bytesPerSecond: Double
+        var expected: UInt64
+    }
+
+    /// Why the last start went without some helpers, or why the model parts stopped arriving; nil when all is well.
+    @Published private(set) var problem: String?
+    @Published private(set) var transfer: Transfer?
+    /// Tests: whether a helper answers on its port, instead of a real connection.
+    var reachOverride: ((String, Int) async -> Bool)?
+    /// Tests: the bytes sent, instead of the network counters.
+    var sentOverride: (() -> UInt64)?
+
+    /// Does something listen on the helper's port? A firewall that drops the packets would make a start wait for
+    /// minutes; this asks for a few seconds first.
+    nonisolated static func reachable(host: String, port: Int, timeout: Double = 3) async -> Bool {
+        guard let p = NWEndpoint.Port(rawValue: UInt16(clamping: port)) else { return false }
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: p, using: .tcp)
+        final class Once: @unchecked Sendable {
+            private let lock = NSLock()
+            private var done = false
+            func first() -> Bool { lock.lock(); defer { lock.unlock() }; if done { return false }; done = true; return true }
+        }
+        let once = Once()
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready: if once.first() { connection.cancel(); cont.resume(returning: true) }
+                case .failed, .cancelled: if once.first() { cont.resume(returning: false) }
+                case .waiting: if once.first() { connection.cancel(); cont.resume(returning: false) }
+                default: break
+                }
+            }
+            connection.start(queue: .global())
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                if once.first() { connection.cancel(); cont.resume(returning: false) }
+            }
+        }
+    }
+
+    /// Before a start: every chosen helper is asked on its port. One that does not answer stays out of this start
+    /// (`active` leaves it out), and `problem` says why in plain words; one that answers again takes part again.
+    func checkBeforeStart(timeout: Double = 3) async {
+        guard role == .main else { return }
+        let chosen = helpers.filter { selected.contains($0.id) }
+        var down: [Helper] = []
+        await withTaskGroup(of: (String, Bool).self) { group in
+            for h in chosen {
+                let check = reachOverride
+                group.addTask { (h.id, check != nil ? await check!(h.host, h.port) : await Self.reachable(host: h.host, port: h.port, timeout: timeout)) }
+            }
+            for await (id, ok) in group {
+                guard let i = helpers.firstIndex(where: { $0.id == id }) else { continue }
+                helpers[i].unreachable = !ok
+                if !ok { down.append(helpers[i]) }
+            }
+        }
+        let names = down.map { "\($0.name) (\($0.id))" }.joined(separator: ", ")
+        problem = down.isEmpty ? nil
+            : L("Niet bereikbaar op hun poort, dus de engine start zonder hen: \(names). Staat de helper aan (Cluster, Start helper)? Kijk ook of de kabel of het netwerk er is, en of de firewall op die Mac de app toestaat.")
+        transfer = nil
+    }
+
+    /// Bytes this Mac sent over all its network interfaces (64-bit counters, so 4 GB and more count right).
+    nonisolated static func bytesSent() -> UInt64 {
+        var mib: [Int32] = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
+        var len = 0
+        guard sysctl(&mib, 6, nil, &len, nil, 0) == 0, len > 0 else { return 0 }
+        var buf = [UInt8](repeating: 0, count: len)
+        guard sysctl(&mib, 6, &buf, &len, nil, 0) == 0 else { return 0 }
+        var sum: UInt64 = 0
+        var offset = 0
+        buf.withUnsafeBytes { raw in
+            while offset + MemoryLayout<if_msghdr>.size <= len {
+                let hdr = raw.load(fromByteOffset: offset, as: if_msghdr.self)
+                if Int32(hdr.ifm_type) == RTM_IFINFO2 {
+                    let h2 = raw.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
+                    // loopback is no transfer to a helper
+                    if h2.ifm_flags & IFF_LOOPBACK == 0 { sum += h2.ifm_data.ifi_obytes }
+                }
+                guard hdr.ifm_msglen > 0 else { break }
+                offset += Int(hdr.ifm_msglen)
+            }
+        }
+        return sum
+    }
+
+    /// While the engine loads with helpers: how far the model parts are, and a plain warning when nothing has gone out
+    /// for a while. Runs until the engine is no longer loading; a helper keeps what it received, so a next start sends
+    /// much less.
+    func watchTransfer(loading: @escaping () -> Bool, expected: UInt64, tick: Double = 2, stallAfter: Double = 90) async {
+        let start = sentOverride?() ?? Self.bytesSent()
+        var last = start
+        var lastMove = Date()
+        while loading() && !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(tick))
+            let now = sentOverride?() ?? Self.bytesSent()
+            let delta = now > last ? now - last : 0
+            let rate = Double(delta) / tick
+            last = now
+            // a trickle (a heartbeat, a web page) is no transfer
+            if rate > 256 * 1024 { lastMove = Date() }
+            transfer = Transfer(sent: now > start ? now - start : 0, bytesPerSecond: rate, expected: expected)
+            if Date().timeIntervalSince(lastMove) > stallAfter && now - start < expected {
+                problem = L("Er gaat al \(Int(stallAfter)) s niets meer naar de helpers, terwijl er nog delen van het model heen moeten. Kijk op de helper onder Cluster of hij nog draait, en of de kabel of het netwerk er nog is.")
+            }
+        }
+        transfer = nil
+    }
+
+    /// What goes to the helpers: their share of the model, at most what they can hold.
+    nonisolated static func expectedTransfer(modelBytes: UInt64, helperBudgets: [UInt64], localBudget: UInt64) -> UInt64 {
+        let helpersTotal = helperBudgets.reduce(0, +)
+        guard helpersTotal > 0 else { return 0 }
+        let share = Double(helpersTotal) / Double(helpersTotal + localBudget)
+        return min(helpersTotal, UInt64(Double(modelBytes) * share))
+    }
 
     // MARK: - main Mac: find helpers
 

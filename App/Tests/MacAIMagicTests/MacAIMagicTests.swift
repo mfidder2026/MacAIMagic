@@ -385,6 +385,13 @@ final class MachineFitTests: XCTestCase {
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(128).physicalMemory)?.id, "deepseek-v4.1-flash-compact")
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(16).physicalMemory)?.id, "ministral-3-8b-q4", "16 GB: the model that fits whole")
         XCTAssertEqual(SystemCheck.recommended(models, physical: mac(8).physicalMemory)?.id, "ministral-3-8b-q4", "8 GB: it streams")
+        // Heretic is a choice, never the recommendation: also not on a Mac where it fits and the original does not
+        let heretic = models.first { $0.id == "qwen3.6-35b-a3b-heretic-q4" }
+        XCTAssertEqual(heretic?.recommend, false)
+        for gb: UInt64 in [8, 16, 24, 32, 48, 64, 96, 128] {
+            XCTAssertNotEqual(SystemCheck.recommended(models.filter { $0.id != "qwen3.6-35b-a3b-q4" }, physical: mac(gb).physicalMemory)?.id,
+                              "qwen3.6-35b-a3b-heretic-q4", "\(gb) GB")
+        }
     }
 
     func testFitPerMac() {

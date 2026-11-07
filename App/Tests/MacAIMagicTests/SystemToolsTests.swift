@@ -44,6 +44,22 @@ final class SkillsTests: XCTestCase {
 }
 
 final class SystemToolsTests: XCTestCase {
+    /// The admin script stops at the first step that fails (run here without admin rights, as plain sh).
+    func testAdminScriptStopsAtTheFirstFailure() throws {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", SystemTools.adminScript(["echo een", "false", "echo drie"])]
+        let out = Pipe()
+        p.standardOutput = out
+        try p.run()
+        p.waitUntilExit()
+        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        XCTAssertTrue(text.contains("@@STEP 0") && text.contains("een") && text.contains("@@EXIT 0"), text)
+        XCTAssertTrue(text.contains("@@STEP 1") && text.contains("@@EXIT 1"), text)
+        XCTAssertFalse(text.contains("drie"), "the step after the failure did not run: \(text)")
+        XCTAssertEqual(p.terminationStatus, 0, "the script itself ends normally, so the results are read")
+    }
+
     func testReadOnlyAllowlist() {
         for c in ["sw_vers", "df -h /", "defaults read -g AppleInterfaceStyle", "scutil --dns", "csrutil status",
                   "softwareupdate --list", "tmutil listlocalsnapshots /", "sysctl vm.swapusage", "ifconfig en0", "ping -c 3 1.1.1.1"] {

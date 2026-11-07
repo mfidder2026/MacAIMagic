@@ -26,6 +26,8 @@ struct ModelInfo: Codable, Identifiable, Hashable {
     let dense: UInt64?
     /// Writing speed in tokens/s when it streams on a 32 GB Mac (measured on an M3 Max with 32 GB of memory left).
     let speedOn32GB: String?
+    /// false: never the recommendation (the uncensored Heretic is a choice, not a default).
+    let recommend: Bool?
 
     var totalSize: UInt64 { files.reduce(0) { $0 + $1.size } }
     var isDeepSeek: Bool { family == "deepseek" }

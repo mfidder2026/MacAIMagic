@@ -106,6 +106,11 @@ struct SettingsView: View {
                         }
                     }
                 }
+                Section(L("De app")) {
+                    Toggle(L("Het model kent de app en mag er dingen in doen"), isOn: $settings.appTools)
+                    Text(L("Het model leest de hulp en de stand van de app, en doet wat je vraagt: een model downloaden of kiezen, de engine starten, een instelling wijzigen, een scherm openen, een skill maken. Een wijziging komt eerst op een kaart; een model verwijderen vraagt altijd. Zijn eigen rechten en sleutels kan het niet wijzigen."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Section(L("Deze Mac")) {
                     Toggle(L("Het model mag deze Mac bekijken en instellen"), isOn: $settings.systemManagement)
                     Picker(L("Systeem lezen (diagnose)"), selection: $settings.rightSystemRead) { rightOptions }

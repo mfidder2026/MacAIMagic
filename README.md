@@ -142,6 +142,15 @@ tools and system prompt it had before.
   that follows reading the web. Every change is recorded in `~/Library/Application Support/MacAIMagic/Changes/`, and the model
   undoes it when asked (`system_undo`, again through the card). For preference domains the app exports an exact copy first, so
   undo works even when the model's undo command is wrong; afterwards each check is compared with its value from before.
+  Admin steps stop at the first one that fails, so a later step never runs on a change that did not happen.
+- **The app knows itself** (Systeembeheer → **De app**): the model reads the app's own help (`app_help`) and its state
+  (`app_status`: this Mac, every model with fit, download state and the recommendation, the cluster, the settings),
+  does what you ask in the app (`app_action`: download, choose or delete a model, start or stop the engine, change a
+  setting, open a screen, make an image, build a cluster) and makes skills of your own (`create_skill`). Each change is on
+  a card first and deleting a model always asks; its own rights, keys, the server and the model folder it cannot change.
+  An action that would stop the engine it runs on waits until its answer is done. Tested with Qwen3.8-Flash-Next
+  (`AppToolsIntegrationTests`): it recommended a model without downloading, turned thinking off after the card, and
+  made a C64 assembler skill in the skills folder.
 
 ## Connectors (MCP)
 

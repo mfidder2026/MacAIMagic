@@ -242,11 +242,18 @@ enum SystemTools {
     }
 
     /// The commands as root, after one password dialog of macOS. Each gets its own output and exit code.
-    static func runAdmin(_ commands: [String], prompt: String, timeout: Int = 900) async -> [(output: String, ok: Bool)] {
+    /// The shell script for admin steps: each step marked, with its exit code; it stops at the first step that fails,
+    /// as on Windows, since a later step may rely on it (the rest stays unrun).
+    static func adminScript(_ commands: [String]) -> String {
         var script = ""
         for (i, c) in commands.enumerated() {
-            script += "echo '@@STEP \(i)'\n( \(c) ) 2>&1\necho \"@@EXIT $?\"\n"
+            script += "echo '@@STEP \(i)'\n( \(c) ) 2>&1\nr=$?\necho \"@@EXIT $r\"\n[ $r -eq 0 ] || exit 0\n"
         }
+        return script
+    }
+
+    static func runAdmin(_ commands: [String], prompt: String, timeout: Int = 900) async -> [(output: String, ok: Bool)] {
+        let script = adminScript(commands)
         let apple = "do shell script \(appleScriptString(script)) with prompt \(appleScriptString(prompt)) with administrator privileges"
         let raw = await WorkspaceTools.runShell("", in: home, timeout: timeout, executable: "/usr/bin/osascript", arguments: ["-e", apple])
         let text = raw.replacingOccurrences(of: "\r", with: "\n")

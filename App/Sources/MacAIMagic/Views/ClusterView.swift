@@ -30,7 +30,10 @@ struct ClusterView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 }
 
-                if settings.clusterRole == "main" { MainSide() } else { HelperSide() }
+                if settings.clusterRole == "main" {
+                    ClusterProgress()
+                    MainSide()
+                } else { HelperSide() }
 
                 GlassCard(title: L("Zo sluit je de Macs aan"), icon: "cable.connector", glow: Theme.cyan) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -47,6 +50,28 @@ struct ClusterView: View {
             .padding(28)
         }
         .onAppear { cluster.recheckManual() }
+    }
+}
+
+/// While the model loads with helpers: how far the parts are; and why a helper stayed out or the transfer stalled.
+private struct ClusterProgress: View {
+    @EnvironmentObject var cluster: ClusterController
+
+    var body: some View {
+        if let t = cluster.transfer {
+            GlassCard(title: L("Model naar de helpers"), icon: "arrow.up.right.circle", glow: Theme.cyan) {
+                ProgressView(value: min(Double(t.sent), Double(max(t.expected, 1))), total: Double(max(t.expected, 1)))
+                Text(L("\(String(format: "%.1f", Double(t.sent) / 1e9)) van ongeveer \(String(format: "%.0f", Double(t.expected) / 1e9)) GB verstuurd, \(String(format: "%.0f", t.bytesPerSecond / 1e6)) MB/s"))
+                    .font(.callout.monospacedDigit())
+                Text(L("De eerste start stuurt alles; een helper houdt wat hij kreeg, dus een volgende start gaat sneller."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        if let problem = cluster.problem {
+            Label(problem, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout).foregroundStyle(Theme.amber)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

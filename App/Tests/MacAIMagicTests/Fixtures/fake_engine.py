@@ -65,6 +65,11 @@ class Handler(BaseHTTPRequestHandler):
             out.append(chunk({"tool_calls": [{"index": 0, "id": "call1", "type": "function",
                                               "function": {"name": "write_file", "arguments": args}}]}))
             out.append(chunk({}, "tool_calls"))
+        elif "APPACTIE" in text and not after_tool:
+            args = json.dumps({"action": "stop_engine"})
+            out.append(chunk({"tool_calls": [{"index": 0, "id": "call3", "type": "function",
+                                              "function": {"name": "app_action", "arguments": args}}]}))
+            out.append(chunk({}, "tool_calls"))
         elif "PLAN" in text and not after_tool:
             args = json.dumps({"steps": [{"title": "Eerst kijken", "status": "done"},
                                          {"title": "Dan bouwen", "status": "doing"},

@@ -10,6 +10,8 @@ final class ChatClient: ObservableObject {
     var busy: Bool { !running.isEmpty }
     func isBusy(_ id: Conversation.ID) -> Bool { running.contains(id) }
     let gate = ModelGate()
+    /// The app behind app_status and app_action; nil in a test without one.
+    weak var appControl: AppControlling?
     /// Where schedule_task puts what the model plans (the app's tasks).
     weak var taskStore: TaskStore?
     /// The conversation a run works for, carried through every await of that run.
@@ -138,6 +140,8 @@ final class ChatClient: ObservableObject {
                     await learn(conversation, store: store, baseURL: baseURL)
                 }
             }
+            // what the model asked to do in the app once its answer was done (stop the engine, a new model)
+            appControl?.answerDone(conversation)
             running.remove(conversation)
             tasks[conversation] = nil
             loaded[conversation] = nil
@@ -239,11 +243,13 @@ final class ChatClient: ObservableObject {
                 let isSkill = call.name == Skills.toolName
                 let isSteps = call.name == WorkSteps.toolName
                 let isSchedule = call.name == TaskTool.toolName
+                let isApp = AppTools.names.contains(call.name)
                 let isLoadConnector = call.name == MCPManager.loadTool
                 let connectorTool = MCPManager.shared.route(call.name)
                 let label = isWorkspace ? WorkspaceTools.label(for: call) : isSystem ? SystemTools.label(for: call)
                     : isSkill ? Skills.label(for: call)
                     : isSteps ? WorkSteps.label(WorkSteps.parse(WorkspaceTools.args(call)))
+                    : isApp ? AppTools.label(for: call)
                     : isSchedule ? L("Taak plannen: \(WorkspaceTools.args(call)["title"] as? String ?? "")")
                     : isLoadConnector ? L("Connector laden: \(WorkspaceTools.args(call)["name"] as? String ?? "")")
                     : connectorTool != nil ? MCPManager.shared.label(for: call) : WebTools.label(for: call)
@@ -265,6 +271,10 @@ final class ChatClient: ObservableObject {
                     }
                 } else if isSystem {
                     let out = await runSystem(call, in: id, store: store)
+                    text = out.text
+                    if out.denied { activities[activities.count - 1].denied = true }
+                } else if isApp {
+                    let out = await runApp(call, in: id, store: store)
                     text = out.text
                     if out.denied { activities[activities.count - 1].denied = true }
                 } else if isSchedule {
@@ -424,6 +434,52 @@ final class ChatClient: ObservableObject {
         default: break
         }
         return (await MCPManager.shared.call(server: route.server, tool: route.tool, arguments: args), false)
+    }
+
+    /// app_help and app_status read; app_action does what the user asked in the app, with a card under the system-change
+    /// right (a deletion always asks); create_skill always shows the skill first.
+    private func runApp(_ call: ToolCall, in id: Conversation.ID, store: ConversationStore) async -> (text: String, denied: Bool) {
+        let s = Settings.shared
+        switch call.name {
+        case "app_help":
+            return (AppTools.help(call), false)
+        case "app_status":
+            return (appControl?.status() ?? "MacAIMagic \(Paths.appVersion ?? ""). No more status is available here.", false)
+        case "create_skill":
+            guard let skill = AppTools.skill(call) else {
+                return ("Error: give a name (letters, digits, hyphens) and the instructions. Call create_skill again with that fixed.", false)
+            }
+            if s.systemRight(change: true) == "deny" { return ("The user's settings do not allow changes. Show the skill in your answer instead.", true) }
+            let replaces = AppTools.replaces(skill.name)
+            let title = replaces == "own" ? L("Skill vervangen: \(skill.name)") : replaces == "builtin" ? L("Eigen versie van een ingebouwde skill: \(skill.name)") : L("Skill maken: \(skill.name)")
+            guard await ask(Approval(conversation: id, call: call, title: title, detail: skill.text)) else {
+                return ("The user did not want this skill. Ask what they want instead.", true)
+            }
+            do {
+                let file = try AppTools.writeSkill(skill.name, skill.text)
+                return ("Saved the skill \(skill.name) in \(file.path). It is in the skill list from the next message; load it with use_skill.", false)
+            } catch {
+                return ("Error: the skill could not be saved: \(error.localizedDescription)", false)
+            }
+        default:
+            guard let control = appControl else { return ("The app's actions are not available here.", true) }
+            let args = WorkspaceTools.args(call)
+            let action = (args["action"] as? String ?? "").trimmingCharacters(in: .whitespaces)
+            let plan = control.plan(action, args)
+            if let error = plan.error { return ("Error: " + error, false) }
+            if !plan.readOnly {
+                let right = s.systemRight(change: true)
+                if right == "deny" && !plan.ask {
+                    return ("The user's settings do not allow changes in the app. Tell the user how to do it themselves.", true)
+                }
+                // after reading the web a page could have asked for this: then it asks, also with Toestaan
+                if right != "allow" || plan.ask || readWeb(id, store: store) {
+                    let approval = Approval(conversation: id, call: call, title: plan.title ?? action, detail: plan.detail ?? "")
+                    guard await ask(approval) else { return ("The user did not allow this. Ask what they want instead.", true) }
+                }
+            }
+            return (await control.run(action, args, conversation: id), false)
+        }
     }
 
     /// schedule_task: always with the card first; the task gets this conversation's folder.
@@ -647,6 +703,7 @@ final class ChatClient: ObservableObject {
         if s.systemManagement { tools += SystemTools.definitions }
         if offersSteps { tools.append(WorkSteps.definition) }
         if taskStore != nil { tools.append(TaskTool.definition) }
+        if s.appTools, let control = appControl { tools += AppTools.definitions(skills: s.skills, settings: control.settingNames) }
         // connectors: only when one is switched on, and then the tools of those this conversation loaded
         let mcp = MCPManager.shared
         if !mcp.enabled.isEmpty {
@@ -692,6 +749,7 @@ final class ChatClient: ObservableObject {
             let section = Skills.promptSection(Skills.all)
             if !section.isEmpty { system += "\n\n" + section }
         }
+        if s.appTools && appControl != nil { system += "\n\n" + AppTools.promptSection(skills: s.skills) }
         if offersSteps {
             system += "\n\n" + L("Werk je aan een taak van drie stappen of meer, zet die dan eerst op met task_list en werk de lijst bij als een stap begint of klaar is. De gebruiker ziet de lijst boven het invoerveld.")
         }

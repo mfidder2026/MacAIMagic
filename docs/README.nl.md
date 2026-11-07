@@ -109,6 +109,9 @@ precies dezelfde tools en systeemprompt als voorheen.
   vragen altijd eerst; vooraf kan de app een Time Machine-momentopname maken. Gevoelige wijzigingen worden **niet
   geblokkeerd, maar krijgen een duidelijke waarschuwing**. Vraag het model om een wijziging ongedaan te
   maken; ook dat keur je eerst goed.
+- **De app kent zichzelf** (Systeembeheer → **De app**): het model leest de hulp en de stand van de app, en doet wat je
+  vraagt: een model downloaden of kiezen, de engine starten, een instelling wijzigen, een scherm openen, een afbeelding
+  maken, het cluster bouwen of een skill maken. Een wijziging staat eerst op een kaart; een model verwijderen vraagt altijd.
 
 ## Connectors (MCP)
 

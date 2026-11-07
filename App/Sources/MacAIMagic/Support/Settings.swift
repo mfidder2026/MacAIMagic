@@ -68,6 +68,8 @@ final class Settings: ObservableObject {
     @AppStorage("skills") var skills = true
     /// System management: the model reads this Mac's settings and changes them through a plan the user approves.
     @AppStorage("systemManagement") var systemManagement = true
+    /// The model knows the app: its help, its state, and actions in it after a card (app_help, app_status, app_action, create_skill).
+    @AppStorage("appTools") var appTools = true
     // Instellingen → Taken
     /// The model a task started stops again when the tasks are done and the user did not use it meanwhile.
     @AppStorage("tasksStopModel") var tasksStopModel = true

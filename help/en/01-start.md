@@ -20,6 +20,16 @@ MacAIMagic runs large AI models entirely on this Mac. Nothing goes to the cloud:
 - **Compare models**, link several Macs in a **Cluster**, and use the model from other programs (see *Local API*).
 - **Setting up this Mac**: the model looks at this Mac and sets it up for you, with skills per subject (see *System management*).
 
+## Just ask the app
+The model knows MacAIMagic. Just ask in the chat what you want, and it does it, after your approval on a card:
+- "Which model fits this Mac best? Download it."
+- "Turn thinking off and make the context 128K."
+- "Make Ministral the fast model."
+- "Make a skill for programming in C64 assembler."
+- "Make an image of a lighthouse at sunset."
+
+It reads the help itself and looks at how the app and this Mac stand. It does not change its own rights, API keys or the server address: you set those yourself. Deleting a model always asks. You can turn it off under Settings → System management → **The app**.
+
 ## Finding help
 - Every page has **?** at the top right: it opens the help for that page.
 - **⌘?** opens this help from anywhere.

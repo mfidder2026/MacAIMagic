@@ -20,6 +20,16 @@ MacAIMagic draait grote AI-modellen helemaal op deze Mac. Er gaat niets naar de 
 - **Modellen vergelijken**, meerdere Macs koppelen in een **Cluster**, en het model gebruiken vanuit andere programma's (zie *Lokale API*).
 - **Deze Mac instellen**: het model bekijkt deze Mac en stelt hem voor je in, met skills per onderwerp (zie *Systeembeheer*).
 
+## Vraag het de app zelf
+Het model kent MacAIMagic. Vraag in de chat gewoon wat je wilt, en het doet het, na jouw goedkeuring op een kaart:
+- "Welk model past het best op deze Mac? Download het."
+- "Zet het denken uit en maak de context 128K."
+- "Maak Ministral het snelle model."
+- "Maak een skill voor programmeren in C64-assembler."
+- "Maak een afbeelding van een vuurtoren bij zonsondergang."
+
+Het leest daarvoor zelf de hulp en kijkt hoe de app en deze Mac ervoor staan. Zijn eigen rechten, API-sleutels en het serveradres verandert het niet: die stel je zelf in. Een model verwijderen vraagt altijd. Uitzetten kan onder Instellingen → Systeembeheer → **De app**.
+
 ## Hulp vinden
 - Rechtsboven op elk scherm staat **?**: dat opent de hulp bij dat scherm.
 - **⌘?** opent deze hulp vanuit elk scherm.

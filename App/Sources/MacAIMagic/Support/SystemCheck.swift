@@ -156,8 +156,9 @@ final class SystemCheck: ObservableObject {
 
     /// The first model in the catalog (largest and best first) that fits whole in this Mac's memory; if none does, the
     /// smallest that streams from the SSD.
-    nonisolated static func recommended(_ models: [ModelInfo], physical: UInt64) -> ModelInfo? {
-        models.first { MemoryPlanner.fit($0, physical: physical) == .fits }
+    nonisolated static func recommended(_ all: [ModelInfo], physical: UInt64) -> ModelInfo? {
+        let models = all.filter { $0.recommend != false }
+        return models.first { MemoryPlanner.fit($0, physical: physical) == .fits }
             ?? models.filter { MemoryPlanner.fit($0, physical: physical) == .streams }.min { $0.totalSize < $1.totalSize }
     }
 

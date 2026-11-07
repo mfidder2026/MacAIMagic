@@ -17,6 +17,8 @@ final class AppState: ObservableObject {
     let documents = DocumentStudio()
     let images = ImageMaker()
     private(set) lazy var documentEngines = DocumentEngines(app: self)
+    /// The app as the model sees it (app_status, app_action).
+    private(set) lazy var appControl = AppControl(app: self)
     // Taken: the scheduled tasks and their runs (TaskRunner.swift)
     let tasks = TaskStore()
     /// The conversations of task runs that are going on, with their task.
@@ -59,6 +61,7 @@ final class AppState: ObservableObject {
     init() {
         chat.metrics = metrics
         chat.taskStore = tasks
+        chat.appControl = appControl
         // the menu bar item depends on the tasks
         tasksChanged = tasks.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         LocalModel.metrics = metrics
@@ -142,10 +145,15 @@ final class AppState: ObservableObject {
     }
 
     /// `forImage`: the image being made needs the chat model first, to improve its description.
-    func startEngine(forImage: Bool = false) {
+    func startEngine(forImage: Bool = false, helpersChecked: Bool = false) {
         // the same model twice in memory helps nothing: the copy on the second engine makes room for the real one
         if chatModelOnFast != nil {
             Task { await documentEngines.fast.stopAndWait(); startEngine(forImage: forImage) }
+            return
+        }
+        // a helper that does not answer would make the start wait for minutes: it stays out, and Cluster says why
+        if !helpersChecked && cluster.role == .main && !cluster.selected.isEmpty {
+            Task { await cluster.checkBeforeStart(); startEngine(forImage: forImage, helpersChecked: true) }
             return
         }
         if index == nil { loadIndex() }
@@ -158,9 +166,18 @@ final class AppState: ObservableObject {
                                       inUse: system.physicalMemory - min(system.physicalMemory, SystemInfo.availableMemory()))
         }
         chat.contextLimit = plan.contextSize
+        let rpc = cluster.rpcArgument
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
                      vision: useVision(index) ? models.visionURL(m) : nil, draft: models.draftURL(m),
-                     rpc: cluster.rpcArgument)
+                     rpc: rpc)
+        if rpc != nil {
+            // the model parts go to the helpers while it loads: Cluster shows how far
+            let expected = ClusterController.expectedTransfer(modelBytes: m.memory ?? m.totalSize, helperBudgets: cluster.helperBudgets,
+                                                              localBudget: system.gpuWorkingSet)
+            Task { [engine, cluster] in
+                await cluster.watchTransfer(loading: { if case .starting = engine.state { return true }; return false }, expected: expected)
+            }
+        }
     }
 
     /// One image. Next to a chat model there is rarely room, so what runs stops first: not an answer being written or a

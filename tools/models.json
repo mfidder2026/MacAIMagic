@@ -275,7 +275,8 @@
         }
       ],
       "memory": 21222615552,
-      "dense": 1719101952
+      "dense": 1719101952,
+      "recommend": false
     },
     {
       "id": "ministral-3-8b-q4",

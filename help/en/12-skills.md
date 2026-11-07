@@ -32,3 +32,6 @@ platform: macos
 Write the steps and commands here.
 ```
 3. Your own skill with the same name as a built-in one replaces the built-in one.
+
+## Having a skill made
+Ask in the chat: *"Make a skill for programming in C64 assembler."* The model writes it, shows it on a card first, and after your approval puts it in the folder of your own skills. It is in the list from then on.
