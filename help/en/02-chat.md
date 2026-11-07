@@ -7,7 +7,7 @@ keywords: conversation question think thinking temperature system prompt context
 Type your question at the bottom and press **↩** or **⌘↩**. **⌥↩** starts a new line. The answer appears while the model writes; **Stop** ends it.
 
 ## Managing conversations
-- **New conversation**: the **+** next to Conversations in the sidebar, the pencil at the top right, or ⌘N. There is no maximum; the list scrolls.
+- **New conversation**: **New conversation** at the top of the conversations in the sidebar, the pencil at the top right, or ⌘N. There is no maximum; the list scrolls.
 - **Delete**: move over a conversation and click the trash can, or select it and press Delete (also with a right-click). The app asks first. Stop a conversation that is busy first.
 
 ## Buttons below the input field

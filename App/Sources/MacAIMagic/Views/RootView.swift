@@ -128,6 +128,15 @@ struct Sidebar: View {
                 Label(L("Hulp"), systemImage: "questionmark.circle").tag(Pane.help)
             }
             Section {
+                // macOS puts its own Hide button in a sidebar heading on hover: a button there cannot be clicked
+                Button {
+                    store.newConversation()
+                    if let id = store.selection { pane = .chat(id) }
+                } label: {
+                    Label(L("Nieuw gesprek"), systemImage: "plus.bubble").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(L("Nieuw gesprek (⌘N)"))
                 ForEach(store.conversations.filter { $0.hidden != true }) { c in
                     HStack(spacing: 6) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -154,15 +163,7 @@ struct Sidebar: View {
                     }
                 }
             } header: {
-                HStack {
-                    Text(L("Gesprekken"))
-                    Spacer()
-                    Button {
-                        store.newConversation()
-                        if let id = store.selection { pane = .chat(id) }
-                    } label: { Image(systemName: "plus") }
-                        .buttonStyle(.plain).help(L("Nieuw gesprek (⌘N)"))
-                }
+                Text(L("Gesprekken"))
             }
         }
         // the Delete key on the conversation that is selected
