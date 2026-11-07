@@ -1030,5 +1030,14 @@
  "Modellen…": "Models…",
  "Live-dashboard": "Live dashboard",
  "%@ actief": "%@ active",
- "%@ laden…": "Loading %@…"
+ "%@ laden…": "Loading %@…",
+ "Schrijft bestand": "Writing file",
+ "Past bestand aan": "Editing file",
+ "Bereidt een commando voor": "Preparing a command",
+ "Maakt een plan": "Making a plan",
+ "Schrijft een skill": "Writing a skill",
+ "Bereidt een stap voor": "Preparing a step",
+ "Bereidt voor: %@": "Preparing: %@",
+ "%@ tekens": "%@ characters",
+ "Bezig…": "Working…"
 }

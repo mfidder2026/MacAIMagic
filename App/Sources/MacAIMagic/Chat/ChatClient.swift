@@ -181,6 +181,7 @@ final class ChatClient: ObservableObject {
                             guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
                             c.messages[i].text += delta.content
                             c.messages[i].reasoning += delta.reasoning
+                            if let p = delta.preparing { c.messages[i].preparing = p }
                         }
                     }
                     break
@@ -202,6 +203,7 @@ final class ChatClient: ObservableObject {
             store.update(id) { c in
                 guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
                 c.messages[i].toolCalls = result.toolCalls
+                c.messages[i].preparing = nil
                 c.messages[i].tokensPerSecond = result.tokensPerSecond
                 c.messages[i].promptTokensPerSecond = result.promptTokensPerSecond
             }
@@ -826,7 +828,26 @@ final class ChatClient: ObservableObject {
         return out
     }
 
-    struct Delta { var content = ""; var reasoning = "" }
+    struct Delta { var content = ""; var reasoning = ""; var preparing: String? = nil }
+
+    /// What a tool call that is still being written will do, from its name and the arguments so far (which are not
+    /// whole JSON yet): "Schrijft bestand demo.bas · 1.240 tekens".
+    nonisolated static func preparing(name: String, arguments: String) -> String {
+        let path = arguments.range(of: #""(path|file|name|url|query|command|app)"\s*:\s*"([^"]{1,80})"#, options: .regularExpression)
+            .map { String(arguments[$0]).replacingOccurrences(of: #"^"[a-z]+"\s*:\s*""#, with: "", options: .regularExpression) }
+        let what: String
+        switch name {
+        case "write_file": what = L("Schrijft bestand")
+        case "edit_file": what = L("Past bestand aan")
+        case "run_command": what = L("Bereidt een commando voor")
+        case "system_change": what = L("Maakt een plan")
+        case "create_skill": what = L("Schrijft een skill")
+        case "": what = L("Bereidt een stap voor")
+        default: what = L("Bereidt voor: \(name)")
+        }
+        let size = arguments.count > 200 ? " · " + L("\(arguments.count.formatted()) tekens") : ""
+        return what + (path.map { " " + $0 } ?? "") + size
+    }
     struct StreamResult {
         var toolCalls: [ToolCall] = []
         /// "length": the context was full, the answer is cut off.
@@ -880,6 +901,7 @@ final class ChatClient: ObservableObject {
 
         var result = StreamResult()
         var calls: [Int: ToolCall] = [:]
+        var chunks = 0
         for try await line in bytes.lines {
             try Task.checkCancellation()
             guard line.hasPrefix("data: ") else { continue }
@@ -912,6 +934,13 @@ final class ChatClient: ObservableObject {
                     call.arguments += f["arguments"] as? String ?? ""
                 }
                 calls[idx] = call
+                // the arguments of a tool call stream too (a whole program for write_file): say what is coming,
+                // now and then, so the chat does not look idle while tokens come in
+                chunks += 1
+                if chunks == 1 || chunks % 25 == 0 {
+                    onDelta(Delta(preparing: Self.preparing(name: call.name, arguments: call.arguments)))
+                }
+                metrics?.addTokens(1)
             }
         }
         result.toolCalls = calls.sorted { $0.key < $1.key }.map { k, v in

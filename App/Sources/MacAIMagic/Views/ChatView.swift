@@ -37,6 +37,8 @@ struct ChatView: View {
                     .scrollContentBackground(.hidden)
                     .modifier(OpenAtEnd(enabled: scrollToEnd))
                     .onChange(of: c.messages.last?.text) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+                    .onChange(of: c.messages.last?.preparing) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
+                    .onChange(of: (c.messages.last?.reasoning.count ?? 0) / 400) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     .onChange(of: c.messages.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
                     // back from another page: the anchor alone can land at the top while the lazy stack still guesses
                     // its heights; after the pane transition, go to the end once more, and again when heights are known
@@ -409,8 +411,17 @@ struct MessageRow: View {
                     if !message.activities.isEmpty {
                         ActivityList(activities: message.activities, streaming: streaming)
                     }
-                    if message.text.isEmpty && message.reasoning.isEmpty && streaming && message.error == nil {
-                        ProgressView().controlSize(.small)
+                    if streaming, message.text.isEmpty, message.error == nil, let p = message.preparing {
+                        // the model writes a tool call (a file, a command): say what, so the chat does not look idle
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text(p).font(.callout).foregroundStyle(.secondary).shimmer(true)
+                        }
+                    } else if message.text.isEmpty && message.reasoning.isEmpty && streaming && message.error == nil {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small)
+                            Text(L("Bezig…")).font(.callout).foregroundStyle(.secondary)
+                        }
                     }
                     MarkdownText(text: message.text)
                     if let e = message.error {

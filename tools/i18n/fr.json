@@ -1030,5 +1030,14 @@
  "Modellen…": "Modèles…",
  "Live-dashboard": "Tableau de bord en direct",
  "%@ actief": "%@ actif",
- "%@ laden…": "Chargement de %@…"
+ "%@ laden…": "Chargement de %@…",
+ "Schrijft bestand": "Écrit le fichier",
+ "Past bestand aan": "Modifie le fichier",
+ "Bereidt een commando voor": "Prépare une commande",
+ "Maakt een plan": "Prépare un plan",
+ "Schrijft een skill": "Écrit une compétence",
+ "Bereidt een stap voor": "Prépare une étape",
+ "Bereidt voor: %@": "Prépare : %@",
+ "%@ tekens": "%@ caractères",
+ "Bezig…": "En cours…"
 }
