@@ -134,6 +134,22 @@ Het model werkt ook als je er niet naast zit (**Taken** in de zijbalk, Instellin
 - **Gesprekken tegelijk**: een gesprek dat op je goedkeuring wacht, houdt de andere niet op.
 - **Stappenlijst**: bij een grotere klus zie je de stappen boven het invoerveld, en ze worden afgevinkt.
 
+## Telegram
+
+Onder Instellingen → **Telegram** (standaard uit) praat je vanaf je telefoon met het model op deze Mac, via een eigen
+Telegram-bot.
+- **Instellen**: maak een bot bij @BotFather en plak de token; die komt in de sleutelhanger. De Mac belt zelf naar
+  Telegram, dus er staat niets open voor het internet.
+- **Wie mag praten**: "Koppel een account" geeft een code van 6 cijfers, 10 minuten geldig en maar één keer te
+  gebruiken. Wie die code in een privégesprek naar de bot stuurt, mag praten. Anderen krijgen geen antwoord.
+- **Gesprekken**: elk account heeft één doorlopend gesprek, ook in de zijbalk.
+  - `/nieuw` begint een nieuw gesprek, `/stop` stopt het antwoord en `/status` laat zien hoe de Mac ervoor staat.
+  - Foto's gaan naar het model als vision aan staat.
+- **Goedkeuren**: een wijziging komt als kaart met knoppen. Beheerdersrechten keur je alleen op de Mac goed.
+- **Taken en heartbeat** melden ook in Telegram.
+- **Privacy**: berichten gaan via de servers van Telegram en zijn daar niet versleuteld van begin tot eind. Het model en
+  je bestanden blijven op de Mac.
+
 ## Hulp
 
 Onder **Hulp** in de zijbalk, met de **?** rechtsboven op elk scherm of met ⌘?: doorzoekbare hulp bij elk onderdeel

@@ -10,4 +10,5 @@ keywords: privacy security local cloud data password prompt injection
 - **Prompt injection**: a web page or file can contain text that tries to steer the model. That is why you approve changes yourself, and why the app warns when a plan follows reading the web.
 - **Connectors**: a connector on the internet sends what the model passes along to that service; one on this Mac does not. Tokens are in the Keychain.
 - **Tasks**: a task or heartbeat works with the same rights as a conversation. A change always waits for your approval, also when you are not there.
+- **Telegram**: your messages and the answers go through Telegram's servers, not end-to-end encrypted. Only paired accounts get an answer; the token is in the Keychain. The model and your files stay on the Mac.
 - **Network**: the API and cluster helpers listen only on this Mac or on the Thunderbolt cable by default.

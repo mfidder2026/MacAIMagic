@@ -196,6 +196,26 @@ Tested with Qwen3.8-Flash-Next on the M3 Max (`TasksIntegrationTests`): the mode
 through the card, a heartbeat with nothing to report answered NIETS, and one conversation answered while another
 waited for its approval.
 
+## Telegram
+
+Settings → **Telegram** (off by default) lets you talk with the model on this Mac from your phone, through a Telegram
+bot of your own.
+- **Setup:** make a bot at @BotFather and paste its token; it goes into the Keychain. The Mac polls Telegram itself
+  (long polling), so nothing on this Mac is open to the internet.
+- **Who may talk:** "Pair an account" shows a 6-digit code, valid for 10 minutes and usable once. Whoever sends it to the
+  bot in a private chat is in. The bot does not answer anyone else.
+- **Conversations:** each account has one conversation that goes on (also in the sidebar). The answer grows while the
+  model writes. `/new` starts a new conversation, `/stop` stops the answer and `/status` gives a short state. Photos
+  go to the vision model and text files up to 1 MB are read along.
+- **Approvals:** a change comes as a card with Allow / Deny / Always in this conversation. Administrator rights are
+  only approved on the Mac.
+- **Tasks and heartbeat** also report to the account paired first.
+- **Privacy:** messages go through Telegram's servers and are not end-to-end encrypted there; the model and your
+  files stay on the Mac.
+
+Tested against a stand-in for the Bot API (`TelegramBridgeTests`): a stranger gets nothing; pairing, the answer in the
+same conversation, and the button that lets a run write its file. It has not been tried with the real Telegram yet.
+
 ## Requirements
 
 - Apple Silicon Mac (M1 or later). Models that do not fit in memory stream from the SSD: with **128 GB** the compact

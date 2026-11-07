@@ -125,6 +125,17 @@ Mac-tests om in Windows-vorm over te nemen · Mac tests to take over in Windows 
 - [x] **Scherm · screen**: pane Taken (lijst, Nu uitvoeren, Bewerken, Verwijderen, Laatste uitvoeringen), venster Nieuwe taak, tab Taken in Instellingen. Hulp-onderwerp `20-tasks.md` (NL/EN), aangepast voor de tray.
 - [x] Tests: `ModelGateTests`, `ConcurrentChatTests` met de nep-engine `App/Tests/MacAIMagicTests/Fixtures/fake_engine.py` (één gesprek wacht op goedkeuring terwijl het andere antwoordt, elk in zijn eigen map, nooit twee verzoeken tegelijk bij de engine), `WorkStepsTests`, `TaskToolTests`, `HeartbeatTests`, en `TasksIntegrationTests` met een echt model. *Windows 0.2.12: `TasksIntegrationTests` met een echt model nog niet gedraaid.*
 
+## 8. Telegram, fase 4 · Telegram, phase 4
+
+- [ ] **Bot API**: long polling (`getUpdates`, timeout 50, offset bewaard), `sendMessage` met HTML en terugval op platte tekst bij een 400, `editMessageText` ("not modified" is geen fout), `sendChatAction`, `answerCallbackQuery`, `getFile`. 401 = token ongeldig (stoppen), 409 = een ander programma gebruikt de bot. De token in de Credential Manager (`telegram-bot`), nooit in een log of foutmelding.
+- [ ] **Toegang**: koppelcode van 6 cijfers, 10 minuten, één keer; alleen een privéchat, niet van een bot. Iedereen die niet gekoppeld is: geen antwoord, in het log alleen het id. Ontkoppelen per account.
+- [ ] **Gesprekken**: één doorlopend gesprek per account (`Conversation.telegram`), titel "✈︎ Telegram · naam"; `/nieuw` (`/new`), `/stop`, `/status`, anders een korte uitleg. Het model laden als het nodig is ("Model laden…"); daarna blijft het geladen (een vraag via Telegram telt als gebruik). Een vraag terwijl het gesprek bezig is: "nog bezig, /stop".
+- [ ] **Antwoord**: groeit mee (een edit per 1,5 s met " …"), aan het eind `TelegramFormat.chunks` (3500 tekens, codeblokken heel) en `TelegramFormat.html` (alles ge-escaped; b, i, code, pre, alleen http(s)-links). Foto's als bijlage voor vision; tekstbestanden tot 1 MB als tekst; spraak nog niet.
+- [ ] **Goedkeuren**: kaart met Toestaan / Weigeren / Altijd in dit gesprek (`a:`, `n:`, `t:` + approval-id); alleen het account van dat gesprek; een late klik: "al beantwoord". Beheerdersrechten zonder knoppen, met een melding op de pc. Na een dag zonder antwoord: nee. Kaarten die niemand beantwoordde, verliezen hun knoppen als de run klaar is.
+- [ ] **Meldingen**: taak klaar / gestopt, de heartbeat en de goedkeuring van een taak (met knoppen) ook naar het eerst gekoppelde account (`telegramNotify`, standaard aan). Met Telegram aan blijft de app in de tray als het venster dicht gaat.
+- [ ] **Scherm**: tab Telegram in Instellingen (aan/uit, status, token bewaren of verwijderen, Koppel een account met de code en de resterende tijd, Wie mag praten, Meldingen, Log). Hulp `21-telegram.md` (NL/EN), en een regel in Privacy. `app_action` mag `featureTelegram` en `telegramNotify` zetten; koppelen niet.
+- [ ] Tests: neem `TelegramTests.swift` over met de nep-server `App/Tests/MacAIMagicTests/Fixtures/fake_telegram.py` (onbekend id genegeerd, koppelen, antwoord in HTML in hetzelfde gesprek, `/nieuw`, offset bewaard, de knop laat de run schrijven, een vreemde klik doet niets, een late klik, beheerdersrechten zonder knoppen, meldingen naar het eerste account).
+
 ## Later (fase 4–6) · Later (phases 4–6)
 
 Nog niet gebouwd; elke fase krijgt een eigen plan en een eigen stuk in dit bestand.
@@ -132,6 +143,6 @@ Not built yet; each phase gets its own plan and its own part of this file.
 
 | Fase | Functie · feature | Schakelaar · switch |
 |---|---|---|
-| 4 | Telegram, daarna iMessage (alleen Mac) · Telegram, then iMessage (Mac only) | `featureTelegram` |
+| 4 | iMessage (alleen Mac; Telegram is gebouwd, zie 8) · iMessage (Mac only; Telegram is built, see 8) | — |
 | 5 | Browser-agent en e-mail · browser agent and mail | `featureBrowser`, `featureMail` |
 | 6 | Computer besturen en spraak · computer use and voice | `featureComputerUse`, `featureVoice` |

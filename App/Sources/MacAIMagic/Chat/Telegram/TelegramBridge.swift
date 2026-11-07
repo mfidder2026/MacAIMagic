@@ -76,7 +76,7 @@ final class TelegramBridge {
         var attachments: [Attachment] = []
         if let photo = m.photo?.max(by: { $0.width * $0.height < $1.width * $1.height }) {
             guard Settings.shared.vision else {
-                _ = try? await bot.send(chatID, L("Foto's bekijken staat uit (Instellingen → Chat → Afbeeldingen bekijken)."))
+                _ = try? await bot.send(chatID, L("Foto's bekijken staat uit (Instellingen → Chat → Afbeeldingen)."))
                 return
             }
             do { attachments.append(Attachment(filename: "telegram.jpg", jpeg: try await bot.download(photo.fileId))) } catch {
