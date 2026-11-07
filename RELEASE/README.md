@@ -1,6 +1,6 @@
-# MacAIMagic 1.10.0 (macOS, Apple Silicon)
+# MacAIMagic 1.11.0 (macOS, Apple Silicon)
 
-`MacAIMagic-1.10.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.11.0-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,19 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.10.0-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.11.0-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+
+New in 1.11.0:
+- **Tasks** (new in the sidebar). The model does a task on its own at a set time: once, every day or every weekday, every week, or every few hours. Make one under **Taken → Nieuwe taak**, or just ask: "give me my agenda every weekday at 8". Each run becomes a conversation of its own, with a notification when it is done or needs your approval. The model loads for the task and stops again afterwards. A change by a task always waits for your approval.
+- **Heartbeat** (Settings → Taken, off by default): now and then the model goes through a checklist of yours (for example your calendar or the disk) and only speaks up when there is something.
+- **In the menu bar**: with tasks or a heartbeat on, MacAIMagic stays in the menu bar when you close the window, and the model stops so its memory is free. **Start at login** is there too.
+- **Conversations at the same time**: chat on while another conversation works or waits for your approval; the model takes them in turn. A step list above the input field shows what the model does in a larger job.
+- **Connectors (MCP)**, Settings → Connectors: tools from other programs and services, in the same format as Claude Desktop (**Importeer** takes them over). Ready to switch on: **Calendar and Reminders** (built in), Files, Fetch web and GitHub. A connector on the internet that asks to log in opens your browser. Read-only tools run; the rest asks first, per connector.
+- **The app knows itself**: ask "which model fits this Mac?", "turn thinking off", "make a skill for C64 assembler" or "make an image of a lighthouse", and the model does it in the app, after a card. Deleting a model always asks.
+- **Cluster**: before a start each helper is asked whether it answers; one that does not stays out and Cluster says why. While loading, Cluster shows how much of the model went to the helpers.
+- Admin steps stop at the first one that fails. The uncensored Heretic model is never the recommendation. The word KLAAR no longer shows at the start of answers. The sidebar is in a new order, with Taken after Beeld. The help has 20 topics.
 
 New in 1.10.0:
 - **The model sets up this Mac for you** (Settings → Systeembeheer, on by default). Ask "why is my Mac slow?" and it only reads, with fixed commands that cannot change anything. Ask "put the Dock on the left" and it makes a **plan**: a card shows every step with the value it has now, and nothing happens until you press **Toestaan**. Afterwards the app reads every value again as a check. Steps that need administrator rights go through **macOS's own password dialog** (the model never sees your password), always ask first, and can make a Time Machine snapshot beforehand. Sensitive changes (firewall, Gatekeeper, FileVault, user accounts, deleting for good, a restart) are not blocked but get a **red warning**, and so does a plan that follows reading the web.
