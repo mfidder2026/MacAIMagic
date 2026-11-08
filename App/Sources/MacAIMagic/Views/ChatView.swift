@@ -59,7 +59,6 @@ struct ChatView: View {
             if let problem = store.loadProblem {
                 Text(problem).font(.callout).foregroundStyle(Theme.amber).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 8)
             }
-            if !engine.state.isRunning { EngineBanner(fast: app.documentEngines.fast) }
             if engine.state.isRunning && metrics.engineBusy && !chat.busy { OtherRequestBanner() }
             GateBanner(gate: chat.gate, conversationID: conversationID)
             // a finished list goes with the next question (ChatClient.send)
@@ -67,6 +66,8 @@ struct ChatView: View {
                 StepsCard(steps: steps, busy: chat.isBusy(conversationID))
             }
             if let a = chat.approvals[conversationID] { ApprovalCard(approval: a) }
+            // right above the input field, as wide as it: it is about what happens when you send
+            if !engine.state.isRunning { EngineBanner(fast: app.documentEngines.fast) }
             Composer(conversationID: conversationID, text: $draft)
         }
         .navigationTitle(conversation?.displayTitle ?? "MacAIMagic")
@@ -364,9 +365,13 @@ private struct EngineBanner: View {
             }
         }
         .font(.callout)
-        .padding(.horizontal, 16).padding(.vertical, 8)
+        .padding(.horizontal, 14).padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        // the input field's width and margins (Composer), so the two line up
+        .frame(maxWidth: 860)
+        .padding(.horizontal, 24).padding(.top, 4)
+        .frame(maxWidth: .infinity)
     }
 }
 
