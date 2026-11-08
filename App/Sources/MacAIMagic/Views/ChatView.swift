@@ -21,11 +21,18 @@ struct ChatView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 20) {
-                            ForEach(c.messages.filter { !$0.isHidden }) { m in
-                                MessageRow(message: m, streaming: chat.isBusy(conversationID) && m.id == c.messages.last?.id)
-                                    .id(m.id)
-                                    .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
-                                if m.id == lastShownSummarized(c), let summary = c.summary { SummaryDivider(summary: summary) }
+                            let items = ChatItem.group(c.messages.filter { !$0.isHidden })
+                            ForEach(items) { item in
+                                Group {
+                                    switch item {
+                                    case .question(let m): MessageRow(message: m, streaming: false)
+                                    case .answer(let rounds):
+                                        AnswerView(rounds: rounds, streaming: chat.isBusy(conversationID) && item.id == items.last?.id)
+                                    }
+                                }
+                                .id(item.id)
+                                .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+                                if let last = lastShownSummarized(c), item.contains(last), let summary = c.summary { SummaryDivider(summary: summary) }
                             }
                             Color.clear.frame(height: 1).id("bottom")
                         }
@@ -377,11 +384,48 @@ private struct EngineBanner: View {
 
 // MARK: - message
 
+/// The chat as rows: a question of the user, or one answer with all its rounds. An answer of a model that works is
+/// many messages (a round of thinking, text and tool calls each, and the app's own "go on" and pictures in between);
+/// shown as one, in the order it came, the user can read along instead of seeing parts jump away.
+enum ChatItem: Identifiable {
+    case question(ChatMessage)
+    case answer([ChatMessage])
+
+    var id: UUID {
+        switch self {
+        case .question(let m): return m.id
+        case .answer(let rounds): return rounds[0].id
+        }
+    }
+
+    func contains(_ id: UUID) -> Bool {
+        switch self {
+        case .question(let m): return m.id == id
+        case .answer(let rounds): return rounds.contains { $0.id == id }
+        }
+    }
+
+    /// Visible messages in order: each question of the user starts a new row, everything after it is the answer.
+    static func group(_ messages: [ChatMessage]) -> [ChatItem] {
+        var items: [ChatItem] = []
+        var rounds: [ChatMessage] = []
+        for m in messages {
+            if m.role == .user && m.automatic != true {
+                if !rounds.isEmpty { items.append(.answer(rounds)); rounds = [] }
+                items.append(.question(m))
+            } else {
+                rounds.append(m)
+            }
+        }
+        if !rounds.isEmpty { items.append(.answer(rounds)) }
+        return items
+    }
+}
+
+/// A question of the user.
 struct MessageRow: View {
     let message: ChatMessage
     let streaming: Bool
-    @State private var showThinking = false
-    @State private var showAll = false
 
     /// A very long text as its start and its end, cut at line ends; nil when it is short enough to show whole.
     nonisolated static func folded(_ text: String, above: Int = 12_000, keep: Int = 4000) -> (head: String, hidden: Int, tail: String)? {
@@ -394,157 +438,233 @@ struct MessageRow: View {
     }
 
     var body: some View {
-        if message.automatic == true && message.role == .user && !message.attachments.isEmpty {
-            // a picture the model asked to look at (view_image): small, so the user sees what it saw
-            HStack(spacing: 8) {
-                ForEach(message.attachments) { a in
-                    if let img = NSImage(data: a.jpeg) {
-                        Image(nsImage: img).resizable().interpolation(.none).scaledToFit()
-                            .frame(maxWidth: 220, maxHeight: 160).clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                }
-                Label(L("Het model bekijkt \(message.attachments.map(\.filename).joined(separator: ", "))"), systemImage: "eye")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-        } else if message.automatic == true && message.role == .user {
-            Label(L("Het model was nog niet klaar en gaat automatisch door"), systemImage: "arrow.triangle.2.circlepath")
-                .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
-        } else if message.role == .user {
-            HStack {
-                Spacer(minLength: 80)
-                VStack(alignment: .trailing, spacing: 8) {
-                    if !message.attachments.isEmpty {
-                        HStack {
-                            ForEach(message.attachments) { a in
-                                if let img = NSImage(data: a.jpeg) {
-                                    Image(nsImage: img).resizable().scaledToFill()
-                                        .frame(width: 140, height: 140).clipShape(RoundedRectangle(cornerRadius: 10))
-                                }
+        HStack {
+            Spacer(minLength: 80)
+            VStack(alignment: .trailing, spacing: 8) {
+                if !message.attachments.isEmpty {
+                    HStack {
+                        ForEach(message.attachments) { a in
+                            if let img = NSImage(data: a.jpeg) {
+                                Image(nsImage: img).resizable().scaledToFill()
+                                    .frame(width: 140, height: 140).clipShape(RoundedRectangle(cornerRadius: 10))
                             }
                         }
                     }
-                    if !message.text.isEmpty {
-                        Text(message.text).textSelection(.enabled).foregroundStyle(.white)
-                            .padding(.horizontal, 16).padding(.vertical, 11)
-                            .background(Theme.userBubble, in: RoundedRectangle(cornerRadius: 18))
-                            .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.15)))
-                            .shadow(color: Theme.violet.opacity(0.35), radius: 12, y: 4)
-                    }
                 }
-            }
-        } else {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    PulseRing(active: streaming).frame(width: 30, height: 30)
-                    BrandMark(size: 30, active: streaming)
+                if !message.text.isEmpty {
+                    Text(message.text).textSelection(.enabled).foregroundStyle(.white)
+                        .padding(.horizontal, 16).padding(.vertical, 11)
+                        .background(Theme.userBubble, in: RoundedRectangle(cornerRadius: 18))
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.15)))
+                        .shadow(color: Theme.violet.opacity(0.35), radius: 12, y: 4)
                 }
-                VStack(alignment: .leading, spacing: 10) {
-                    if !message.reasoning.isEmpty {
-                        DisclosureGroup(isExpanded: $showThinking) {
-                            Text(message.reasoning.count > 12_000 ? "…\n" + String(message.reasoning.suffix(8000)) : message.reasoning)
-                                .font(.callout).foregroundStyle(.secondary)
-                                .textSelection(.enabled).padding(.top, 4)
-                                .padding(.leading, 10)
-                                .overlay(alignment: .leading) { Rectangle().fill(.quaternary).frame(width: 2) }
-                        } label: {
-                            Label(streaming && message.text.isEmpty ? L("Denkt na…") : L("Gedachtegang"),
-                                  systemImage: "brain").font(.callout.weight(.medium))
-                                .foregroundStyle(streaming && message.text.isEmpty ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(.secondary))
-                                .shimmer(streaming && message.text.isEmpty)
-                        }
-                    }
-                    if !message.activities.isEmpty {
-                        ActivityList(activities: message.activities, streaming: streaming)
-                    }
-                    if streaming, message.text.isEmpty, message.error == nil, let p = message.preparing {
-                        // the model writes a tool call (a file, a command): say what, so the chat does not look idle
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text(p).font(.callout).foregroundStyle(.secondary).shimmer(true)
-                        }
-                    } else if message.text.isEmpty && message.reasoning.isEmpty && streaming && message.error == nil {
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text(L("Bezig…")).font(.callout).foregroundStyle(.secondary)
-                        }
-                    }
-                    if !showAll, let f = Self.folded(message.text) {
-                        // a monologue of 100,000 characters is one view taller than macOS draws: the chat went blank
-                        MarkdownText(text: f.head)
-                        Button(L("… \(f.hidden.formatted()) tekens verborgen · Toon alles")) { showAll = true }
-                            .buttonStyle(.link).font(.callout)
-                        MarkdownText(text: f.tail)
-                    } else {
-                        MarkdownText(text: message.text)
-                    }
-                    if let e = message.error {
-                        Label(e, systemImage: "exclamationmark.triangle").foregroundStyle(.red).font(.callout)
-                    }
-                    if !message.sources.isEmpty { SourceChips(sources: message.sources) }
-                    if let tps = message.tokensPerSecond, !streaming {
-                        HStack(spacing: 10) {
-                            Text(String(format: "%.1f tok/s", tps))
-                            if let p = message.promptTokensPerSecond { Text(String(format: "prompt %.0f tok/s", p)) }
-                            Button { copy(message.text) } label: { Image(systemName: "doc.on.doc") }.buttonStyle(.plain)
-                            if Settings.shared.featureVoice {
-                                SpeakButton(message: message)
-                            }
-                        }
-                        .font(.caption).foregroundStyle(.tertiary)
-                    }
-                }
-                .padding(16)
-                .background(.ultraThinMaterial.opacity(0.7), in: RoundedRectangle(cornerRadius: 18))
-                .overlay(RoundedRectangle(cornerRadius: 18).stroke(streaming ? AnyShapeStyle(Theme.brand.opacity(0.6)) : AnyShapeStyle(.white.opacity(0.07))))
-                Spacer(minLength: 0)
             }
         }
     }
 }
 
-/// The steps of an answer. While the model works the list grows, so you see every step as it comes (the last
-/// dozen, with how many came before); when the answer is done it folds into one line, since the chat is about the
-/// answer. A short list is simply shown.
-struct ActivityList: View {
-    let activities: [ToolActivity]
+/// One piece of an answer, in the order it came.
+enum AnswerPart: Identifiable {
+    case thought(id: String, text: String, live: Bool)
+    case step(ToolActivity)
+    case text(id: String, text: String)
+    case looked(id: String, attachments: [Attachment])
+    case resumed(id: String)
+    case error(id: String, text: String)
+
+    var id: String {
+        switch self {
+        case .thought(let id, _, _), .text(let id, _), .looked(let id, _), .resumed(let id), .error(let id, _): return id
+        case .step(let a): return a.id.uuidString
+        }
+    }
+
+    var isStep: Bool { if case .step = self { return true } else { return false } }
+
+    /// The parts of the rounds; the last round's thinking is live while the model has not started its text.
+    static func of(_ rounds: [ChatMessage], streaming: Bool) -> [AnswerPart] {
+        var parts: [AnswerPart] = []
+        for (n, m) in rounds.enumerated() {
+            let key = m.id.uuidString
+            if m.role == .user {
+                parts.append(m.attachments.isEmpty ? .resumed(id: key) : .looked(id: key, attachments: m.attachments))
+                continue
+            }
+            if !m.reasoning.isEmpty {
+                parts.append(.thought(id: key + "r", text: m.reasoning, live: streaming && n == rounds.count - 1 && m.text.isEmpty))
+            }
+            // the text of a round comes before its tool calls: the model writes it, then asks for the tools
+            if !m.text.isEmpty { parts.append(.text(id: key + "t", text: m.text)) }
+            parts += m.activities.map { .step($0) }
+            if let e = m.error { parts.append(.error(id: key + "e", text: e)) }
+        }
+        return parts
+    }
+}
+
+/// One answer of the model: thinking, text and steps of all its rounds in one card, in the order they came. While
+/// the model works you see the latest parts as they come; when it is done the work folds into one line above the
+/// answer, since the chat is about the answer.
+struct AnswerView: View {
+    let rounds: [ChatMessage]
     let streaming: Bool
-    @State private var open = false
-    /// Up to this many steps are simply shown.
-    private static let foldAbove = 3
-    /// While working, at most this many of the latest steps.
-    private static let live = 12
+    @State private var showWork = false
+    @State private var showEarlier = false
+    /// While working, at most this many of the latest parts.
+    private static let live = 14
+
+    private var last: ChatMessage? { rounds.last { $0.role == .assistant } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if activities.count <= Self.foldAbove {
-                rows(activities)
-            } else if streaming && !open {
-                let hidden = activities.count - Self.live
-                if hidden > 0 {
-                    Button { open = true } label: {
-                        Label(L("\(hidden) eerdere stappen"), systemImage: "list.bullet").font(.callout).foregroundStyle(.tertiary)
+        let parts = AnswerPart.of(rounds, streaming: streaming)
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                PulseRing(active: streaming).frame(width: 30, height: 30)
+                BrandMark(size: 30, active: streaming)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                if streaming {
+                    let hidden = showEarlier ? 0 : parts.count - Self.live
+                    if hidden > 0 {
+                        Button { showEarlier = true } label: {
+                            Label(L("\(hidden) eerdere stappen"), systemImage: "list.bullet").font(.callout).foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    ForEach(Array(parts.suffix(hidden > 0 ? Self.live : parts.count))) { part in PartView(part: part) }
+                    working
+                } else {
+                    finished(parts)
                 }
-                rows(Array(activities.suffix(Self.live)))
-            } else {
-                DisclosureGroup(isExpanded: $open) {
-                    rows(activities).padding(.top, 4)
-                } label: {
-                    Label(L("\(activities.count) stappen"), systemImage: "list.bullet").font(.callout.weight(.medium)).foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                if let m = last, !m.sources.isEmpty { SourceChips(sources: m.sources) }
+                if let m = last, let tps = m.tokensPerSecond, !streaming {
+                    HStack(spacing: 10) {
+                        Text(String(format: "%.1f tok/s", tps))
+                        if let p = m.promptTokensPerSecond { Text(String(format: "prompt %.0f tok/s", p)) }
+                        Button { copy(m.text) } label: { Image(systemName: "doc.on.doc") }.buttonStyle(.plain)
+                        if Settings.shared.featureVoice {
+                            SpeakButton(message: m)
+                        }
+                    }
+                    .font(.caption).foregroundStyle(.tertiary)
+                }
+            }
+            .padding(16)
+            .background(.ultraThinMaterial.opacity(0.7), in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(streaming ? AnyShapeStyle(Theme.brand.opacity(0.6)) : AnyShapeStyle(.white.opacity(0.07))))
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// What the model does right now, when the parts do not show it yet.
+    @ViewBuilder private var working: some View {
+        if let m = rounds.last, m.role == .assistant, m.error == nil {
+            if let p = m.preparing {
+                // the model writes a tool call (a file, a command): say what, so the chat does not look idle
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(p).font(.callout).foregroundStyle(.secondary).shimmer(true)
+                }
+            } else if m.text.isEmpty && m.reasoning.isEmpty && m.activities.isEmpty {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(L("Bezig…")).font(.callout).foregroundStyle(.secondary)
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func rows(_ list: [ToolActivity]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(list) { a in ActivityRow(activity: a) }
+    /// A finished answer: its last text and error stay in view, all that came before folds into one line.
+    @ViewBuilder private func finished(_ parts: [AnswerPart]) -> some View {
+        let tailStart = parts.lastIndex { if case .text = $0 { return false }; if case .error = $0 { return false }; return true }
+            .map { $0 + 1 } ?? 0
+        let work = Array(parts[..<tailStart])
+        let tail = Array(parts[tailStart...])
+        if work.count == 1, case .thought = work[0] {
+            PartView(part: work[0])
+        } else if work.count > 0 && work.count <= 3 && !work.contains(where: { if case .thought = $0 { return true }; return false }) {
+            ForEach(work) { part in PartView(part: part) }
+        } else if !work.isEmpty {
+            let steps = work.filter(\.isStep).count
+            DisclosureGroup(isExpanded: $showWork) {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(work) { part in PartView(part: part) }
+                }
+                .padding(.top, 6)
+            } label: {
+                Label(steps == 0 ? L("Gedachtegang") : L("Gedachtegang en \(steps) stappen"),
+                      systemImage: steps == 0 ? "brain" : "list.bullet")
+                    .font(.callout.weight(.medium)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ForEach(tail) { part in PartView(part: part) }
+    }
+}
+
+/// One part of an answer.
+struct PartView: View {
+    let part: AnswerPart
+    @State private var open = false
+    @State private var showAll = false
+
+    var body: some View {
+        switch part {
+        case .thought(_, let text, let live):
+            DisclosureGroup(isExpanded: $open) {
+                Text(text.count > 12_000 ? "…\n" + String(text.suffix(8000)) : text)
+                    .font(.callout).foregroundStyle(.secondary)
+                    .textSelection(.enabled).padding(.top, 4)
+                    .padding(.leading, 10)
+                    .overlay(alignment: .leading) { Rectangle().fill(.quaternary).frame(width: 2) }
+            } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(live ? L("Denkt na…") : L("Gedachte"), systemImage: "brain").font(.callout.weight(.medium))
+                        .foregroundStyle(live ? AnyShapeStyle(Theme.brand) : AnyShapeStyle(.secondary))
+                        .shimmer(live)
+                    if !open {
+                        // what it thinks now, or what it thought: the gist without opening it
+                        Text(Self.gist(text, live: live)).font(.caption).foregroundStyle(.tertiary)
+                            .lineLimit(live ? 3 : 1).truncationMode(live ? .head : .tail)
+                    }
+                }
+            }
+        case .step(let a):
+            ActivityRow(activity: a)
+        case .text(_, let text):
+            if !showAll, let f = MessageRow.folded(text) {
+                // a monologue of 100,000 characters is one view taller than macOS draws: the chat went blank
+                MarkdownText(text: f.head)
+                Button(L("… \(f.hidden.formatted()) tekens verborgen · Toon alles")) { showAll = true }
+                    .buttonStyle(.link).font(.callout)
+                MarkdownText(text: f.tail)
+            } else {
+                MarkdownText(text: text)
+            }
+        case .looked(_, let attachments):
+            // a picture the model asked to look at (view_image): small, so the user sees what it saw
+            HStack(spacing: 8) {
+                ForEach(attachments) { a in
+                    if let img = NSImage(data: a.jpeg) {
+                        Image(nsImage: img).resizable().interpolation(.none).scaledToFit()
+                            .frame(maxWidth: 220, maxHeight: 160).clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                Label(L("Het model bekijkt \(attachments.map(\.filename).joined(separator: ", "))"), systemImage: "eye")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        case .resumed:
+            Label(L("Het model was nog niet klaar en gaat automatisch door"), systemImage: "arrow.triangle.2.circlepath")
+                .font(.caption).foregroundStyle(.secondary)
+        case .error(_, let text):
+            Label(text, systemImage: "exclamationmark.triangle").foregroundStyle(.red).font(.callout)
+        }
+    }
+
+    /// The thinking as one line: its end while the model thinks, its start afterwards.
+    nonisolated static func gist(_ text: String, live: Bool) -> String {
+        let flat = text.split(whereSeparator: \.isNewline).joined(separator: " ")
+        return live ? String(flat.suffix(400)) : String(flat.prefix(200))
     }
 }
 

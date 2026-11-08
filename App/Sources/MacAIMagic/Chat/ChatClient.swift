@@ -194,11 +194,16 @@ final class ChatClient: ObservableObject {
         var changedFiles = false
         // rounds of tools since the model last updated its step list: a model forgets to tick steps off
         var roundsSinceSteps = 0
+        // a step was taken in an earlier round of this answer
+        var tookSteps = false
         for _ in 0..<maxToolRounds {
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
                 await compact(id, store: store, baseURL: baseURL)
             }
+            // each round keeps its own steps, so the chat shows thinking, text and steps in the order they came
+            if !activities.isEmpty { tookSteps = true }
+            activities = []
             let reply = ChatMessage(role: .assistant, text: "", activities: activities, sources: sources)
             store.update(id) { $0.messages.append(reply) }
 
@@ -243,7 +248,7 @@ final class ChatClient: ObservableObject {
                 let m = store.conversations.first { $0.id == id }?.messages.last { $0.id == reply.id }
                 let cutOff = result.finishReason == "length"
                 guard Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
-                                           working: workspaceActive || !activities.isEmpty, tookSteps: changedFiles) else {
+                                           working: workspaceActive || tookSteps || !activities.isEmpty, tookSteps: changedFiles) else {
                     // KLAAR is a word for the app, not for the user
                     store.update(id) { c in
                         if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].text = Self.withoutDoneWord(c.messages[i].text) }
@@ -261,10 +266,7 @@ final class ChatClient: ObservableObject {
                 }
                 nudges += 1
                 store.update(id) { c in
-                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) {
-                        c.messages[i].activities = []
-                        if cutOff { c.messages[i].cutOff = true }
-                    }
+                    if cutOff, let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].cutOff = true }
                 }
                 // "go on where you were" made a model that plans aloud write the same plan again, without end
                 let nudge = cutOff ? L("Je antwoord werd te lang en is afgekapt; je krijgt alleen het begin en het eind terug. Denk of plan niet opnieuw in tekst: doe nu meteen de volgende stap met gereedschap. Schrijf grote code in delen: één bestand of één deel per write_file.")
@@ -274,7 +276,7 @@ final class ChatClient: ObservableObject {
             }
             nudges = 0
 
-            // run the tools; the next round's message carries the activity list, this one folds away
+            // run the tools; their steps stay with this round, the sources go on to the next
             // a picture cannot go in a tool result: it follows them, as a message of the app with the image
             var looked: [Attachment] = []
             defer {
@@ -405,10 +407,7 @@ final class ChatClient: ObservableObject {
                 activities[activities.count - 1].done = true
                 activities[activities.count - 1].output = String(text.prefix(4000))
                 store.update(id) { c in
-                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) {
-                        c.messages[i].activities = []
-                        c.messages[i].sources = []
-                    }
+                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].sources = [] }
                     // the reminder rides on the round's last result: a message of its own would break the tool turn
                     let nudge = place == result.toolCalls.count - 1 ? stepsNudge.map { "\n\n" + $0 } ?? "" : ""
                     c.messages.append(ChatMessage(role: .tool, text: text + nudge, toolCallId: call.id))

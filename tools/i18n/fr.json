@@ -1047,5 +1047,7 @@
  "Afbeelding bekijken: %@": "Afficher l’image : %@",
  "Het model bekijkt %@": "Le modèle regarde %@",
  "Hier is de afbeelding die je opvroeg: %@.": "Voici l’image que tu as demandée : %@.",
- "Wat een programma met een venster laat zien (een spel, een emulator), controleer je zelf: laat het een screenshot als bestand opslaan en bekijk dat met view_image. Zeg pas dat het werkt als je het resultaat hebt gezien.": "Ce qu’affiche un programme avec une fenêtre (un jeu, un émulateur), vérifie-le toi-même : fais-lui enregistrer une capture d’écran dans un fichier et regarde-la avec view_image. Ne dis que ça marche qu’après avoir vu le résultat."
+ "Wat een programma met een venster laat zien (een spel, een emulator), controleer je zelf: laat het een screenshot als bestand opslaan en bekijk dat met view_image. Zeg pas dat het werkt als je het resultaat hebt gezien.": "Ce qu’affiche un programme avec une fenêtre (un jeu, un émulateur), vérifie-le toi-même : fais-lui enregistrer une capture d’écran dans un fichier et regarde-la avec view_image. Ne dis que ça marche qu’après avoir vu le résultat.",
+ "Gedachte": "Réflexion",
+ "Gedachtegang en %@ stappen": "Raisonnement et %@ étapes"
 }
