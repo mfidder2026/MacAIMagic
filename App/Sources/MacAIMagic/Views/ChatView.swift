@@ -389,7 +389,20 @@ struct MessageRow: View {
     }
 
     var body: some View {
-        if message.automatic == true && message.role == .user {
+        if message.automatic == true && message.role == .user && !message.attachments.isEmpty {
+            // a picture the model asked to look at (view_image): small, so the user sees what it saw
+            HStack(spacing: 8) {
+                ForEach(message.attachments) { a in
+                    if let img = NSImage(data: a.jpeg) {
+                        Image(nsImage: img).resizable().interpolation(.none).scaledToFit()
+                            .frame(maxWidth: 220, maxHeight: 160).clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
+                Label(L("Het model bekijkt \(message.attachments.map(\.filename).joined(separator: ", "))"), systemImage: "eye")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        } else if message.automatic == true && message.role == .user {
             Label(L("Het model was nog niet klaar en gaat automatisch door"), systemImage: "arrow.triangle.2.circlepath")
                 .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         } else if message.role == .user {

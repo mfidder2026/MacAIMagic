@@ -1042,5 +1042,10 @@
  "Skill geladen: %@ (vanzelf)": "Skill loaded: %@ (by itself)",
  "Je antwoord werd te lang en is afgekapt; je krijgt alleen het begin en het eind terug. Denk of plan niet opnieuw in tekst: doe nu meteen de volgende stap met gereedschap. Schrijf grote code in delen: één bestand of één deel per write_file.": "Your answer got too long and was cut off; you only get its start and end back. Do not think or plan again in text: take the next step with a tool right away. Write large code in parts: one file or one part per write_file.",
  "… %@ tekens weggelaten …": "… %@ characters left out …",
- "… %@ tekens verborgen · Toon alles": "… %@ characters hidden · Show all"
+ "… %@ tekens verborgen · Toon alles": "… %@ characters hidden · Show all",
+ "(Hier stond een afbeelding die je eerder bekeek: %@.)": "(An image you looked at earlier was here: %@.)",
+ "Afbeelding bekijken: %@": "Viewing image: %@",
+ "Het model bekijkt %@": "The model looks at %@",
+ "Hier is de afbeelding die je opvroeg: %@.": "Here is the image you asked for: %@.",
+ "Wat een programma met een venster laat zien (een spel, een emulator), controleer je zelf: laat het een screenshot als bestand opslaan en bekijk dat met view_image. Zeg pas dat het werkt als je het resultaat hebt gezien.": "Check for yourself what a program with a window shows (a game, an emulator): have it save a screenshot as a file and look at it with view_image. Only say it works once you have seen the result."
 }

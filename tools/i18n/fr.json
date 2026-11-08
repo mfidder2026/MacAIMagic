@@ -1042,5 +1042,10 @@
  "Skill geladen: %@ (vanzelf)": "Compétence chargée : %@ (automatiquement)",
  "Je antwoord werd te lang en is afgekapt; je krijgt alleen het begin en het eind terug. Denk of plan niet opnieuw in tekst: doe nu meteen de volgende stap met gereedschap. Schrijf grote code in delen: één bestand of één deel per write_file.": "Ta réponse est devenue trop longue et a été coupée ; tu ne reçois que son début et sa fin. Ne réfléchis pas et ne planifie pas à nouveau en texte : fais tout de suite l'étape suivante avec un outil. Écris le code volumineux en parties : un fichier ou une partie par write_file.",
  "… %@ tekens weggelaten …": "… %@ caractères omis …",
- "… %@ tekens verborgen · Toon alles": "… %@ caractères masqués · Tout afficher"
+ "… %@ tekens verborgen · Toon alles": "… %@ caractères masqués · Tout afficher",
+ "(Hier stond een afbeelding die je eerder bekeek: %@.)": "(Ici se trouvait une image que tu as regardée plus tôt : %@.)",
+ "Afbeelding bekijken: %@": "Afficher l’image : %@",
+ "Het model bekijkt %@": "Le modèle regarde %@",
+ "Hier is de afbeelding die je opvroeg: %@.": "Voici l’image que tu as demandée : %@.",
+ "Wat een programma met een venster laat zien (een spel, een emulator), controleer je zelf: laat het een screenshot als bestand opslaan en bekijk dat met view_image. Zeg pas dat het werkt als je het resultaat hebt gezien.": "Ce qu’affiche un programme avec une fenêtre (un jeu, un émulateur), vérifie-le toi-même : fais-lui enregistrer une capture d’écran dans un fichier et regarde-la avec view_image. Ne dis que ça marche qu’après avoir vu le résultat."
 }

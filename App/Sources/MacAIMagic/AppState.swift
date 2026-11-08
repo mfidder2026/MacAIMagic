@@ -189,6 +189,7 @@ final class AppState: ObservableObject {
                                       inUse: system.physicalMemory - min(system.physicalMemory, SystemInfo.availableMemory()))
         }
         chat.contextLimit = plan.contextSize
+        chat.seesImages = useVision(index) && models.visionURL(m) != nil
         let rpc = cluster.rpcArgument
         engine.start(model: m, shards: models.shardURLs(m), plan: plan,
                      vision: useVision(index) ? models.visionURL(m) : nil, draft: models.draftURL(m),

@@ -209,15 +209,18 @@ enum ImageAttachment {
         return [a]
     }
 
-    static func make(from url: URL) -> Attachment? {
+    static func make(from url: URL, minSide: CGFloat = 0) -> Attachment? {
         guard let img = NSImage(contentsOf: url) else { return nil }
-        return make(from: img, name: url.lastPathComponent)
+        return make(from: img, name: url.lastPathComponent, minSide: minSide)
     }
 
-    static func make(from image: NSImage, name: String) -> Attachment? {
+    /// `minSide` enlarges a small picture (a 384-pixel emulator screen) with sharp pixels, so its letters stay readable
+    /// for the vision tower, which sees an image in patches of 14 pixels.
+    static func make(from image: NSImage, name: String, minSide: CGFloat = 0) -> Attachment? {
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let w = CGFloat(cg.width), h = CGFloat(cg.height)
-        let scale = min(1, maxSide / max(w, h))
+        let up = minSide > 0 && max(w, h) < minSide
+        let scale = up ? (minSide / max(w, h)).rounded(.down) : min(1, maxSide / max(w, h))
         let size = NSSize(width: (w * scale).rounded(), height: (h * scale).rounded())
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height),
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -226,6 +229,7 @@ enum ImageAttachment {
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         NSColor.white.setFill()
         NSRect(origin: .zero, size: size).fill()
+        if up { NSGraphicsContext.current?.cgContext.interpolationQuality = .none }
         NSGraphicsContext.current?.cgContext.draw(cg, in: CGRect(origin: .zero, size: size))
         NSGraphicsContext.restoreGraphicsState()
         guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else { return nil }

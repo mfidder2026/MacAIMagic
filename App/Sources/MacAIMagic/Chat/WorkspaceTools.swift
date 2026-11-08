@@ -3,7 +3,10 @@ import Foundation
 /// Tools that let the model work in one folder the user chose: list, read, write and edit files, and run commands.
 /// Every path is resolved inside the workspace; anything that points outside it is refused.
 enum WorkspaceTools {
-    static let names: Set<String> = ["list_dir", "read_file", "write_file", "edit_file", "run_command"]
+    static let names: Set<String> = ["list_dir", "read_file", "write_file", "edit_file", "run_command", imageTool]
+    /// Looks at a picture in the workspace (a screenshot of a game, an emulator, a chart): offered only while the
+    /// engine runs with vision, since a model without it cannot see the image.
+    static let imageTool = "view_image"
     /// Tools that change something: these ask the user first.
     /// The kinds of action the user gives rights for (allow, ask, deny).
     enum Right: String, CaseIterable {
@@ -50,6 +53,22 @@ enum WorkspaceTools {
                  required: ["command"]),
     ]
 
+    static let imageDefinition = function(imageTool, "Look at an image file in the workspace (PNG, JPEG, GIF, TIFF): you get to see the picture itself. Use it to check what a program with a window shows, for example an emulator screenshot saved to a file, a chart or a rendered page.",
+                                          ["path": ["type": "string", "description": "Image file, relative to the workspace"]], required: ["path"])
+
+    /// The image a view_image call asks for, scaled down for the vision tower, or an error for the model.
+    @MainActor static func image(_ call: ToolCall) -> Result<Attachment, Error> {
+        let path = args(call)["path"] as? String ?? ""
+        do {
+            let url = try resolve(path)
+            guard FileManager.default.fileExists(atPath: url.path) else { throw ToolError.notFound(path) }
+            guard let a = ImageAttachment.make(from: url, minSide: 1024) else { throw ToolError.notImage(path) }
+            return .success(a)
+        } catch {
+            return .failure(error)
+        }
+    }
+
     private static func function(_ name: String, _ description: String, _ properties: [String: Any], required: [String]) -> [String: Any] {
         ["type": "function", "function": ["name": name, "description": description,
                                           "parameters": ["type": "object", "properties": properties, "required": required]]]
@@ -58,7 +77,7 @@ enum WorkspaceTools {
     // MARK: - paths
 
     enum ToolError: LocalizedError {
-        case noWorkspace, outside(String), notFound(String), notUnique(Int), tooBig(String), badBase64
+        case noWorkspace, outside(String), notFound(String), notUnique(Int), tooBig(String), badBase64, notImage(String)
         var errorDescription: String? {
             switch self {
             case .noWorkspace: return "No workspace folder is set. Ask the user to choose one (Werkmap in the chat)."
@@ -67,6 +86,7 @@ enum WorkspaceTools {
             case .notUnique(let n): return "old_text occurs \(n) times; it must occur exactly once. Include more surrounding text."
             case .tooBig(let p): return "\(p) is larger than 2 MB; read it with offset/limit or tail."
             case .badBase64: return "content is not valid base64."
+            case .notImage(let p): return "\(p) is not an image this app can read (use PNG or JPEG)."
             }
         }
     }
@@ -118,6 +138,7 @@ enum WorkspaceTools {
         case "write_file": return L("Schrijven: \(path)")
         case "edit_file": return L("Aanpassen: \(path)")
         case "run_command": return L("Uitvoeren: \(a["command"] as? String ?? "")")
+        case imageTool: return L("Afbeelding bekijken: \(path)")
         default: return call.name
         }
     }

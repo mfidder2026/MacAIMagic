@@ -1042,5 +1042,10 @@
  "Skill geladen: %@ (vanzelf)": "Skill geladen: %@ (von selbst)",
  "Je antwoord werd te lang en is afgekapt; je krijgt alleen het begin en het eind terug. Denk of plan niet opnieuw in tekst: doe nu meteen de volgende stap met gereedschap. Schrijf grote code in delen: één bestand of één deel per write_file.": "Deine Antwort wurde zu lang und abgeschnitten; du bekommst nur ihren Anfang und ihr Ende zurück. Denke oder plane nicht erneut im Text: mach jetzt sofort den nächsten Schritt mit einem Werkzeug. Schreibe großen Code in Teilen: eine Datei oder ein Teil pro write_file.",
  "… %@ tekens weggelaten …": "… %@ Zeichen weggelassen …",
- "… %@ tekens verborgen · Toon alles": "… %@ Zeichen ausgeblendet · Alles zeigen"
+ "… %@ tekens verborgen · Toon alles": "… %@ Zeichen ausgeblendet · Alles zeigen",
+ "(Hier stond een afbeelding die je eerder bekeek: %@.)": "(Hier stand ein Bild, das du dir zuvor angesehen hast: %@.)",
+ "Afbeelding bekijken: %@": "Bild ansehen: %@",
+ "Het model bekijkt %@": "Das Modell sieht sich %@ an",
+ "Hier is de afbeelding die je opvroeg: %@.": "Hier ist das Bild, das du angefordert hast: %@.",
+ "Wat een programma met een venster laat zien (een spel, een emulator), controleer je zelf: laat het een screenshot als bestand opslaan en bekijk dat met view_image. Zeg pas dat het werkt als je het resultaat hebt gezien.": "Was ein Programm mit Fenster zeigt (ein Spiel, ein Emulator), prüfst du selbst: Lass es einen Screenshot als Datei speichern und sieh ihn dir mit view_image an. Sag erst, dass es funktioniert, wenn du das Ergebnis gesehen hast."
 }

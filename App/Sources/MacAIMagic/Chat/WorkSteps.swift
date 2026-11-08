@@ -37,6 +37,17 @@ enum WorkSteps {
         return "Task list updated: \(done) of \(steps.count) done" + (doing.isEmpty ? "." : "; now: " + doing.joined(separator: ", ") + ".")
     }
 
+    /// After this many rounds of tools without task_list, the model is reminded of its list.
+    static let remindAfter = 6
+
+    /// A line for the model when its list has open steps and it has not touched the list for a while; nil otherwise.
+    /// Measured: a 70-round C64 task set up 7 steps, ticked off the first, and never touched the list again.
+    static func reminder(_ steps: [WorkStep]?, roundsSince: Int) -> String? {
+        guard let steps, roundsSince >= remindAfter, steps.contains(where: { !$0.isDone }) else { return nil }
+        let list = steps.map { "- [\($0.status)] \($0.title)" }.joined(separator: "\n")
+        return "(Reminder from the app: the user sees your step list, and it has not changed for \(roundsSince) rounds. If a step is done or another one started, call task_list now with the whole list. Your list:\n\(list))"
+    }
+
     static func label(_ steps: [WorkStep]?) -> String {
         guard let steps else { return L("Stappenlijst") }
         return L("Stappenlijst: \(steps.filter(\.isDone).count) van \(steps.count) klaar")

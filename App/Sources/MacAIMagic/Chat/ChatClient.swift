@@ -37,6 +37,10 @@ final class ChatClient: ObservableObject {
     /// whole context, gets summarized, and starts the same plan again. A big file still fits (16K tokens at 64K).
     static let answerShare = 0.25
     var maxAnswerTokens: Int { max(4096, Int(Double(contextLimit) * Self.answerShare)) }
+    /// The engine runs with vision: the model can look at an image file (view_image).
+    var seesImages = false
+    /// Pictures the model looked at stay in its requests, the last few of them: each costs hundreds of tokens.
+    static let imagesKept = 3
     /// Gets a token count per streamed delta, for the live speed chart.
     weak var metrics: LiveMetrics?
     /// The model the engine runs, for the system prompt.
@@ -188,6 +192,8 @@ final class ChatClient: ObservableObject {
         // only work in a folder needs the model's own KLAAR to end: an answer after reading the system or the web is
         // finished when it does not announce a next step
         var changedFiles = false
+        // rounds of tools since the model last updated its step list: a model forgets to tick steps off
+        var roundsSinceSteps = 0
         for _ in 0..<maxToolRounds {
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
@@ -269,6 +275,17 @@ final class ChatClient: ObservableObject {
             nudges = 0
 
             // run the tools; the next round's message carries the activity list, this one folds away
+            // a picture cannot go in a tool result: it follows them, as a message of the app with the image
+            var looked: [Attachment] = []
+            defer {
+                if !looked.isEmpty {
+                    let names = looked.map(\.filename).joined(separator: ", ")
+                    store.update(id) { $0.messages.append(ChatMessage(role: .user, text: L("Hier is de afbeelding die je opvroeg: \(names)."), attachments: looked, automatic: true)) }
+                }
+            }
+            if result.toolCalls.contains(where: { $0.name == WorkSteps.toolName }) { roundsSinceSteps = 0 } else { roundsSinceSteps += 1 }
+            let stepsNudge = WorkSteps.reminder(store.conversations.first { $0.id == id }?.steps, roundsSince: roundsSinceSteps)
+            if stepsNudge != nil { roundsSinceSteps = 0 }
             for (place, call) in result.toolCalls.enumerated() {
                 let isWorkspace = WorkspaceTools.names.contains(call.name)
                 if isWorkspace { changedFiles = true }
@@ -317,6 +334,16 @@ final class ChatClient: ObservableObject {
                     } else if right == "ask", !(await askApproval(call, in: id)) {
                         text = "The user did not allow this. Ask what they want instead, or continue without it."
                         activities[activities.count - 1].denied = true
+                    } else if call.name == WorkspaceTools.imageTool {
+                        switch WorkspaceTools.image(call) {
+                        case .success(let a) where seesImages:
+                            looked.append(a)
+                            text = "The image follows in the next message."
+                        case .success:
+                            text = "The model runs without vision now, so it cannot see images. Check the result another way (text output, a log)."
+                        case .failure(let error):
+                            text = "Error: \(error.localizedDescription)"
+                        }
                     } else {
                         text = await WorkspaceTools.run(call)
                     }
@@ -382,7 +409,9 @@ final class ChatClient: ObservableObject {
                         c.messages[i].activities = []
                         c.messages[i].sources = []
                     }
-                    c.messages.append(ChatMessage(role: .tool, text: text, toolCallId: call.id))
+                    // the reminder rides on the round's last result: a message of its own would break the tool turn
+                    let nudge = place == result.toolCalls.count - 1 ? stepsNudge.map { "\n\n" + $0 } ?? "" : ""
+                    c.messages.append(ChatMessage(role: .tool, text: text + nudge, toolCallId: call.id))
                 }
             }
         }
@@ -754,10 +783,13 @@ final class ChatClient: ObservableObject {
 
     // MARK: - request
 
-    private var currentTools: [[String: Any]] {
+    var currentTools: [[String: Any]] {
         let s = Settings.shared
         var tools: [[String: Any]] = s.webSearch ? WebTools.definitions : []
-        if s.workspaceTools && WorkspaceTools.workspace != nil { tools += WorkspaceTools.definitions }
+        if s.workspaceTools && WorkspaceTools.workspace != nil {
+            tools += WorkspaceTools.definitions
+            if seesImages { tools.append(WorkspaceTools.imageDefinition) }
+        }
         // skills and system management come last: with them off the request starts the same as before
         if s.skills && !Skills.all.isEmpty { tools.append(Skills.definition) }
         if s.systemManagement { tools += SystemTools.definitions }
@@ -781,7 +813,7 @@ final class ChatClient: ObservableObject {
             || AgentTools.all.contains { $0.isOn }
     }
 
-    private func requestMessages(_ history: [ChatMessage], summary: String? = nil) -> [[String: Any]] {
+    func requestMessages(_ history: [ChatMessage], summary: String? = nil) -> [[String: Any]] {
         let s = Settings.shared
         let df = DateFormatter()
         df.locale = Locale(identifier: AppLanguage.current.rawValue)
@@ -797,7 +829,8 @@ final class ChatClient: ObservableObject {
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
             let keepGoing = L("Werk door tot de taak echt af is: roep na elke stap meteen het volgende gereedschap aan. Kondig een stap niet alleen aan, en stop pas als je het resultaat hebt gecontroleerd. Werkt iets niet of geeft een commando geen uitvoer, probeer dan een andere aanpak. Is de taak af, begin je laatste bericht dan met het woord KLAAR. Commando's kunnen hier geen wachtwoord vragen: sudo en programma's die root nodig hebben, zoals dtruss, werken niet.")
             let noTools = SystemCheck.hasDeveloperTools ? "" : " " + L("Op deze Mac staan de ontwikkeltools van Apple niet: python3, git, make, cc en clang werken hier niet. Gebruik zsh, of JavaScript met osascript -l JavaScript.")
-            defer { system += "\n\n" + keepGoing + noTools }
+            let look = seesImages ? " " + L("Wat een programma met een venster laat zien (een spel, een emulator), controleer je zelf: laat het een screenshot als bestand opslaan en bekijk dat met view_image. Zeg pas dat het werkt als je het resultaat hebt gezien.") : ""
+            defer { system += "\n\n" + keepGoing + look + noTools }
             system += "\n\n" + L("Je werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.")
             system += " " + L("Buiten deze map werken list_dir en read_file niet, maar met run_command kun je wel overal op deze Mac zoeken en lezen (ls, mdfind, cat) en geïnstalleerde programma's starten, bijvoorbeeld uit /Applications. Zeg dus niet dat je niet op deze Mac kunt zoeken: doe het met run_command. Schrijf buiten de werkmap alleen als de gebruiker daarom vraagt.")
             // the user's own notes for this folder and what was learned here, like CLAUDE.md for Claude Code
@@ -824,11 +857,15 @@ final class ChatClient: ObservableObject {
         }
 
         var out: [[String: Any]] = [["role": "system", "content": system]]
+        // older pictures the model looked at itself go as a line of text; the user's own pictures always go
+        let keptLooks = Set(history.filter { $0.automatic == true && !$0.attachments.isEmpty }.suffix(Self.imagesKept).map(\.id))
         for m in history {
             switch m.role {
             case .system: continue
             case .user:
-                if m.attachments.isEmpty {
+                if m.automatic == true && !m.attachments.isEmpty && !keptLooks.contains(m.id) {
+                    out.append(["role": "user", "content": L("(Hier stond een afbeelding die je eerder bekeek: \(m.attachments.map(\.filename).joined(separator: ", ")).)")])
+                } else if m.attachments.isEmpty {
                     out.append(["role": "user", "content": m.text])
                 } else {
                     var parts: [[String: Any]] = m.attachments.map {
