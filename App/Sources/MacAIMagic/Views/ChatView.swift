@@ -378,7 +378,7 @@ struct MessageRow: View {
     @State private var showThinking = false
 
     var body: some View {
-        if message.automatic == true {
+        if message.automatic == true && message.role == .user {
             Label(L("Het model was nog niet klaar en gaat automatisch door"), systemImage: "arrow.triangle.2.circlepath")
                 .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         } else if message.role == .user {
