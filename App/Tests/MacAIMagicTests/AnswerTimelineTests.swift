@@ -67,3 +67,26 @@ final class FollowUpThinkingTests: XCTestCase {
         XCTAssertEqual(ChatClient.thinkingBudget(setting: 0, turn: 3), ChatClient.followUpThinking)
     }
 }
+
+/// One thinking choice (off, low, normal, high) sets the switch, the effort and the budget, so it works for every model.
+final class ThinkingLevelTests: XCTestCase {
+    func testLevels() {
+        let s = Settings.shared
+        let saved = (s.thinking, s.reasoningEffort, s.thinkingBudget)
+        defer { (s.thinking, s.reasoningEffort, s.thinkingBudget) = saved }
+        s.thinkingBudget = 16_000
+        s.thinkingLevel = .off
+        XCTAssertFalse(s.thinking); XCTAssertEqual(s.thinkingLevel, .off); XCTAssertEqual(s.thinkingBudgetNow, 0)
+        s.thinkingLevel = .low
+        XCTAssertTrue(s.thinking); XCTAssertEqual(s.reasoningEffort, "low"); XCTAssertEqual(s.thinkingBudgetNow, 2_000)
+        s.thinkingLevel = .normal
+        XCTAssertEqual(s.reasoningEffort, "medium"); XCTAssertEqual(s.thinkingBudgetNow, 8_000)
+        s.thinkingLevel = .high
+        XCTAssertEqual(s.reasoningEffort, "high"); XCTAssertEqual(s.thinkingBudgetNow, 16_000)
+        s.reasoningEffort = "max"
+        XCTAssertEqual(s.thinkingLevel, .high, "max from Settings counts as high")
+        s.thinkingLevel = .high
+        XCTAssertEqual(s.reasoningEffort, "max", "choosing high again keeps max")
+        XCTAssertEqual(ChatClient.thinkingBudget(setting: Settings.ThinkingLevel.low.budget!, turn: 3), 2_000)
+    }
+}

@@ -10,7 +10,7 @@ keywords: probleem fout werkt niet traag start niet vastgelopen geheugen downloa
 
 ## Schrijven is traag
 - Kijk onder **Live** of er veel van de SSD wordt gelezen. Dan past het model niet helemaal: kies een compact model of verhoog de GPU-limiet.
-- Zet **Denken** uit voor eenvoudige vragen.
+- Zet **Denken** op laag of uit voor eenvoudige vragen.
 - Een lange context maakt het prompt lezen trager. Begin een nieuw gesprek, of laat het gesprek samenvatten.
 
 ## Het model stopt halverwege of herhaalt zich

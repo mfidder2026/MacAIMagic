@@ -10,7 +10,7 @@ keywords: problem error not working slow does not start stuck memory download fa
 
 ## Writing is slow
 - Look under **Live** whether a lot is read from the SSD. Then the model does not fit whole: choose a compact model or raise the GPU limit.
-- Turn **Think** off for simple questions.
+- Set **Think** to low or off for simple questions.
 - A long context makes prompt reading slower. Start a new conversation, or have this one summarized.
 
 ## The model stops halfway or repeats itself

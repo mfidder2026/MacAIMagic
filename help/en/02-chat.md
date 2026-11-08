@@ -14,7 +14,7 @@ Type your question at the bottom and press **↩** or **⌘↩**. **⌥↩** sta
 | Button | What it does |
 |---|---|
 | Image | Add an image (or drag it in, or paste it with ⌘V). Works when *vision* is on. |
-| Think | The model thinks first. Better for hard questions, but slower. Its thinking can be folded away. |
+| Think | Off, low, normal or high: how long the model thinks first (low 2,000 tokens, normal 8,000, high what Settings says). Works with every model that can think. Longer is better for hard questions, but slower. When the model works in steps, it thinks at most 4,000 tokens per step after the first. |
 | Web | The model may search the web and read pages. |
 | Work folder | Choose a folder the model may work in. |
 | R W X | The rights in that folder: read, write, execute. |

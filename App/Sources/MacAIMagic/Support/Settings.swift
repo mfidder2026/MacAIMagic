@@ -39,6 +39,55 @@ final class Settings: ObservableObject {
     @AppStorage("reasoningEffort") var reasoningEffort = "high"
     /// At most this many tokens of thinking, then the model writes its answer (0: no limit).
     @AppStorage("thinkingBudget") var thinkingBudget = 16_000
+
+    /// Thinking as one choice, the button under the input field. It sets `thinking` and `reasoningEffort`, and it sets
+    /// how many tokens the model may think: only some templates read reasoning_effort (DeepSeek), while the engine
+    /// stops the thinking of every model at the budget. "high" uses the setting "Maximaal nadenken".
+    enum ThinkingLevel: String, CaseIterable, Identifiable {
+        case off, low, normal, high
+        var id: String { rawValue }
+        var name: String {
+            switch self {
+            case .off: return L("Denken: uit")
+            case .low: return L("Denken: laag")
+            case .normal: return L("Denken: normaal")
+            case .high: return L("Denken: hoog")
+            }
+        }
+        /// Tokens of thinking in an answer's first round; nil: the setting "Maximaal nadenken".
+        var budget: Int? {
+            switch self {
+            case .off: return 0
+            case .low: return 2_000
+            case .normal: return 8_000
+            case .high: return nil
+            }
+        }
+    }
+
+    var thinkingLevel: ThinkingLevel {
+        get {
+            guard thinking else { return .off }
+            switch reasoningEffort {
+            case "low": return .low
+            case "medium": return .normal
+            default: return .high
+            }
+        }
+        set {
+            objectWillChange.send()
+            thinking = newValue != .off
+            switch newValue {
+            case .off: break
+            case .low: reasoningEffort = "low"
+            case .normal: reasoningEffort = "medium"
+            case .high: if reasoningEffort != "max" { reasoningEffort = "high" }
+            }
+        }
+    }
+
+    /// How many tokens the model may think in an answer's first round now (0: no limit).
+    var thinkingBudgetNow: Int { thinkingLevel.budget ?? thinkingBudget }
     @AppStorage("webSearch") var webSearch = true
     @AppStorage("braveKey") var braveKey = ""
     @AppStorage("temperature") var temperature = 1.0

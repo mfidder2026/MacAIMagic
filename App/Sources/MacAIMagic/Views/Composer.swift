@@ -70,8 +70,11 @@ struct Composer: View {
             HStack(spacing: 8) {
                 Button { importing = true } label: { Image(systemName: "photo.badge.plus") }
                     .help(L("Afbeelding toevoegen")).disabled(!settings.vision)
-                Toggle(isOn: $settings.thinking) { Label(L("Denken"), systemImage: "brain") }
-                    .toggleStyle(.button).help(L("Laat het model eerst nadenken (beter, maar trager)"))
+                Picker(selection: $settings.thinkingLevel) {
+                    ForEach(Settings.ThinkingLevel.allCases) { Text($0.name).tag($0) }
+                } label: { Label(L("Denken"), systemImage: "brain") }
+                    .pickerStyle(.menu).fixedSize()
+                    .help(L("Hoe lang het model eerst nadenkt: langer is beter bij lastige vragen, maar trager"))
                 Toggle(isOn: $settings.webSearch) { Label(L("Web"), systemImage: "globe") }
                     .toggleStyle(.button).help(L("Het model mag het web doorzoeken en pagina's lezen"))
                 WorkspaceButton(conversationID: conversationID)

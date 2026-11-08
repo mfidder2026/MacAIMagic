@@ -213,7 +213,7 @@ final class ChatClient: ObservableObject {
                 guard let c = store.conversations.first(where: { $0.id == id }) else { return }
                 do {
                     result = try await stream(history: Array(c.unsummarized.dropLast()), summary: c.summary, baseURL: baseURL,
-                                                 thinkingBudget: Self.thinkingBudget(setting: Settings.shared.thinkingBudget, turn: turn)) { delta in
+                                                 thinkingBudget: Self.thinkingBudget(setting: Settings.shared.thinkingBudgetNow, turn: turn)) { delta in
                         store.update(id) { c in
                             guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
                             c.messages[i].text += delta.content
@@ -953,7 +953,7 @@ final class ChatClient: ObservableObject {
     private func stream(history: [ChatMessage], summary: String? = nil, baseURL: URL, thinkingBudget: Int? = nil,
                         onDelta: (Delta) -> Void) async throws -> StreamResult {
         let s = Settings.shared
-        let budget = thinkingBudget ?? s.thinkingBudget
+        let budget = thinkingBudget ?? s.thinkingBudgetNow
         var body: [String: Any] = [
             "model": modelName,
             "messages": requestMessages(history, summary: summary),

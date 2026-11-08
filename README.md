@@ -108,7 +108,7 @@ comes from the internal SSD.
   RPC) and announces itself with Bonjour; the main Mac finds it, and the model's layers are spread over all GPUs in
   proportion to their memory. See [Cluster](#cluster).
 - Streaming chat with markdown and code blocks (with a copy button)
-- **Thinking** on/off, with a collapsible chain of thought, a reasoning-effort setting and a limit on thinking
+- **Thinking** off, low, normal or high (the thinking budget, so it works with every model), with a collapsible chain of thought, a reasoning-effort setting and a limit on thinking
   (16,000 tokens by default), after which the model writes its answer
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
