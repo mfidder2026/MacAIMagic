@@ -216,7 +216,7 @@ final class ChatClient: ObservableObject {
                         }
                     }
                     break
-                } catch is CancellationError {
+                } catch where Self.isStop(error) || Task.isCancelled {
                     return
                 } catch let error as NSError where !retried && error.code == 400 && error.localizedDescription.contains("context") {
                     // the conversation no longer fits: summarize its start and try again once
@@ -892,6 +892,14 @@ final class ChatClient: ObservableObject {
             out.insert(["role": "user", "content": L("Ga verder met de taak uit de samenvatting.")], at: 1)
         }
         return out
+    }
+
+    /// A stop by the user, not a failure: the download is cancelled (URLError "cancelled"), or the run waited for its turn.
+    nonisolated static func isStop(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let u = error as? URLError, u.code == .cancelled { return true }
+        let ns = error as NSError
+        return ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled
     }
 
     /// A cut-off answer as the model gets it back: its start and its end, so it knows where it was without the

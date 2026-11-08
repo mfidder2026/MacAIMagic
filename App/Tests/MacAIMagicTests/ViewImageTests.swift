@@ -88,3 +88,14 @@ final class StepReminderTests: XCTestCase {
         XCTAssertNil(WorkSteps.reminder(open.map { WorkStep(title: $0.title, status: "done") }, roundsSince: 20))
     }
 }
+
+/// A stopped answer showed a red "cancelled": the stop cancels the request, and URLSession throws URLError.cancelled.
+final class StopIsNoFailureTests: XCTestCase {
+    func testAStoppedRequestIsAStop() {
+        XCTAssertTrue(ChatClient.isStop(CancellationError()))
+        XCTAssertTrue(ChatClient.isStop(URLError(.cancelled)))
+        XCTAssertTrue(ChatClient.isStop(NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)))
+        XCTAssertFalse(ChatClient.isStop(URLError(.timedOut)))
+        XCTAssertFalse(ChatClient.isStop(URLError(.cannotConnectToHost)))
+    }
+}
