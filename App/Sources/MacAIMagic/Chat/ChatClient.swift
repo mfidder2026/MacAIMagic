@@ -196,7 +196,7 @@ final class ChatClient: ObservableObject {
         var roundsSinceSteps = 0
         // a step was taken in an earlier round of this answer
         var tookSteps = false
-        for _ in 0..<maxToolRounds {
+        for turn in 0..<maxToolRounds {
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
                 await compact(id, store: store, baseURL: baseURL)
@@ -212,7 +212,8 @@ final class ChatClient: ObservableObject {
             while true {
                 guard let c = store.conversations.first(where: { $0.id == id }) else { return }
                 do {
-                    result = try await stream(history: Array(c.unsummarized.dropLast()), summary: c.summary, baseURL: baseURL) { delta in
+                    result = try await stream(history: Array(c.unsummarized.dropLast()), summary: c.summary, baseURL: baseURL,
+                                                 thinkingBudget: Self.thinkingBudget(setting: Settings.shared.thinkingBudget, turn: turn)) { delta in
                         store.update(id) { c in
                             guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
                             c.messages[i].text += delta.content
@@ -938,8 +939,21 @@ final class ChatClient: ObservableObject {
         var contextTokens: Int?
     }
 
-    private func stream(history: [ChatMessage], summary: String? = nil, baseURL: URL, onDelta: (Delta) -> Void) async throws -> StreamResult {
+    /// Thinking in the later rounds of one answer. The first round plans the work; after that a round only takes the
+    /// next step, and DeepSeek-V4.1-Flash used the full 16,000 tokens in nearly every round (14 minutes a step at 19
+    /// tokens/s, 2026-11-08). So later rounds get at most this much, also when the setting has no limit.
+    static let followUpThinking = 4_000
+
+    /// The thinking budget of round `turn` (0 is the first) of an answer; 0 means no limit.
+    nonisolated static func thinkingBudget(setting: Int, turn: Int) -> Int {
+        guard turn > 0 else { return setting }
+        return setting == 0 ? followUpThinking : min(setting, followUpThinking)
+    }
+
+    private func stream(history: [ChatMessage], summary: String? = nil, baseURL: URL, thinkingBudget: Int? = nil,
+                        onDelta: (Delta) -> Void) async throws -> StreamResult {
         let s = Settings.shared
+        let budget = thinkingBudget ?? s.thinkingBudget
         var body: [String: Any] = [
             "model": modelName,
             "messages": requestMessages(history, summary: summary),
@@ -954,8 +968,8 @@ final class ChatClient: ObservableObject {
         // without a limit a model can keep doubting on a hard question and never get to its answer
         // off means off: GLM's template ignores enable_thinking and always opens with <think>
         if !s.thinking { body["thinking_budget_tokens"] = 0 }
-        if s.thinking && s.thinkingBudget > 0 {
-            body["thinking_budget_tokens"] = s.thinkingBudget
+        if s.thinking && budget > 0 {
+            body["thinking_budget_tokens"] = budget
             body["reasoning_budget_message"] = "\n\n" + L("Genoeg nagedacht; nu schrijf ik het antwoord.") + "\n"
         }
         let tools = currentTools

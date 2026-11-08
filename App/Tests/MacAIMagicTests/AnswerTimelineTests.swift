@@ -56,3 +56,14 @@ final class AnswerTimelineTests: XCTestCase {
         XCTAssertEqual(PartView.gist(String(repeating: "a", count: 500) + "einde", live: true).suffix(5), "einde")
     }
 }
+
+/// DeepSeek thought 16,000 tokens before every step; only the first round of an answer gets the full budget.
+final class FollowUpThinkingTests: XCTestCase {
+    func testLaterRoundsThinkLess() {
+        XCTAssertEqual(ChatClient.thinkingBudget(setting: 16_000, turn: 0), 16_000)
+        XCTAssertEqual(ChatClient.thinkingBudget(setting: 16_000, turn: 1), ChatClient.followUpThinking)
+        XCTAssertEqual(ChatClient.thinkingBudget(setting: 2_000, turn: 5), 2_000, "a smaller setting stays")
+        XCTAssertEqual(ChatClient.thinkingBudget(setting: 0, turn: 0), 0, "no limit in the first round")
+        XCTAssertEqual(ChatClient.thinkingBudget(setting: 0, turn: 3), ChatClient.followUpThinking)
+    }
+}
