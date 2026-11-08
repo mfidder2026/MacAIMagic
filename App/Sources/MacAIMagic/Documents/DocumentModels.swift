@@ -183,7 +183,7 @@ enum LocalModel {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !s.apiKey.isEmpty { req.setValue("Bearer \(s.apiKey)", forHTTPHeaderField: "Authorization") }
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
         req.timeoutInterval = 3600
 
         let (bytes, response) = try await URLSession.shared.bytes(for: req)

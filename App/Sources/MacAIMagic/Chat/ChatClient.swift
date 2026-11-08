@@ -33,6 +33,10 @@ final class ChatClient: ObservableObject {
     var contextLimit = 65_536
     /// At this share of the context the conversation is summarized before the next request.
     static let compactAt = 0.8
+    /// One answer may take at most this share of the context: a model that plans aloud for 50,000 tokens fills the
+    /// whole context, gets summarized, and starts the same plan again. A big file still fits (16K tokens at 64K).
+    static let answerShare = 0.25
+    var maxAnswerTokens: Int { max(4096, Int(Double(contextLimit) * Self.answerShare)) }
     /// Gets a token count per streamed delta, for the live speed chart.
     weak var metrics: LiveMetrics?
     /// The model the engine runs, for the system prompt.
@@ -251,9 +255,13 @@ final class ChatClient: ObservableObject {
                 }
                 nudges += 1
                 store.update(id) { c in
-                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = [] }
+                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) {
+                        c.messages[i].activities = []
+                        if cutOff { c.messages[i].cutOff = true }
+                    }
                 }
-                let nudge = cutOff ? L("Je antwoord werd afgekapt omdat je context vol was. Ga verder waar je gebleven was.")
+                // "go on where you were" made a model that plans aloud write the same plan again, without end
+                let nudge = cutOff ? L("Je antwoord werd te lang en is afgekapt; je krijgt alleen het begin en het eind terug. Denk of plan niet opnieuw in tekst: doe nu meteen de volgende stap met gereedschap. Schrijf grote code in delen: één bestand of één deel per write_file.")
                     : L("Je stopte zonder gereedschap te gebruiken. Is de taak nog niet af, roep dan nu meteen het volgende gereedschap aan, zonder het eerst aan te kondigen; werkt iets niet, probeer dan een andere aanpak. Is de taak wel af en gecontroleerd, begin je bericht dan met het woord KLAAR en zeg kort wat het resultaat is.")
                 store.update(id) { $0.messages.append(ChatMessage(role: .user, text: nudge, automatic: true)) }
                 continue
@@ -585,7 +593,7 @@ final class ChatClient: ObservableObject {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
         req.timeoutInterval = 900
         guard await gate.acquire(id) else { return }
         let reply = try? await URLSession.shared.data(for: req)
@@ -696,7 +704,7 @@ final class ChatClient: ObservableObject {
                 if m.automatic == true { continue }
                 lines.append(L("Gebruiker:") + " " + m.text + (m.attachments.isEmpty ? "" : " [" + L("afbeelding") + "]"))
             case .assistant:
-                if !m.text.isEmpty { lines.append(L("Assistent:") + " " + m.text) }
+                if !m.text.isEmpty { lines.append(L("Assistent:") + " " + (m.cutOff == true ? Self.shortened(m.text) : m.text)) }
                 for call in m.toolCalls { lines.append(L("Assistent gebruikt \(call.name):") + " " + String(call.arguments.prefix(600))) }
             case .tool: lines.append(L("Resultaat:") + " " + String(m.text.prefix(1500)))
             case .system: continue
@@ -721,7 +729,7 @@ final class ChatClient: ObservableObject {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
         req.timeoutInterval = 1800
         func complete() async -> String? {
             guard await gate.acquire(id) else { return nil }
@@ -831,7 +839,7 @@ final class ChatClient: ObservableObject {
                 }
             case .assistant:
                 if m.text.isEmpty && m.toolCalls.isEmpty { continue }
-                var msg: [String: Any] = ["role": "assistant", "content": m.text]
+                var msg: [String: Any] = ["role": "assistant", "content": m.cutOff == true ? Self.shortened(m.text) : m.text]
                 if !m.toolCalls.isEmpty {
                     msg["tool_calls"] = m.toolCalls.map {
                         ["id": $0.id, "type": "function", "function": ["name": $0.name, "arguments": $0.arguments]]
@@ -847,6 +855,13 @@ final class ChatClient: ObservableObject {
             out.insert(["role": "user", "content": L("Ga verder met de taak uit de samenvatting.")], at: 1)
         }
         return out
+    }
+
+    /// A cut-off answer as the model gets it back: its start and its end, so it knows where it was without the
+    /// monologue in between filling the context.
+    nonisolated static func shortened(_ text: String, keep: Int = 3000) -> String {
+        guard text.count > keep * 2 + 200 else { return text }
+        return String(text.prefix(keep)) + "\n\n[" + L("… \((text.count - keep * 2).formatted()) tekens weggelaten …") + "]\n\n" + String(text.suffix(keep))
     }
 
     struct Delta { var content = ""; var reasoning = ""; var preparing: String? = nil }
@@ -888,6 +903,7 @@ final class ChatClient: ObservableObject {
             "stream_options": ["include_usage": true],
             "temperature": s.temperature,
             "top_p": 1.0,
+            "max_tokens": maxAnswerTokens,
             // enable_thinking is understood by both templates (DeepSeek maps it to thinking_mode)
             "chat_template_kwargs": ["enable_thinking": s.thinking, "reasoning_effort": s.reasoningEffort],
         ]
@@ -905,7 +921,7 @@ final class ChatClient: ObservableObject {
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !s.apiKey.isEmpty { req.setValue("Bearer \(s.apiKey)", forHTTPHeaderField: "Authorization") }
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
         req.timeoutInterval = 3600
 
         // the model writes for one conversation at a time; the others wait here (and a stop while waiting is a stop)

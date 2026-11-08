@@ -127,7 +127,7 @@ final class BenchmarkRunner: ObservableObject {
             "max_tokens": maxTokens, "temperature": 0.7,
             "chat_template_kwargs": ["enable_thinking": false],
         ]
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        req.httpBody = try JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
         let (data, _) = try await URLSession.shared.data(for: req)
         let t = ((try JSONSerialization.jsonObject(with: data) as? [String: Any])?["timings"] as? [String: Any]) ?? [:]
         return Timings(promptTPS: t["prompt_per_second"] as? Double ?? 0, promptTokens: t["prompt_n"] as? Int ?? 0,

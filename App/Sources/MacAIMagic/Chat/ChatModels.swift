@@ -49,6 +49,8 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     var automatic: Bool? = nil
     /// While the model writes a tool call: what it prepares ("Schrijft bestand demo.bas · 1.240 tekens").
     var preparing: String? = nil
+    /// The answer stopped at its token limit: the model gets only its start and end back, not the whole monologue.
+    var cutOff: Bool? = nil
 
     /// Assistant turns that only carry tool calls, and the tool results, are kept for the model but folded in the UI.
     var isHidden: Bool { role == .tool || role == .system || (role == .assistant && text.isEmpty && !toolCalls.isEmpty && activities.isEmpty) }

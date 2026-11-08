@@ -376,6 +376,17 @@ struct MessageRow: View {
     let message: ChatMessage
     let streaming: Bool
     @State private var showThinking = false
+    @State private var showAll = false
+
+    /// A very long text as its start and its end, cut at line ends; nil when it is short enough to show whole.
+    nonisolated static func folded(_ text: String, above: Int = 12_000, keep: Int = 4000) -> (head: String, hidden: Int, tail: String)? {
+        guard text.count > above else { return nil }
+        var head = String(text.prefix(keep))
+        if let nl = head.lastIndex(of: "\n") { head = String(head[..<nl]) }
+        var tail = String(text.suffix(keep))
+        if let nl = tail.firstIndex(of: "\n") { tail = String(tail[tail.index(after: nl)...]) }
+        return (head, text.count - head.count - tail.count, tail)
+    }
 
     var body: some View {
         if message.automatic == true && message.role == .user {
@@ -413,7 +424,8 @@ struct MessageRow: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if !message.reasoning.isEmpty {
                         DisclosureGroup(isExpanded: $showThinking) {
-                            Text(message.reasoning).font(.callout).foregroundStyle(.secondary)
+                            Text(message.reasoning.count > 12_000 ? "…\n" + String(message.reasoning.suffix(8000)) : message.reasoning)
+                                .font(.callout).foregroundStyle(.secondary)
                                 .textSelection(.enabled).padding(.top, 4)
                                 .padding(.leading, 10)
                                 .overlay(alignment: .leading) { Rectangle().fill(.quaternary).frame(width: 2) }
@@ -439,7 +451,15 @@ struct MessageRow: View {
                             Text(L("Bezig…")).font(.callout).foregroundStyle(.secondary)
                         }
                     }
-                    MarkdownText(text: message.text)
+                    if !showAll, let f = Self.folded(message.text) {
+                        // a monologue of 100,000 characters is one view taller than macOS draws: the chat went blank
+                        MarkdownText(text: f.head)
+                        Button(L("… \(f.hidden.formatted()) tekens verborgen · Toon alles")) { showAll = true }
+                            .buttonStyle(.link).font(.callout)
+                        MarkdownText(text: f.tail)
+                    } else {
+                        MarkdownText(text: message.text)
+                    }
                     if let e = message.error {
                         Label(e, systemImage: "exclamationmark.triangle").foregroundStyle(.red).font(.callout)
                     }

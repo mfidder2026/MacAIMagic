@@ -269,7 +269,7 @@ final class AppState: ObservableObject {
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
-            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+            req.httpBody = try JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
             req.timeoutInterval = 600
             let (data, response) = try await URLSession.shared.data(for: req)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
