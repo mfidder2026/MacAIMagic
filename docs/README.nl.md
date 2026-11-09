@@ -1,10 +1,13 @@
 # MacAIMagic (Nederlands)
 
 Draai **DeepSeek-V4.1-Flash-1017** (748 miljard parameters), **GLM-5.3-Flash** (321 miljard), **Qwen3.8-Flash-Next** (180 miljard) en **Qwen3.6-35B-A3B** volledig lokaal
-op een Mac met Apple Silicon. Met 128 GB draait elk model, met 32 GB Qwen3.6-35B-A3B; de app rekent zelf uit wat past.
-MacAIMagic is een eigen macOS-app met live grafieken. Je kunt
-chatten, afbeeldingen uploaden, het web laten doorzoeken, modellen naast elkaar vergelijken, en het model gebruiken als
-OpenAI- of Anthropic-compatibele API (bijvoorbeeld vanuit Claude Code).
+op een Mac met Apple Silicon. Met 128 GB draait elk model, met 32 GB Qwen3.6-35B-A3B, met 16 GB Ministral-3-8B en met
+8 GB Ling-3.0-tiny; de app rekent zelf uit wat past. MacAIMagic is een eigen macOS-app met live grafieken. Je kunt
+chatten, afbeeldingen uploaden, het web laten doorzoeken, het model in een map laten werken, Word-documenten en
+afbeeldingen maken, taken plannen, via Telegram met het model praten, modellen naast elkaar vergelijken, en het model
+gebruiken als OpenAI- of Anthropic-compatibele API (bijvoorbeeld vanuit Claude Code).
+
+![Live-dashboard](screenshots/live.png)
 
 De Engelse [README](../README.md) is de volledige versie; dit is een samenvatting.
 
@@ -19,14 +22,38 @@ De Engelse [README](../README.md) is de volledige versie; dit is een samenvattin
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, vrijwel gelijk aan het origineel | 460 GB | ~95 GB experts in de GPU-cache, de rest van de SSD | **7–8,5 tok/s** | ~65–95 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B, 3B actief, 4 bit; het model voor een Mac met 32 GB | 23 GB | past (22 GB) | **60–67 tok/s** | ~180 tok/s (korte prompt) |
 | **Qwen3.6-35B-A3B Heretic Q4**: hetzelfde model zonder weigeringen ([Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF)), 4 bit | 21 GB | past (21 GB) | **78–80 tok/s**¹ | ~1.180 tok/s¹ |
-| **Ministral-3-8B Q4**: 8B, 4 bit, leest afbeeldingen; het model voor een Mac met 8 of 16 GB | 6 GB | past (5 GB) | **51 tok/s** | ~630 tok/s |
+| **Ministral-3-8B Q4**: 8B, 4 bit, leest afbeeldingen; het model voor een Mac met 16 GB | 6 GB | past (5 GB) | **51 tok/s** | ~630 tok/s |
+| **Ling-3.0-tiny Q4**: 8B MoE, 1B actief, 4 bit, geen afbeeldingen; het model voor een Mac met 8 GB | 5 GB | past (5 GB) | **136 tok/s**² | ~2.960 tok/s² |
 
 ¹ Gemeten in de app, in een gesprek met tools (een prompt van 2.831 tokens), nog niet met de benchmark van de andere regels.
+² Gemeten met `llama-bench` (prompt van 3.100 tokens, 300 tokens geschreven). Met alle experts op de processor, zoals een
+Mac met 8 GB het draait, schreef de M3 Max 39,5 tok/s; een echte Mac met 8 GB is niet gemeten.
+
+## Eén kaart per antwoord
+
+Alles wat het model voor een antwoord doet, staat op één kaart in de volgorde waarin het kwam: gedachten, tekst en
+stappen. Tijdens het werk zie je de laatste 14 onderdelen en wat het model voorbereidt ("Schrijft bestand spel.bas ·
+1.240 tekens"); is het antwoord klaar, dan klapt het werk in tot één regel, "Gedachtegang en N stappen". **Denken** is
+één keuze onder het invoerveld: uit, laag (2.000 tokens), normaal (8.000) of hoog (de grens uit Instellingen). Latere
+rondes van één antwoord, en "ga door" na een antwoord met stappen, denken hooguit 4.000 tokens: gemeten met
+DeepSeek-V4.1-Flash op een lange C64-taak ging een stap van ongeveer 14 minuten naar 3,5.
+
+| Het antwoord | De gedachten en stappen, opengeklapt |
+|---|---|
+| ![Een antwoord met ingeklapt werk](screenshots/chat-work.png) | ![De gedachten en stappen op volgorde](screenshots/chat-steps.png) |
+
+Hierboven test Qwen3.8-Flash-Next een Commodore 64-spel in zijn werkmap. Het spel zelf schreef DeepSeek-V4.1-Flash, in
+BASIC V2, met een spook-sprite en muziek in de intro:
+
+| Intro | In het spel |
+|---|---|
+| ![De intro van het C64-spel](screenshots/c64-intro.png) | ![Een kamer in het C64-spel](screenshots/c64-game.png) |
 
 **Systeemcontrole**: bij elke start controleert de app (zijbalk → **Systeem**) de engine, het downloadgereedschap, de
 modellen, de schijfruimte, de GPU-limiet en de ontwikkeltools van Apple. Wat hij zelf kan oplossen doet hij, de rest
 biedt hij aan met één knop. Hij raadt het beste model aan dat helemaal in het geheugen van deze Mac past (128 GB:
-DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B), of de rol van helper in een cluster.
+DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB:
+Ling-3.0-tiny), of de rol van helper in een cluster.
 Op een Mac met weinig geheugen verkleint de app de context tot wat nog past en zet hij vision zo nodig uit (op 32 GB:
 Qwen3.6 met 32K context). Grotere modellen blijven beschikbaar en streamen van de SSD, ook op 32 GB (gemeten: DeepSeek
 Compact ~5 tok/s, zie [RESEARCH](RESEARCH.md)). Er zijn geen ontwikkeltools, Python of Homebrew nodig om de app te gebruiken.
@@ -69,7 +96,8 @@ Zeg je "maak een AQS", dan kijkt het model eerst in de bijlagen waaruit het docu
 het onderwerp en regelgeving, zoekt het op internet. Klantgegevens gaan niet mee naar de zoekmachine. Daarna schrijft het
 een concept in Markdown met genummerde bronnen, waarin je alle tekst aanpast. Het `.docx`-bestand komt pas als jij het
 goedkeurt. Een snel model doet het kleine werk (notities per pagina, spelling), een zwaar model het schrijven; op een Mac
-waar er geen twee passen, doet één model alles.
+waar er geen twee passen, doet één model alles. Schrijft een klein model in een sectie voor de derde keer dezelfde regel,
+dan stopt die sectie, blijft er één regel staan en meldt een notitie dat.
 
 Nog niet in deze versie: vertalen en corrigeren in het Word-bestand zelf met bijgehouden wijzigingen, en opmerkingen.
 

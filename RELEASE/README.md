@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.2 (macOS, Apple Silicon)
+# MacAIMagic 1.14.5 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.2-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.5-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,21 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.2-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.5-macOS-arm64.zip.sha256`
 
-Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 8 or 16 GB: Ministral-3-8B). As a cluster helper any amount of memory helps.
+Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.5 (1.14.3 and 1.14.4 were WinAIMagic versions):
+- **An answer is one card.** Every thought, text and step of all the rounds of an answer stands in the order it came. Before, a round's text could jump above the steps, and text shown under a step vanished after a few seconds. While the model works the card shows its latest 14 parts; a finished answer folds its work into one line, "Gedachtegang en N stappen".
+- **Thinking is one menu**: off, low (2,000 tokens), normal (8,000) or high (the limit in Settings). It sets the thinking budget, so it works with every model.
+- **Faster long tasks**: later rounds of one answer, and "go on" after an answer with steps, think at most 4,000 tokens. Measured with DeepSeek-V4.1-Flash on the M3 Max: a step of a long C64 task went from about 14 minutes to 3.5.
+- **Ling-3.0-tiny Q4** (8B MoE, 1B active, 4.9 GB, MIT): the new model for a Mac with 8 GB. On the M3 Max it writes 136 tokens per second (Ministral: 48), and 39.5 with all its experts on the processor, as an 8 GB Mac runs it. Not yet measured on a real 8 GB Mac. It reads no images; 16 GB keeps Ministral.
+- **Documents** stops a section where a small model writes the same line a third time, keeps one copy and says so.
+- **Skills load by themselves** when a question is clearly about one, shown as "Skill geladen … (vanzelf)".
+- **The model looks at screenshots** in its folder (`view_image`, with vision on), and is reminded of its step list after 6 rounds without an update.
+- **Long answers no longer loop**: one answer takes at most a quarter of the context, and the engine reuses the conversation instead of reading it again.
+- A stopped answer no longer shows a red "cancelled"; the "no model started" notice sits above the input field.
+- Telegram: an approval card no longer gets lost during a passing network problem.
 
 New in 1.14.2:
 - While the model writes a file or prepares a command, the chat says so ("Writing file demo.bas · 1,240 characters"), instead of staying empty while the tokens run. The chat also follows the end while the model thinks.

@@ -1,10 +1,12 @@
 # MacAIMagic
 
 Run **DeepSeek-V4.1-Flash-1017** (748B parameters), **GLM-5.3-Flash** (321B) and **Qwen3.8-Flash-Next** (180B), some
-of the largest open mixture-of-experts models, fully locally on an Apple Silicon Mac with 128 GB of unified memory.
-MacAIMagic is a native macOS app with live performance charts. You can chat with the models, upload images, let them
-search the web, **let them work in a folder** (read and write files, run scripts, read logs), compare them side by side,
-and use them as an OpenAI- or Anthropic-compatible API (for example from Claude Code).
+of the largest open mixture-of-experts models, fully locally on an Apple Silicon Mac with 128 GB of unified memory, and
+smaller models on every other Mac down to 8 GB. MacAIMagic is a native macOS app with live performance charts. You can
+chat with the models, upload images, let them search the web, **let them work in a folder** (read and write files, run
+scripts and emulators, read logs, look at screenshots), make Word documents and images, schedule tasks, talk to the
+model from Telegram, compare models side by side, and use them as an OpenAI- or Anthropic-compatible API (for example
+from Claude Code).
 
 ![Live dashboard](docs/screenshots/live.png)
 
@@ -22,9 +24,12 @@ and use them as an OpenAI- or Anthropic-compatible API (for example from Claude 
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
 | **Qwen3.6-35B-A3B Heretic Q4**: the same model without refusals ([Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF)), 4 bit | 21 GB | fits (21 GB) | **78–80 tok/s**¹ | ~1,180 tok/s¹ |
-| **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 8 or 16 GB | 6 GB | fits (5 GB) | **51 tok/s** | ~630 tok/s |
+| **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 16 GB | 6 GB | fits (5 GB) | **51 tok/s** | ~630 tok/s |
+| **Ling-3.0-tiny Q4**: 8B MoE, 1B active, 4 bit, no images; the model for a Mac with 8 GB | 5 GB | fits (5 GB) | **136 tok/s**² | ~2,960 tok/s² |
 
 ¹ Measured in the app on a chat with tools (a 2,831-token prompt), not yet with the benchmark the other rows come from.
+² Measured with `llama-bench` (a 3,100-token prompt, 300 tokens written). With all its experts on the processor, as an
+8 GB Mac runs it, the M3 Max wrote 39.5 tok/s; a real 8 GB Mac has not been measured.
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from
@@ -54,18 +59,35 @@ comes from the internal SSD.
 
 ## Screenshots
 
-| Chat with web search | The model reads an image |
+**An answer is one card.** Qwen3.8-Flash-Next tests a Commodore 64 game in its work folder: it loads the C64 skill by
+itself, runs the game in the VICE emulator, types the commands and reports each screen. It also found that the game
+clears its "that is not here" message before anyone can read it. Folded, the work shows as one line, "Gedachtegang en
+13 stappen" (thinking and 13 steps); opened, every thought, command and text stands in the order it came.
+
+| The answer | Its thinking and steps, opened |
 |---|---|
-| ![Chat with web search](docs/screenshots/chat-search.png) | ![The model reads a screenshot](docs/screenshots/chat-image.png) |
+| ![An answer with its work folded](docs/screenshots/chat-work.png) | ![The thinking and steps in order](docs/screenshots/chat-steps.png) |
+
+**A game written by a model.** DeepSeek-V4.1-Flash wrote this text adventure in Commodore BASIC V2, with a ghost sprite
+and music in the intro, and tested it itself in VICE. The C64 skill it used (rules, a sprite tool and a test script
+that types and reads the C64 screen) is the kind of skill the app lets you add.
+
+| Intro | In the game |
+|---|---|
+| ![The intro of the C64 game](docs/screenshots/c64-intro.png) | ![A room in the C64 game](docs/screenshots/c64-game.png) |
 
 | Models | Side-by-side comparison |
 |---|---|
 | ![Models](docs/screenshots/models.png) | ![Compare](docs/screenshots/compare.png) |
 
+| Chat with web search | The model reads an image |
+|---|---|
+| ![Chat with web search](docs/screenshots/chat-search.png) | ![The model reads a screenshot](docs/screenshots/chat-image.png) |
+
 ## Features
 
 - **Live dashboard**: a speed gauge and real-time charts of tokens/s, GPU and CPU load, memory and SSD reads, and a mini version of it at the bottom of the sidebar
-- **Eight models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
+- **Nine models**, each with a download card (resumable, sha256-checked), a memory plan and one-click start. Each card
   says for this Mac whether the model fits in memory, streams from the SSD, or is too big. Every download address names
   one version of its file, and the size is checked before a byte comes down: when a maker replaces or removes a file,
   the card says so at once. `tools/check_catalog.py` checks that every file can still be downloaded, reading headers only.
@@ -88,11 +110,13 @@ comes from the internal SSD.
   regulations, and writes a Markdown draft with numbered sources, where you change all text. The `.docx` comes last, in
   your house style: cover, headers and footers, numbered headings, table look and table of contents. What the cover needs
   is entered once per project. A fast model does the small work (notes per page, spelling), a heavy one the writing; on a
-  Mac where two do not fit, one model does everything.
+  Mac where two do not fit, one model does everything. A section where a small model writes the same line a third time
+  is stopped, one copy stays, and a note says so.
 - **Works out the Mac it runs on**: the system check at every start (sidebar → **Systeem**) checks the engine, the
   download tools, the models, disk space, the GPU limit and Apple's developer tools; it lifts macOS's quarantine block
   on the engine by itself and offers the rest with one button. It recommends the best model that fits whole in this
-  Mac's memory (128 GB: DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B), or the role of
+  Mac's memory (128 GB: DeepSeek-V4.1-Flash Compact, 96 GB: Qwen3.8-Flash-Next, 32 GB: Qwen3.6-35B-A3B, 16 GB:
+  Ministral-3-8B, 8 GB: Ling-3.0-tiny), or the role of
   cluster helper when none fits. Larger models stay available and stream from the SSD, also on 32 GB (see
   [the measurements](docs/RESEARCH.md#7-models-larger-than-memory-on-a-mac-with-32-gb)). On a Mac with little memory the
   app shrinks the context to what still fits and turns vision off when it would push the model out of memory.
@@ -108,8 +132,15 @@ comes from the internal SSD.
   RPC) and announces itself with Bonjour; the main Mac finds it, and the model's layers are spread over all GPUs in
   proportion to their memory. See [Cluster](#cluster).
 - Streaming chat with markdown and code blocks (with a copy button)
-- **Thinking** off, low, normal or high (the thinking budget, so it works with every model), with a collapsible chain of thought, a reasoning-effort setting and a limit on thinking
-  (16,000 tokens by default), after which the model writes its answer
+- **One card per answer**: every thought, text and step of all the rounds of an answer, in the order they came. While
+  the model works the card shows its latest 14 parts and what it is preparing ("Writing file spel.bas · 1,240
+  characters"); a finished answer folds its work into one line, "thinking and N steps".
+- **Thinking** is one menu under the input field: off, low (2,000 tokens), normal (8,000) or high (the limit in
+  Settings, 16,000 by default). It sets the thinking budget, so it works with every model. Later rounds of one answer,
+  and "go on" after an answer with steps, think at most 4,000 tokens: measured with DeepSeek-V4.1-Flash on a long C64
+  task, a step went from about 14 minutes to 3.5.
+- **Looks at screenshots**: with vision on, the model can look at an image in its folder (`view_image`), for example a
+  screenshot of the emulator it just ran.
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
   what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACAIMAGIC.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.
@@ -190,7 +221,8 @@ The model also works while you are not watching (**Taken** in the sidebar, Setti
   model; **Start at login** is there too (off by default).
 - **Conversations at the same time:** each conversation has its own run and approval card. The model writes one answer
   at a time, so conversations take turns, but one waiting for approval does not hold up the others.
-- **Step list:** for larger work the model sets out its steps (`task_list`) and ticks them off above the input field.
+- **Step list:** for larger work the model sets out its steps (`task_list`) and ticks them off above the input field;
+  after 6 rounds without an update it is reminded of it.
 
 Tested with Qwen3.8-Flash-Next on the M3 Max (`TasksIntegrationTests`): the model planned "every weekday at 08:00"
 through the card, a heartbeat with nothing to report answered NIETS, and one conversation answered while another
@@ -245,9 +277,9 @@ permission.
 
 - Apple Silicon Mac (M1 or later). Models that do not fit in memory stream from the SSD: with **128 GB** the compact
   models fit whole (tested on M3 Max); with 96 GB Qwen3.8-Flash-Next fits whole; with 32 GB Qwen3.6-35B-A3B fits whole
-  and the others stream. Any Mac can be a cluster helper. The app works this out itself (see the system check above).
+  and the others stream; with 16 GB Ministral-3-8B fits whole; with 8 GB Ling-3.0-tiny runs, mostly from memory. Any Mac can be a cluster helper. The app works this out itself (see the system check above).
 - macOS 14 or later
-- Disk space: 23–502 GB per model (see the table above)
+- Disk space: 5–502 GB per model (see the table above)
 - No developer tools, Python or Homebrew needed to run the app
 - To build from source: Xcode Command Line Tools and CMake (`brew install cmake`)
 
@@ -433,6 +465,8 @@ MacAIMagic is MIT-licensed (see [LICENSE](LICENSE)). It builds on:
 - [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) (MIT), by DeepSeek
 - [GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) (MIT), by Z.ai
 - [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next), by Qwen (its own license, see the model page)
+- [Ministral-3-8B](https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF) (Apache 2.0), by Mistral AI
+- [Ling-3.0-tiny](https://huggingface.co/bartowski/Ling-3.0-tiny-GGUF) (MIT), by inclusionAI, quantized by bartowski
 - [Qwen3.6-35B-A3B Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF), Qwen3.6-35B-A3B with its refusals removed by llmfan46 (Apache 2.0)
 - The quantized GGUF files are downloaded from Hugging Face from their publishers; see [`tools/models.json`](tools/models.json)
 
