@@ -371,5 +371,7 @@ Measured:
 | Ministral-3-8B with its vision projector | saves (544 tokens, 76 MB): vision does not stop it |
 | Qwen3.8-Flash-Next Q4 in the app (vision and MTP on), a conversation of 18,000 tokens | stopping the model saved 1.2 GB, including 5 context checkpoints (563 MB) and the MTP draft state (44 MB); after starting it again the next question read 81 tokens in 0.64 s instead of the whole conversation (~45 s at ~400 tokens/s) |
 
-Not measured: DeepSeek-V4.1-Flash and GLM-5.3-Flash themselves (their states are 5 GB and more; a few seconds on the
-SSD), and a cluster, where the app does not use it.
+| DeepSeek-V4.1-Flash Compact with the app's arguments (64K context, vision, all in memory), a conversation of 19,913 tokens (the C64 skill and a game) | the first turn read it in 145.1 s (137 tokens/s); saved in 0.03 s (81 MB: its compressed attention keeps ~4 KB per token); the engine stopped and started again (6 s, files in the page cache); restored in 0.05 s; the next question read 20 tokens (0.43 s) and answered in 1.4 s instead of reading the conversation again for 145 s |
+
+DeepSeek's state is small on disk, so the 5.3 GB entries in llama.cpp's RAM cache seen before must hold more than the
+conversation's own cells (not looked into). Not measured: GLM-5.3-Flash, and a cluster, where the app does not use it.
