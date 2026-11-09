@@ -34,6 +34,13 @@ final class EngineController: ObservableObject {
         fixedPort = port
         self.logFile = logFile
         self.slots = slots ?? SlotKeeper()
+        self.slots.note = { [weak self] line in self?.writeLog(line) }
+    }
+
+    /// A line of the app's own in the engine's log (and the log view).
+    func writeLog(_ line: String) {
+        logHandle?.write(Data((line + "\n").utf8))
+        logTail.append(line)
     }
 
     /// What a saved conversation state belongs to: the same model, context, vision and draft head.
@@ -191,7 +198,10 @@ final class EngineController: ObservableObject {
 
     /// For quitting the app: the save blocks (nothing async runs any more), then the engine stops.
     func stopForQuit() {
-        if process != nil, state == .running { slots.saveBlocking() }
+        if process != nil {
+            if state == .running { slots.saveBlocking() }
+            else { writeLog("MacAIMagic: afsluiten, engine niet klaar (\(state)): niets bewaard") }
+        }
         stopNow()
     }
 

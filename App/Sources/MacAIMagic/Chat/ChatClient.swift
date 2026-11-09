@@ -152,6 +152,9 @@ final class ChatClient: ObservableObject {
                     await learn(conversation, store: store, baseURL: baseURL)
                 }
             }
+            // the answer is done: its place in the engine goes to the SSD now, not only when another conversation
+            // takes the model or the app quits (a quit that does not get that far would lose it)
+            if gate.holder == nil, slots?.current == conversation { await slots?.saveCurrent() }
             // what the model asked to do in the app once its answer was done (stop the engine, a new model)
             appControl?.answerDone(conversation)
             running.remove(conversation)

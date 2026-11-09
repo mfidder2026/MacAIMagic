@@ -24,6 +24,8 @@ final class SlotKeeper {
     var hasUnsaved: Bool { current != nil && unsaved && Settings.shared.keepEngineMemory }
     /// Saves and restores, in order, for the tests.
     private(set) var log: [String] = []
+    /// A line for the engine's log: what was saved or restored, how large and how fast, or why not.
+    var note: ((String) -> Void)?
     let folder: URL
 
     nonisolated static var defaultFolder: URL { Paths.appSupport.appendingPathComponent("EngineMemory", isDirectory: true) }
@@ -65,7 +67,7 @@ final class SlotKeeper {
         unsaved = true
         let name = Self.fileName(key: key, conversation: owner)
         guard FileManager.default.fileExists(atPath: folder.appendingPathComponent(name).path) else { return }
-        if await call("restore", name) {
+        if await call("restore", name, owner) {
             log.append("restore " + owner.uuidString)
             touch(name)
         }
@@ -82,7 +84,7 @@ final class SlotKeeper {
         guard let key, let owner = current, unsaved, Settings.shared.keepEngineMemory else { return }
         unsaved = false
         let name = Self.fileName(key: key, conversation: owner)
-        if await call("save", name) {
+        if await call("save", name, owner) {
             log.append("save " + owner.uuidString)
             prune()
         }
@@ -103,9 +105,31 @@ final class SlotKeeper {
         return req
     }
 
-    private func call(_ action: String, _ name: String) async -> Bool {
-        guard let req = request(action, name), let (_, resp) = try? await URLSession.shared.data(for: req) else { return false }
-        return (resp as? HTTPURLResponse)?.statusCode == 200
+    private func call(_ action: String, _ name: String, _ owner: UUID) async -> Bool {
+        let start = Date()
+        guard let req = request(action, name) else { return false }
+        do {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            let ok = (resp as? HTTPURLResponse)?.statusCode == 200
+            note?(Self.describe(action, owner, ok: ok, data: data, seconds: Date().timeIntervalSince(start)))
+            return ok
+        } catch {
+            note?("MacAIMagic: gesprek \(owner.uuidString.prefix(8)) \(action) mislukt: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// "MacAIMagic: gesprek 1A2B3C4D save: 19917 tokens, 81 MB in 0.03 s" or the engine's error.
+    nonisolated static func describe(_ action: String, _ owner: UUID, ok: Bool, data: Data, seconds: Double) -> String {
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
+        let head = "MacAIMagic: gesprek \(owner.uuidString.prefix(8)) \(action)"
+        guard ok else {
+            let err = (json["error"] as? [String: Any])?["message"] as? String ?? String(decoding: data.prefix(200), as: UTF8.self)
+            return head + " mislukt: " + err
+        }
+        let tokens = json["n_saved"] ?? json["n_restored"] ?? "?"
+        let bytes = (json["n_written"] ?? json["n_read"]) as? Int ?? 0
+        return head + String(format: ": %@ tokens, %.0f MB in %.2f s", "\(tokens)", Double(bytes) / 1e6, seconds)
     }
 
     /// For quitting the app, where nothing async runs any more: saves within `timeout` seconds, blocking.
@@ -116,11 +140,17 @@ final class SlotKeeper {
         req.timeoutInterval = timeout
         let done = DispatchSemaphore(value: 0)
         var ok = false
-        URLSession.shared.dataTask(with: req) { _, resp, _ in
+        var body = Data()
+        let start = Date()
+        URLSession.shared.dataTask(with: req) { data, resp, _ in
             ok = (resp as? HTTPURLResponse)?.statusCode == 200
+            body = data ?? Data()
             done.signal()
         }.resume()
-        guard done.wait(timeout: .now() + timeout) == .success, ok else { return }
+        let answered = done.wait(timeout: .now() + timeout) == .success
+        note?(answered ? Self.describe("save (afsluiten)", owner, ok: ok, data: body, seconds: Date().timeIntervalSince(start))
+                       : "MacAIMagic: gesprek \(owner.uuidString.prefix(8)) save (afsluiten) duurde langer dan \(Int(timeout)) s")
+        guard answered, ok else { return }
         unsaved = false
         log.append("save " + owner.uuidString)
     }

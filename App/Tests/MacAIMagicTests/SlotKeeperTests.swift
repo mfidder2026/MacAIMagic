@@ -51,22 +51,22 @@ final class SlotKeeperTests: XCTestCase {
 
         chat.send(text: "hallo", attachments: [], in: a.id, store: store, baseURL: url)
         try await waitUntil { !chat.isBusy(a.id) }
-        do { let calls = try await slotCalls(); XCTAssertEqual(calls, [], "the first conversation has nothing saved yet") }
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.id.uuidString], "an answer is saved when it is done") }
 
         chat.send(text: "hoi", attachments: [], in: b.id, store: store, baseURL: url)
         try await waitUntil { !chat.isBusy(b.id) }
-        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.id.uuidString], "A is saved before B gets the model") }
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.id.uuidString, "save " + b.id.uuidString], "A was saved already: B's turn does not save it again") }
 
         chat.send(text: "verder", attachments: [], in: a.id, store: store, baseURL: url)
         try await waitUntil { !chat.isBusy(a.id) }
-        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.id.uuidString, "save " + b.id.uuidString, "restore " + a.id.uuidString]) }
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.id.uuidString, "save " + b.id.uuidString, "restore " + a.id.uuidString, "save " + a.id.uuidString]) }
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent(SlotKeeper.fileName(key: "model-c65536-v1-s0", conversation: b.id)).path))
 
         // the same conversation again: nothing to save or restore
         chat.send(text: "en nog iets", attachments: [], in: a.id, store: store, baseURL: url)
         try await waitUntil { !chat.isBusy(a.id) }
-        do { let calls = try await slotCalls(); XCTAssertEqual(calls.count, 3) }
-        XCTAssertTrue(keeper.hasUnsaved, "A changed since its restore: a stop saves it")
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls.count, 5, "the same conversation: no restore, only its save") }
+        XCTAssertFalse(keeper.hasUnsaved, "saved after its answer: a quit has nothing left to do")
     }
 
     func testAnotherEngineSetupDoesNotRestoreAndOffSavesNothing() async throws {
@@ -84,6 +84,20 @@ final class SlotKeeperTests: XCTestCase {
         await keeper.enter(b)
         XCTAssertFalse(keeper.hasUnsaved)
         do { let calls = try await slotCalls(); XCTAssertEqual(calls.count, 1) }
+    }
+
+    func testQuittingSavesTheConversationInTheEngine() async throws {
+        let keeper = SlotKeeper(folder: dir)
+        let a = UUID()
+        keeper.started(baseURL: url, key: "k")
+        await keeper.enter(a)
+        var lines: [String] = []
+        keeper.note = { lines.append($0) }
+        keeper.saveBlocking()
+        XCTAssertEqual(lines.count, 1)
+        XCTAssertTrue(lines.first?.contains("save (afsluiten)") == true, "\(lines)")
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.uuidString]) }
+        XCTAssertFalse(keeper.hasUnsaved)
     }
 
     func testDocumentsSaveTheChatsConversationFirst() async throws {
