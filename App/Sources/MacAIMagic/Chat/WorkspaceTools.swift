@@ -106,14 +106,24 @@ enum WorkspaceTools {
         guard let root = workspace else { throw ToolError.noWorkspace }
         let expanded = (path as NSString).expandingTildeInPath
         let url = expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded) : root.appendingPathComponent(expanded)
-        // resolve what exists; a new file's parent decides
-        var resolved = url.standardizedFileURL.resolvingSymlinksInPath()
-        if !FileManager.default.fileExists(atPath: resolved.path) {
-            resolved = url.deletingLastPathComponent().standardizedFileURL.resolvingSymlinksInPath()
-                .appendingPathComponent(url.lastPathComponent)
-        }
+        let resolved = resolvingExisting(url.standardizedFileURL)
         let rootPath = root.path.hasSuffix("/") ? root.path : root.path + "/"
         guard resolved.path == root.path || resolved.path.hasPrefix(rootPath) else { throw ToolError.outside(path) }
+        return resolved
+    }
+
+    /// Resolves the links in the deepest part of `url` that exists, then adds the rest. resolvingSymlinksInPath leaves a
+    /// path that does not exist yet as it is, so "link/new/a.txt" with link -> ~/Other passed the check, and
+    /// write_file created ~/Other/new/a.txt outside the work folder.
+    nonisolated static func resolvingExisting(_ url: URL) -> URL {
+        var existing = url
+        var rest: [String] = []
+        while !FileManager.default.fileExists(atPath: existing.path), existing.pathComponents.count > 1 {
+            rest.insert(existing.lastPathComponent, at: 0)
+            existing = existing.deletingLastPathComponent()
+        }
+        var resolved = existing.resolvingSymlinksInPath()
+        for part in rest { resolved.appendPathComponent(part) }
         return resolved
     }
 
@@ -212,6 +222,9 @@ enum WorkspaceTools {
         if data.prefix(8000).contains(0) {
             return "\(path) is a binary file (\(size) bytes). Its first bytes as hex: " + data.prefix(64).map { String(format: "%02x", $0) }.joined(separator: " ")
         }
+        // a negative tail or limit stopped the whole app (suffix(-50) is a fatal error in Swift)
+        let tail = tail.flatMap { $0 > 0 ? $0 : nil }
+        let limit = limit.map { max(1, $0) }
         var lines = text.components(separatedBy: "\n")
         var first = 1
         if let tail { first = max(1, lines.count - tail + 1); lines = Array(lines.suffix(tail)) }
@@ -284,6 +297,10 @@ enum WorkspaceTools {
                     if stopped.isSet { stopTree(p.processIdentifier); break }
                     Thread.sleep(forTimeInterval: 0.1)
                 }
+                // a program that ignores SIGTERM held the conversation for good (waitUntilExit without a limit)
+                let grace = Date().addingTimeInterval(3)
+                while p.isRunning && Date() < grace { Thread.sleep(forTimeInterval: 0.1) }
+                if p.isRunning { stopTree(p.processIdentifier, signal: SIGKILL) }
                 p.waitUntilExit()
                 // a program started with & keeps this pipe open: what it writes later is read and dropped, so it keeps
                 // running and the command is over now
@@ -310,7 +327,7 @@ enum WorkspaceTools {
     }
 
     /// The command and everything it started, children first. Programs detached with `open` are not among them.
-    private static func stopTree(_ pid: pid_t) {
+    private static func stopTree(_ pid: pid_t, signal: Int32 = SIGTERM) {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         p.arguments = ["-P", String(pid)]
@@ -320,8 +337,8 @@ enum WorkspaceTools {
         if (try? p.run()) != nil {
             let out = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
             p.waitUntilExit()
-            for child in out.split(separator: "\n").compactMap({ pid_t($0) }) { stopTree(child) }
+            for child in out.split(separator: "\n").compactMap({ pid_t($0) }) { stopTree(child, signal: signal) }
         }
-        kill(pid, SIGTERM)
+        kill(pid, signal)
     }
 }

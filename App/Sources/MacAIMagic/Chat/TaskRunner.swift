@@ -104,11 +104,16 @@ extension AppState {
             modelStartedByTasks = true
         }
         let start = Date()
+        // a "failed" or "stopped" from before this start is old news: only after the engine was starting (or after a
+        // grace) does it mean this start failed. Before, a task gave up at once and the engine loaded anyway.
+        var sawStarting = false
         while Date().timeIntervalSince(start) < 1800 {
+            let waited = Date().timeIntervalSince(start)
             switch engine.state {
             case .running: return true
-            case .failed: return false
-            case .stopped where Date().timeIntervalSince(start) > 10: return false
+            case .starting: sawStarting = true
+            case .failed where sawStarting || waited > 15: return false
+            case .stopped where sawStarting || waited > 15: return false
             default: break
             }
             try? await Task.sleep(for: .seconds(1))

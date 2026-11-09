@@ -134,7 +134,7 @@ final class LiveMetrics: ObservableObject {
             var answered = false, mainBusy = false
             var decodedNow: [Int: Int] = [:]
             for (host, port) in ports {
-                var req = URLRequest(url: URL(string: "http://\(host):\(port)/slots")!)
+                var req = URLRequest(url: EngineController.url(host: host, port: port).appendingPathComponent("slots"))
                 req.timeoutInterval = 1
                 if !key.isEmpty { req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
                 guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,

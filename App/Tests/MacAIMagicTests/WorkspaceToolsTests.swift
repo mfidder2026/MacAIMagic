@@ -33,6 +33,25 @@ final class WorkspaceToolsTests: XCTestCase {
         let out = await call("read_file", ["path": "link/passwd"])
         XCTAssertTrue(out.hasPrefix("Error:"), out)
         XCTAssertNoThrow(try WorkspaceTools.resolve("new/deeper/file.txt"))
+        // a path that does not exist yet behind that link: resolvingSymlinksInPath left the link alone, and write_file
+        // created the folders outside the work folder
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent("mds-outside-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        try FileManager.default.createSymbolicLink(at: dir.appendingPathComponent("uit"), withDestinationURL: outside)
+        XCTAssertThrowsError(try WorkspaceTools.resolve("uit/nieuw/diep/a.txt"))
+        let w = await call("write_file", ["path": "uit/nieuw/diep/a.txt", "content": "x"])
+        XCTAssertTrue(w.hasPrefix("Error:"), w)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: outside.appendingPathComponent("nieuw").path))
+    }
+
+    /// A negative tail or limit was a fatal error in Swift (suffix(-50)): the whole app stopped.
+    func testANegativeTailOrLimitDoesNotStopTheApp() async throws {
+        _ = await call("write_file", ["path": "log.txt", "content": "een\ntwee\ndrie\n"])
+        let t = await call("read_file", ["path": "log.txt", "tail": -50])
+        XCTAssertTrue(t.contains("een") && t.contains("drie"), t)
+        let l = await call("read_file", ["path": "log.txt", "limit": -1])
+        XCTAssertTrue(l.contains("1\teen"), l)
     }
 
     func testWriteReadEditList() async throws {

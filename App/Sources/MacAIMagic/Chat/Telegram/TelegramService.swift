@@ -71,6 +71,9 @@ final class TelegramService: ObservableObject {
     private var testToken: String?
     private let defaults: UserDefaults
     private var poll: Task<Void, Never>?
+    /// Which loop is the current one: a cancelled loop that ends after a restart must not clear the new loop's handle
+    /// (then isRunning said false, cards and reports stopped, and switching Telegram off no longer stopped the loop).
+    private var generation = 0
     private var pollTimeout = 50
 
     init(defaults: UserDefaults = .standard) {
@@ -137,7 +140,9 @@ final class TelegramService: ObservableObject {
         guard Settings.shared.featureTelegram || testToken != nil else { status = .off; return }
         guard let bot else { status = .noToken; return }
         status = .connecting
-        poll = Task { [weak self] in await self?.loop(bot) }
+        generation += 1
+        let mine = generation
+        poll = Task { [weak self] in await self?.loop(bot, generation: mine) }
     }
 
     func stop() {
@@ -148,7 +153,7 @@ final class TelegramService: ObservableObject {
 
     func restart() { stop(); start() }
 
-    private func loop(_ bot: TelegramBot) async {
+    private func loop(_ bot: TelegramBot, generation mine: Int) async {
         var wait = 5.0
         do {
             let me = try await bot.me()
@@ -156,7 +161,7 @@ final class TelegramService: ObservableObject {
             note(L("Verbonden als @\(me.username ?? me.name)"))
         } catch {
             if !Task.isCancelled { failed(error) }
-            if (error as? TelegramBot.BotError) == .unauthorized { poll = nil; return }
+            if (error as? TelegramBot.BotError) == .unauthorized { if generation == mine { poll = nil }; return }
         }
         while !Task.isCancelled {
             do {
@@ -177,7 +182,7 @@ final class TelegramService: ObservableObject {
                 wait = min(wait * 2, 60)
             }
         }
-        poll = nil
+        if generation == mine { poll = nil }
     }
 
     private func failed(_ error: Error) {

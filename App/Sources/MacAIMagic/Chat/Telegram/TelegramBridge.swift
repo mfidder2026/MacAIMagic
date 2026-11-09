@@ -126,6 +126,17 @@ final class TelegramBridge {
                 return
             }
         }
+        // the model may run without vision (not downloaded, or no room for it): then the photo is not looked at
+        if !attachments.isEmpty && !chat.seesImages {
+            _ = try? await bot.send(chatID, L("Het model draait nu zonder afbeeldingen (vision), dus de foto kan ik niet bekijken."))
+            attachments = []
+            guard !prompt.isEmpty else { return }
+        }
+        // a second message while the model loaded passed the check above minutes ago: say so instead of dropping it
+        if chat.isBusy(id) {
+            _ = try? await bot.send(chatID, L("Ik ben nog bezig met je vorige vraag. /stop stopt die."))
+            return
+        }
         await bot.typing(chatID)
         chat.send(text: prompt, attachments: attachments, in: id, store: store, baseURL: baseURL())
         stream(id, to: chatID)

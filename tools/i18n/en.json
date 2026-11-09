@@ -1079,5 +1079,7 @@
  "Toon de bestanden van de werkmap naast de chat": "Show the working folder's files beside the chat",
  "nog ongeveer %@ s": "about %@ s to go",
  "Het eerste laden van %@ GB duurt enkele minuten.": "The first load of %@ GB takes a few minutes.",
- "Het geheugen komt vrij zodra het model gestopt is.": "The memory is freed as soon as the model has stopped."
+ "Het geheugen komt vrij zodra het model gestopt is.": "The memory is freed as soon as the model has stopped.",
+ "(Hier stond een afbeelding: %@. Het model draait nu zonder afbeeldingen (vision); zeg dat als het ertoe doet.)": "(There was a picture here: %@. The model runs without pictures (vision) now; say so if it matters.)",
+ "Het model draait nu zonder afbeeldingen (vision), dus de foto kan ik niet bekijken.": "The model runs without pictures (vision) now, so I cannot look at the photo."
 }

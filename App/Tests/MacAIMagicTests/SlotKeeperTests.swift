@@ -103,6 +103,32 @@ final class SlotKeeperTests: XCTestCase {
         XCTAssertTrue(systems[2].contains("iets nieuws"), "a new conversation reads the notes as they are now")
     }
 
+    /// The lessons asked after a task go with the same template settings as the answers: with thinking off DeepSeek's
+    /// template changes the start of the prompt, and the engine read the whole conversation again after every task.
+    func testTheLessonsAskedAfterATaskKeepThePromptsStart() async throws {
+        let saved = (Settings.shared.workspaceTools, Settings.shared.learnFromChats, Settings.shared.rightWrite, Settings.shared.thinking)
+        Settings.shared.workspaceTools = true
+        Settings.shared.learnFromChats = true
+        Settings.shared.rightWrite = "allow"
+        Settings.shared.thinking = true
+        defer { (Settings.shared.workspaceTools, Settings.shared.learnFromChats, Settings.shared.rightWrite, Settings.shared.thinking) = saved }
+        let ws = dir.appendingPathComponent("taak")
+        try FileManager.default.createDirectory(at: ws, withIntermediateDirectories: true)
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        var a = Conversation()
+        a.workspace = ws.path
+        store.conversations = [a]
+        let chat = ChatClient()
+        chat.send(text: "DRIE bestanden", attachments: [], in: a.id, store: store, baseURL: url)
+        try await waitUntil { !chat.isBusy(a.id) }
+        let (data, _) = try await URLSession.shared.data(from: url.appendingPathComponent("kwargs"))
+        let all = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+        let lesson = try XCTUnwrap(all.last { ($0["stream"] as? Bool) == false }, "the lessons were asked")
+        let answer = try XCTUnwrap(all.first { ($0["stream"] as? Bool) == true })
+        XCTAssertEqual(lesson["kwargs"] as? NSDictionary, answer["kwargs"] as? NSDictionary)
+        XCTAssertEqual((lesson["kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, true)
+    }
+
     func testAnotherEngineSetupDoesNotRestoreAndOffSavesNothing() async throws {
         let keeper = SlotKeeper(folder: dir)
         let a = UUID(), b = UUID()
@@ -132,6 +158,31 @@ final class SlotKeeperTests: XCTestCase {
         XCTAssertTrue(lines.first?.contains("save (afsluiten)") == true, "\(lines)")
         do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.uuidString]) }
         XCTAssertFalse(keeper.hasUnsaved)
+    }
+
+    /// A stop while the engine writes an answer does not wait for it: llama-server holds a save back until the slot is
+    /// free, so the model went on writing for up to a minute under "Model ontladen…".
+    func testAStopDoesNotWaitForAnAnswerBeingWritten() async throws {
+        let keeper = SlotKeeper(folder: dir)
+        let a = UUID()
+        keeper.started(baseURL: url, key: "k")
+        await keeper.enter(a)
+        var lines: [String] = []
+        keeper.note = { lines.append($0) }
+        // an answer is being written (the stand-in sleeps 0.4 s per request)
+        var req = URLRequest(url: url.appendingPathComponent("v1/chat/completions"))
+        req.httpMethod = "POST"
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["messages": [["role": "user", "content": "hallo"]], "stream": false])
+        let answer = Task { _ = try? await URLSession.shared.data(for: req) }
+        try await Task.sleep(for: .milliseconds(150))
+        let busy = await keeper.engineBusy()
+        XCTAssertEqual(busy, true)
+        await keeper.saveCurrent(onlyWhenIdle: true)
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, [], "nothing is saved while it writes") }
+        XCTAssertTrue(lines.first?.contains("nog bezig") == true, "\(lines)")
+        _ = await answer.value
+        await keeper.saveCurrent(onlyWhenIdle: true)
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.uuidString], "idle again: saved") }
     }
 
     func testDocumentsSaveTheChatsConversationFirst() async throws {

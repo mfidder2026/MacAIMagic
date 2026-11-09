@@ -621,8 +621,12 @@ final class ChatClient: ObservableObject {
             "stream": false,
             "temperature": 0.2,
             "max_tokens": 400,
-            "chat_template_kwargs": ["enable_thinking": false, "reasoning_effort": Settings.shared.reasoningEffort],
-            "thinking_budget_tokens": 0,    // GLM's template ignores enable_thinking and always opens with <think>
+            // the same template settings as the conversation's own requests: with thinking off DeepSeek's template drops
+            // "Reasoning Effort" from the start of the system prompt and the old thoughts, so the engine read the whole
+            // conversation again after every task (52,232 tokens, 383 s). Thinking is stopped by the budget instead,
+            // which does not change the prompt (checked with /apply-template).
+            "chat_template_kwargs": Self.templateKwargs(),
+            "thinking_budget_tokens": 0,
         ]
         // the same tools as the conversation, so its start stays the same for the engine; it must only write here
         let tools = currentTools
@@ -882,7 +886,13 @@ final class ChatClient: ObservableObject {
             switch m.role {
             case .system: continue
             case .user:
-                if m.automatic == true && !m.attachments.isEmpty && !keptLooks.contains(m.id) {
+                if !m.attachments.isEmpty && !seesImages {
+                    // the engine runs without vision: it refuses every request with a picture, and the picture stays
+                    // in the conversation, so each later question failed too. It goes as a line of text instead.
+                    let names = m.attachments.map(\.filename).joined(separator: ", ")
+                    let note = L("(Hier stond een afbeelding: \(names). Het model draait nu zonder afbeeldingen (vision); zeg dat als het ertoe doet.)")
+                    out.append(["role": "user", "content": m.text.isEmpty ? note : note + "\n\n" + m.text])
+                } else if m.automatic == true && !m.attachments.isEmpty && !keptLooks.contains(m.id) {
                     out.append(["role": "user", "content": L("(Hier stond een afbeelding die je eerder bekeek: \(m.attachments.map(\.filename).joined(separator: ", ")).)")])
                 } else if m.attachments.isEmpty {
                     out.append(["role": "user", "content": m.text])
@@ -988,6 +998,13 @@ final class ChatClient: ObservableObject {
         return setting == 0 ? followUpThinking : min(setting, followUpThinking)
     }
 
+    /// What the chat template is rendered with, the same for every request about a conversation (its answers and the
+    /// lessons after them): these change the start of the prompt (DeepSeek writes "Reasoning Effort" into the system
+    /// part and drops old thoughts without thinking), and then the engine reads the whole conversation again.
+    static func templateKwargs() -> [String: Any] {
+        ["enable_thinking": Settings.shared.thinking, "reasoning_effort": Settings.shared.reasoningEffort]
+    }
+
     private func stream(history: [ChatMessage], summary: String? = nil, baseURL: URL, thinkingBudget: Int? = nil,
                         onDelta: (Delta) -> Void) async throws -> StreamResult {
         let s = Settings.shared
@@ -1001,7 +1018,7 @@ final class ChatClient: ObservableObject {
             "top_p": 1.0,
             "max_tokens": maxAnswerTokens,
             // enable_thinking is understood by both templates (DeepSeek maps it to thinking_mode)
-            "chat_template_kwargs": ["enable_thinking": s.thinking, "reasoning_effort": s.reasoningEffort],
+            "chat_template_kwargs": Self.templateKwargs(),
         ]
         // without a limit a model can keep doubting on a hard question and never get to its answer
         // off means off: GLM's template ignores enable_thinking and always opens with <think>

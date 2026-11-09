@@ -266,6 +266,8 @@ final class AppState: ObservableObject {
         }
         onStep(L("\(model.shortName) (\(writer.role)) schrijft de beschrijving…"))
         let base = target.baseURL
+        // the chat's conversation in this engine is saved first, or the next answer there read it all again
+        await SlotKeeper.yield(to: base)
         let result = try await ImagePrompt.improve(text, model: model.name, send: { body in
             var req = URLRequest(url: base.appendingPathComponent("v1/chat/completions"))
             req.httpMethod = "POST"

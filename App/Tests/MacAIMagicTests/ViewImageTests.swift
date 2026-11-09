@@ -65,10 +65,25 @@ final class ViewImageTests: XCTestCase {
         try screenshot("shot.png")
         let a = try WorkspaceTools.image(call("shot.png")).get()
         let history = (1...5).map { ChatMessage(role: .user, text: "beeld \($0)", attachments: [a], automatic: true) }
-        let out = ChatClient().requestMessages(history)
+        let chat = ChatClient()
+        chat.seesImages = true
+        let out = chat.requestMessages(history)
         let withImage = out.filter { $0["content"] is [[String: Any]] }
         XCTAssertEqual(withImage.count, ChatClient.imagesKept)
         XCTAssertEqual(out.count, 1 + 5)
+    }
+
+    /// The engine runs without vision: a picture in the conversation goes as a line of text, or the engine refuses this
+    /// and every later request of the conversation (a Telegram photo, a picture dropped on the chat).
+    func testWithoutVisionAPictureGoesAsText() throws {
+        try screenshot("shot.png")
+        let a = try WorkspaceTools.image(call("shot.png")).get()
+        let chat = ChatClient()
+        chat.seesImages = false
+        let out = chat.requestMessages([ChatMessage(role: .user, text: "wat staat hierop?", attachments: [a])])
+        XCTAssertTrue(out.allSatisfy { $0["content"] is String })
+        let text = out.last?["content"] as? String ?? ""
+        XCTAssertTrue(text.contains("shot.png") && text.hasSuffix("wat staat hierop?"), text)
     }
 }
 

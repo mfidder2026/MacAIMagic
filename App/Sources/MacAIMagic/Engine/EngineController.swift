@@ -65,7 +65,16 @@ final class EngineController: ObservableObject {
 
     private var host: String { fixedPort == nil ? Settings.shared.host : "127.0.0.1" }
     private var port: Int { fixedPort ?? Settings.shared.port }
-    var baseURL: URL { URL(string: "http://\(host):\(port)")! }
+    var baseURL: URL { Self.url(host: host, port: port) }
+
+    /// The engine's address. A typed address that makes no URL ("::1", "my mac", "localhost:") stopped the whole app on
+    /// a force unwrap; it falls back to this Mac. An IPv6 address gets its brackets.
+    nonisolated static func url(host: String, port: Int) -> URL {
+        let h = host.trimmingCharacters(in: .whitespaces)
+        let shown = h.contains(":") && !h.hasPrefix("[") ? "[\(h)]" : h
+        return URL(string: "http://\(shown):\(port)").flatMap { $0.host == nil ? nil : $0 }
+            ?? URL(string: "http://127.0.0.1:\(port)")!
+    }
 
     /// The model the engine runs (or last ran).
     @Published private(set) var model: ModelInfo?
@@ -124,7 +133,10 @@ final class EngineController: ObservableObject {
     }
 
     func start(model: ModelInfo, shards: [URL], plan: MemoryPlan, vision: URL?, draft: URL? = nil, rpc: String? = nil) {
-        guard process == nil else { return }
+        guard process == nil else {
+            writeLog("MacAIMagic: \(model.name) niet gestart: de vorige engine draait nog")
+            return
+        }
         guard let bin = Paths.engineBinary("llama-server") else {
             state = .failed(L("Engine niet gevonden. Bouw hem met scripts/build_engine.sh."))
             return
@@ -193,7 +205,9 @@ final class EngineController: ObservableObject {
     func stopAndWait() async {
         guard process != nil else { state = .stopped; return }
         stop()
-        for _ in 0..<60 where process != nil { try? await Task.sleep(for: .milliseconds(500)) }
+        // a save first, then the interrupt, and a terminate after 10 s: wait for all of it, or a model started next
+        // found the old process still there and did not start (start() returns when one runs)
+        for _ in 0..<120 where process != nil { try? await Task.sleep(for: .milliseconds(500)) }
     }
 
     /// Set while a stop that was asked for is under way: how the process then ends is no failure.
@@ -216,7 +230,7 @@ final class EngineController: ObservableObject {
             healthTask?.cancel()
             beginUnloading()
             Task {
-                await slots.saveCurrent()
+                await slots.saveCurrent(onlyWhenIdle: true)
                 stopNow()
             }
             return
@@ -235,6 +249,7 @@ final class EngineController: ObservableObject {
 
     private func stopNow() {
         stopping = process != nil
+        slots.willStop()
         beginUnloading()
         healthTask?.cancel()
         process?.interrupt()

@@ -39,13 +39,19 @@ final class SlotKeeper {
     func started(baseURL: URL, key: String) {
         self.baseURL = baseURL
         self.key = key
+        going = false
         current = nil
         unsaved = false
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     }
 
+    /// The engine has been told to stop: nothing more is saved (a run that ends because of the stop would try).
+    private var going = false
+    func willStop() { going = true }
+
     /// The engine stopped: nothing is in it any more.
     func stopped() {
+        going = false
         baseURL = nil
         key = nil
         current = nil
@@ -79,9 +85,26 @@ final class SlotKeeper {
         current = nil
     }
 
-    /// Writes the state of the conversation in the engine to its file, when it changed.
-    func saveCurrent() async {
-        guard let key, let owner = current, unsaved, Settings.shared.keepEngineMemory else { return }
+    /// Is the engine writing an answer right now? llama-server holds a save back until the slot is free, so a save then
+    /// waits for the whole answer (and a stop with it). Nil when the engine does not answer.
+    func engineBusy() async -> Bool? {
+        guard let baseURL else { return nil }
+        var req = URLRequest(url: baseURL.appendingPathComponent("slots"))
+        req.timeoutInterval = 2
+        if !Settings.shared.apiKey.isEmpty { req.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let slots = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+        return slots.contains { ($0["is_processing"] as? Bool) == true }
+    }
+
+    /// Writes the state of the conversation in the engine to its file, when it changed. `onlyWhenIdle`: not while the
+    /// engine writes an answer (a stop must not wait for it; the last finished answer was saved already).
+    func saveCurrent(onlyWhenIdle: Bool = false) async {
+        guard let key, let owner = current, unsaved, !going, Settings.shared.keepEngineMemory else { return }
+        if onlyWhenIdle, await engineBusy() != false {
+            note?("MacAIMagic: gesprek \(owner.uuidString.prefix(8)) niet bewaard: de engine was nog bezig")
+            return
+        }
         unsaved = false
         let name = Self.fileName(key: key, conversation: owner)
         if await call("save", name, owner) {
@@ -137,6 +160,24 @@ final class SlotKeeper {
         guard let key, let owner = current, unsaved, Settings.shared.keepEngineMemory else { return }
         let name = Self.fileName(key: key, conversation: owner)
         guard var req = request("save", name) else { return }
+        // while an answer is being written the engine holds the save back until it is done: then nothing is saved
+        if let baseURL {
+            var check = URLRequest(url: baseURL.appendingPathComponent("slots"))
+            check.timeoutInterval = 2
+            if !Settings.shared.apiKey.isEmpty { check.setValue("Bearer \(Settings.shared.apiKey)", forHTTPHeaderField: "Authorization") }
+            let checked = DispatchSemaphore(value: 0)
+            var busy = true
+            URLSession.shared.dataTask(with: check) { data, _, _ in
+                let slots = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] }
+                busy = slots.map { $0.contains { ($0["is_processing"] as? Bool) == true } } ?? true
+                checked.signal()
+            }.resume()
+            _ = checked.wait(timeout: .now() + 3)
+            if busy {
+                note?("MacAIMagic: gesprek \(owner.uuidString.prefix(8)) niet bewaard bij afsluiten: de engine was nog bezig")
+                return
+            }
+        }
         req.timeoutInterval = timeout
         let done = DispatchSemaphore(value: 0)
         var ok = false
