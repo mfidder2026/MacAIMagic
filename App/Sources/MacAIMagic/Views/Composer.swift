@@ -73,7 +73,8 @@ struct Composer: View {
                 Picker(selection: $settings.thinkingLevel) {
                     ForEach(Settings.ThinkingLevel.allCases) { Text($0.name).tag($0) }
                 } label: { Label(L("Denken"), systemImage: "brain") }
-                    .pickerStyle(.menu).fixedSize()
+                    // the choices say "Denken: hoog" themselves; a label beside it said "Denken" twice
+                    .pickerStyle(.menu).labelsHidden().fixedSize()
                     .help(L("Hoe lang het model eerst nadenkt: langer is beter bij lastige vragen, maar trager"))
                 Toggle(isOn: $settings.webSearch) { Label(L("Web"), systemImage: "globe") }
                     .toggleStyle(.button).help(L("Het model mag het web doorzoeken en pagina's lezen"))
