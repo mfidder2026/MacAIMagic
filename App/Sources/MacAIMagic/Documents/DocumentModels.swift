@@ -151,7 +151,29 @@ enum LocalModel {
     struct Result {
         var text = ""
         var cutOff = false
+        /// The model began to repeat itself; the stream was stopped and the repetition taken off.
+        var looped = false
         var tokensPerSecond: Double?
+    }
+
+    /// Where a text starts to go round in circles: the second copy of a line of some length, once that line has come
+    /// three times. Nil when it does not. Ling-3.0-tiny wrote one sentence until its token limit in 4 of 12 sections
+    /// on the Windows version's test PC; that kept the machine at full load for nothing.
+    static func loopStart(_ text: String, times: Int = 3, minLength: Int = 25) -> String.Index? {
+        var seen: [Substring: [String.Index]] = [:]
+        var start = text.startIndex
+        while start < text.endIndex {
+            let end = text[start...].firstIndex(of: "\n") ?? text.endIndex
+            var line = text[start..<end].trimmingCharacters(in: .whitespaces)[...]
+            while let f = line.first, "-* ".contains(f) { line = line.dropFirst() }
+            if line.count >= minLength {
+                let key = Substring(line)
+                seen[key, default: []].append(start)
+                if let at = seen[key], at.count >= times { return at[1] }
+            }
+            start = end < text.endIndex ? text.index(after: end) : end
+        }
+        return nil
     }
 
     /// The speed gauge counts this writing too.
@@ -173,6 +195,10 @@ enum LocalModel {
             // the thinking counts too
             "max_tokens": maxTokens + thinking,
             "chat_template_kwargs": ["enable_thinking": thinking > 0],
+            // a small model repeats a line until its limit (Ling on the Windows test PC: 4 of 12 sections, 1 of 12 with
+            // this); the DRY sampler makes a repeated stretch less likely
+            "dry_multiplier": 0.8,
+            "dry_allowed_length": 3,
         ]
         // the budget too when it is off: GLM's template ignores enable_thinking and always opens with <think>
         body["thinking_budget_tokens"] = thinking
@@ -205,7 +231,17 @@ enum LocalModel {
             guard let choice = (json["choices"] as? [[String: Any]])?.first else { continue }
             if choice["finish_reason"] as? String == "length" { result.cutOff = true }
             let delta = choice["delta"] as? [String: Any]
-            if let piece = delta?["content"] as? String, !piece.isEmpty { result.text += piece }
+            if let piece = delta?["content"] as? String, !piece.isEmpty {
+                result.text += piece
+                // a model that goes round in circles is stopped here: closing the request stops the engine too
+                if piece.contains("\n"), let loop = loopStart(result.text) {
+                    result.text = String(result.text[..<loop])
+                    result.looped = true
+                    result.cutOff = false
+                    bytes.task.cancel()
+                    break
+                }
+            }
             if delta?["content"] != nil || delta?["reasoning_content"] != nil { unseenTokens += 1 }
             if Date().timeIntervalSince(shown) >= 0.1 {
                 shown = Date()

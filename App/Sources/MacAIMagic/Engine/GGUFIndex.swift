@@ -51,6 +51,8 @@ struct GGUFIndex {
         case "qwen4exp": return 36_000
         // 34 layers without compressed attention, measured on the Windows version's test PC
         case "mistral3": return 142_000
+        // Ling-3.0-tiny: 18 of its 24 layers have linear attention; 9 KB measured on the Windows version's test PC
+        case "bailingmoe3": return 9_000
         default: return 32_000
         }
     }

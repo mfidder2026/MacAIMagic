@@ -381,6 +381,27 @@ final class DocumentStudioTests: XCTestCase {
         XCTAssertEqual(studio.notes, [])
     }
 
+    func testARepeatingSectionIsCutAndSaidSo() async throws {
+        let loop = LoopGuardTests.loop
+        FakeModel.answer = { system, user in
+            if system.contains("hoe een document eruit moet zien") { return Self.planWithoutSearch }
+            if system.contains("voorblad") { return "" }
+            return "Begin van de tekst.\n" + loop + loop + loop + loop + loop
+        }
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: false)
+        try await waitUntilDone()
+        XCTAssertTrue(studio.notes.contains { $0.contains("herhaalde zichzelf") }, "\(studio.notes)")
+        XCTAssertFalse(studio.notes.contains { $0.contains("te lang werd") })
+        let first = DraftSections.list(studio.text)[0]
+        let body = (studio.text as NSString).substring(with: first.range)
+        XCTAssertEqual(body.components(separatedBy: "niet in aanmerking komt").count - 1, 1, "one copy of the line stays")
+        // every piece of writing asks for the DRY sampler
+        let writing = FakeModel.requests.filter { $0.body["max_tokens"] != nil }
+        XCTAssertFalse(writing.isEmpty)
+        XCTAssertTrue(writing.allSatisfy { ($0.body["dry_multiplier"] as? Double) == 0.8 })
+    }
+
     func testWritingKeepsThePlannedSections() async throws {
         FakeModel.answer = { system, user in
             if system.contains("hoe een document eruit moet zien") { return Self.plan }

@@ -218,7 +218,7 @@ final class TelegramBridge {
     /// A run waits for a yes: a card in Telegram for a Telegram conversation, and for a task when its results go to
     /// Telegram. Administrator rights are only approved on the Mac.
     func approval(_ a: ChatClient.Approval, isTask: Bool) {
-        guard let bot = service.bot, service.isOnline else { return }
+        guard let bot = service.bot, service.isRunning else { return }
         let c = store.conversations.first { $0.id == a.conversation }
         let target = c?.telegram ?? (isTask && Settings.shared.telegramNotify ? service.notifyTarget?.id : nil)
         guard let target else { return }
@@ -278,7 +278,7 @@ final class TelegramBridge {
 
     /// A task or the heartbeat has something to say: also to Telegram, when that is on.
     func notify(_ title: String, _ body: String) {
-        guard Settings.shared.telegramNotify, let bot = service.bot, service.isOnline, let to = service.notifyTarget else { return }
+        guard Settings.shared.telegramNotify, let bot = service.bot, service.isRunning, let to = service.notifyTarget else { return }
         let text = title + (body.isEmpty ? "" : "\n" + body)
         Task { _ = try? await bot.send(to.id, String(text.prefix(TelegramFormat.limit))) }
     }

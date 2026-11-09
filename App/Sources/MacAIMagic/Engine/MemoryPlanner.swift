@@ -50,8 +50,10 @@ enum MemoryPlanner {
     static func fit(_ model: ModelInfo, physical: UInt64) -> Fit {
         let memory = model.memory ?? model.totalSize
         if memory + minimumOverhead + osHeadroom <= physical { return .fits }
-        // no experts to keep behind: what does not stay in memory is read back by macOS, whatever the size of this Mac
-        if model.isPlain { return .streams }
+        // no experts to keep behind: what does not stay in memory is read back by macOS, whatever the size of this Mac.
+        // The same for a small model with experts whose weights fit in memory (Ling-3.0-tiny on 8 GB): macOS keeps most
+        // of it in its cache and reads the rest back; the reserves below are for models many times larger.
+        if model.isPlain || memory + minimumOverhead <= physical { return .streams }
         // streaming: the dense weights, the prompt buffers and an expert cache on the GPU, plus the staging reserve
         let dense = model.dense ?? memory / 10
         let buffers: UInt64 = isSmallMac(physical) ? 2_500_000_000 : 6_000_000_000

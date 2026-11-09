@@ -661,7 +661,8 @@ final class DocumentStudio: ObservableObject {
                 answer = try await LocalModel.complete(url: url, model: model, system: system, user: prompt, thinking: 1500, maxTokens: limit, temperature: 0.5) { show($0) }
                 body = DraftSections.withoutHeadings(DraftSections.cleaned(answer.text, removingHeading: section.title))
             }
-            if answer.cutOff { notes.append(L("Sectie '\(section.title)' is afgebroken omdat die te lang werd; controleer het einde.")) }
+            if answer.looped { notes.append(L("Het model herhaalde zichzelf in '\(section.title)'; de herhaling is weggelaten. Controleer het einde.")) }
+            else if answer.cutOff { notes.append(L("Sectie '\(section.title)' is afgebroken omdat die te lang werd; controleer het einde.")) }
             guard !body.isEmpty else {
                 // one silent section is no reason to throw away the others: it stays as it was, for the user to see
                 text = before as String

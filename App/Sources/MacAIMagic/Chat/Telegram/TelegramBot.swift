@@ -105,8 +105,12 @@ struct TelegramBot {
         req.httpBody = try JSONSerialization.data(withJSONObject: params)
         let data: Data, response: URLResponse
         do { (data, response) = try await session.data(for: req) } catch {
-            // the token is in the address: never show it
-            throw BotError.network(error.localizedDescription.replacingOccurrences(of: token, with: "…"))
+            // a pooled connection that was closed fails once; try such a request once more (not the long poll)
+            let retry = method != "getUpdates" && !(error is CancellationError) && (error as? URLError)?.code != .cancelled
+            if retry, let again = try? await session.data(for: req) { (data, response) = again } else {
+                // the token is in the address: never show it
+                throw BotError.network(error.localizedDescription.replacingOccurrences(of: token, with: "…"))
+            }
         }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         let reply = try? Self.decoder.decode(Reply<T>.self, from: data)

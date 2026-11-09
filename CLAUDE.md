@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `eccb3d8`** (2026-11-07: version 1.11.0, made from here). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `1cf5577`** (2026-11-09: the answer card and thinking levels, made from here; Windows is at 1.14.4). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -36,7 +36,13 @@ Commit on `main` and push: the other machine only sees `main`.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
 
-**Still open after the take-over of `eccb3d8`:**
+**Taken over from `a320ea0` … `1cf5577` (2026-11-09):** Ling-3.0-tiny as the model for a Mac with 8 GB (`7b921e5`, `5cecf08`; Nanbeige was never released and is not taken), the loop guard and the DRY sampler in Documents (`62b9b0e`), and a Telegram card that no longer drops during a passing network problem (`a320ea0`). Not needed: the Windows speech engine (`a5a23c9`, the Mac has SpeechAnalyzer), packaging (`c0c512f`, `62b9b0e`'s setup), the README (`f2a0a16`), and the commits that take over the Mac's own work (`4c845e6`, `b7517f6`, `00d0211`, `1cf5577`).
+
+**Still open after the take-over of `1cf5577`:**
+
+- Ling-3.0-tiny was measured on the M3 Max only (also with all experts on the processor, as an 8 GB Mac runs it); not on a Mac with 8 or 16 GB.
+
+**Still open from the take-over of `eccb3d8`:**
 
 - `d97fc36`, `de64e73` (skipping experts on GLM) do not apply: they need the Windows main engine.
 - `3505bb6`: the 8-bit KV cache costs 9-17% of the writing speed here (docs/RESEARCH.md section 9), so the Mac keeps 16 bits. Its "Exporteer meting" and "Deel op GitHub" were added here on the owner's request (`942aead`), with the Mac's own form in `.github/ISSUE_TEMPLATE/meting.yml`.

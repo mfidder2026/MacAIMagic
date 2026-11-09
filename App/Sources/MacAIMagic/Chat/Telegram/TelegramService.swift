@@ -99,6 +99,8 @@ final class TelegramService: ObservableObject {
 
     var bot: TelegramBot? { token.map { TelegramBot(token: $0, base: base) } }
     var isOnline: Bool { if case .online = status { return true } else { return false } }
+    /// The bot is listening, also while a passing network problem shows as `.problem`: cards and reports still go.
+    var isRunning: Bool { poll != nil }
     var accounts: [TelegramAccount] { access.accounts }
     /// Where task results and the heartbeat go: the first account paired.
     var notifyTarget: TelegramAccount? { access.accounts.first }

@@ -294,6 +294,22 @@
       "memory": 5190500352,
       "dense": 5190500352,
       "summary": "8B · 4 bit · 5 GB in het geheugen · voor een Mac met weinig geheugen"
+    },
+    {
+      "id": "ling-3.0-tiny-q4",
+      "name": "Ling-3.0-tiny Q4",
+      "family": "ling",
+      "files": [
+        {
+          "local": "ling-3.0-tiny-q4.gguf",
+          "size": 4917354688,
+          "sha256": "5eb12d8150f502e5ef15c05f0a03aec72ef8b8319fbaa8b2e03b43754ce9f2c5",
+          "url": "https://huggingface.co/bartowski/Ling-3.0-tiny-GGUF/resolve/ea072726af0d2e8ba325b2f90fc0efa762105a91/Ling-3.0-tiny-Q4_K_M.gguf"
+        }
+      ],
+      "memory": 4910838400,
+      "dense": 718369408,
+      "summary": "8B MoE · 1B actief · 4 bit · 5 GB in het geheugen · snel · voor een Mac met 8 GB"
     }
   ],
   "vision": [
