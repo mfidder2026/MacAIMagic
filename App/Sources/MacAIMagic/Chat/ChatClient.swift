@@ -196,6 +196,8 @@ final class ChatClient: ObservableObject {
         var roundsSinceSteps = 0
         // a step was taken in an earlier round of this answer
         var tookSteps = false
+        // "ga door" on work that is under way: the plan was made, so even the first round only takes the next step
+        let goingOn = store.conversations.first(where: { $0.id == id }).map(Self.isGoOn) ?? false
         for turn in 0..<maxToolRounds {
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
@@ -213,7 +215,7 @@ final class ChatClient: ObservableObject {
                 guard let c = store.conversations.first(where: { $0.id == id }) else { return }
                 do {
                     result = try await stream(history: Array(c.unsummarized.dropLast()), summary: c.summary, baseURL: baseURL,
-                                                 thinkingBudget: Self.thinkingBudget(setting: Settings.shared.thinkingBudgetNow, turn: turn)) { delta in
+                                                 thinkingBudget: Self.thinkingBudget(setting: Settings.shared.thinkingBudgetNow, turn: goingOn ? turn + 1 : turn)) { delta in
                         store.update(id) { c in
                             guard let i = c.messages.lastIndex(where: { $0.id == reply.id }) else { return }
                             c.messages[i].text += delta.content
@@ -943,6 +945,25 @@ final class ChatClient: ObservableObject {
     /// next step, and DeepSeek-V4.1-Flash used the full 16,000 tokens in nearly every round (14 minutes a step at 19
     /// tokens/s, 2026-11-08). So later rounds get at most this much, also when the setting has no limit.
     static let followUpThinking = 4_000
+
+    /// The user only says to go on ("ga door", "verder", "continue") with work the model was doing: its last answer
+    /// took steps. Such a round needs no new plan. After the first round of a new task it measured 16,328 tokens of
+    /// thinking, 14 minutes (DeepSeek-V4.1-Flash, 2026-11-09).
+    nonisolated static func isGoOn(_ c: Conversation) -> Bool {
+        guard let i = c.messages.lastIndex(where: { $0.role == .user && $0.automatic != true }),
+              isGoOnText(c.messages[i].text) else { return false }
+        return c.messages[..<i].reversed().prefix { !($0.role == .user && $0.automatic != true) }
+            .contains { $0.role == .assistant && !$0.toolCalls.isEmpty }
+    }
+
+    nonisolated static func isGoOnText(_ text: String) -> Bool {
+        let t = text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        guard t.count <= 40 else { return false }
+        let words = ["ga door", "ga verder", "ga maar door", "doorgaan", "verder", "door", "ga door aub", "ga door graag",
+                     "go on", "continue", "keep going", "carry on", "weiter", "mach weiter", "continue s'il te plaît", "continuez", "vas-y"]
+        // "ga door graag" yes, "door welke deur?" no: only a phrase of two words or more may have a few after it
+        return words.contains(t) || words.contains { $0.contains(" ") && t.hasPrefix($0 + " ") && t.count <= $0.count + 12 }
+    }
 
     /// The thinking budget of round `turn` (0 is the first) of an answer; 0 means no limit.
     nonisolated static func thinkingBudget(setting: Int, turn: Int) -> Int {

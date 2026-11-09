@@ -90,3 +90,27 @@ final class ThinkingLevelTests: XCTestCase {
         XCTAssertEqual(ChatClient.thinkingBudget(setting: Settings.ThinkingLevel.low.budget!, turn: 3), 2_000)
     }
 }
+
+/// "ga door" on work under way thinks like a later round; a real new question keeps the full budget.
+final class GoOnThinkingTests: XCTestCase {
+    func testGoOnText() {
+        for t in ["ga door", "Ga door!", "verder", "continue", "Go on.", "ga door graag", "mach weiter"] {
+            XCTAssertTrue(ChatClient.isGoOnText(t), t)
+        }
+        for t in ["ga door met het spel maar maak de spookjes groter en sneller", "door welke deur?", "maak een spel", ""] {
+            XCTAssertFalse(ChatClient.isGoOnText(t), t)
+        }
+    }
+
+    func testOnlyAfterAnswerWithSteps() {
+        var worked = ChatMessage(role: .assistant, text: "")
+        worked.toolCalls = [ToolCall(id: "1", name: "run_command", arguments: "{}")]
+        var c = Conversation()
+        c.messages = [ChatMessage(role: .user, text: "maak een spel"), worked, ChatMessage(role: .assistant, text: "pauze"),
+                      ChatMessage(role: .user, text: "ga door")]
+        XCTAssertTrue(ChatClient.isGoOn(c))
+        c.messages = [ChatMessage(role: .user, text: "hoi"), ChatMessage(role: .assistant, text: "hallo"),
+                      ChatMessage(role: .user, text: "ga door")]
+        XCTAssertFalse(ChatClient.isGoOn(c), "no work under way: a full first round")
+    }
+}
