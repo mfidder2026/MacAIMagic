@@ -83,6 +83,7 @@ final class AppState: ObservableObject {
 
     init() {
         chat.metrics = metrics
+        chat.slots = engine.slots
         chat.taskStore = tasks
         chat.appControl = appControl
         // the menu bar item depends on the tasks

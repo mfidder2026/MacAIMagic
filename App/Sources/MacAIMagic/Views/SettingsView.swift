@@ -72,6 +72,13 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle(L("Afbeeldingen (vision, 1 GB extra)"), isOn: $settings.vision)
                     Toggle(L("Sneller schrijven met MTP (GLM en Qwen)"), isOn: $settings.mtp)
+                    Toggle(L("Gesprekken in de engine bewaren"), isOn: $settings.keepEngineMemory)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(L("Wat de engine van een gesprek gelezen heeft, gaat naar de SSD als een ander gesprek of een taak het model krijgt, of als de engine stopt. Verder gaan leest het dan niet opnieuw: bij DeepSeek scheelt dat minuten. Hooguit 40 GB, de oudste gaan eerst."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(L("Wis (\(SlotKeeper.usedText))")) { SlotKeeper.clearAll() }.controlSize(.small)
+                    }
                     Toggle(L("Engine starten bij openen app"), isOn: $settings.autoStart)
                     Toggle(L("Bewegende achtergrond"), isOn: $settings.animatedBackground)
                 }

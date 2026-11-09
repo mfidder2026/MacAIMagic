@@ -1,7 +1,7 @@
 ---
 title: Settings
 icon: gearshape
-keywords: settings language preferences context vision MTP port address system management skills tasks heartbeat menu bar login
+keywords: settings memory keep conversation language preferences context vision MTP port address system management skills tasks heartbeat menu bar login
 ---
 Open the settings with **⌘,**.
 
@@ -14,6 +14,7 @@ Open the settings with **⌘,**.
 ## Engine
 - **Context**: from 32K to 1M tokens. More context takes more memory.
 - **Images (vision)**, **MTP**, **Start engine when the app opens**, **Moving background**.
+- **Keep conversations in the engine** (on by default): what the engine has read of a conversation goes to the SSD as soon as another conversation, a task or Documents gets the model, and when the engine stops. When you go on later, also after a restart, the model does not read that conversation again. With a large model that saves minutes. It takes at most 40 GB (and never more than a tenth of the free disk); the oldest go first, and a deleted conversation takes its own along. **Clear** frees the space at once.
 - **Server**: address, port and API key (see *Local API*).
 
 ## Connectors

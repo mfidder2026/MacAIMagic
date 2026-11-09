@@ -147,6 +147,7 @@ final class ConversationStore: ObservableObject {
 
     func delete(_ id: Conversation.ID) {
         conversations.removeAll { $0.id == id }
+        SlotKeeper.forgetAll(id)
         if conversations.isEmpty { conversations = [Conversation()] }
         startInLastFolder()
         if selection == id { selection = conversations.first?.id }

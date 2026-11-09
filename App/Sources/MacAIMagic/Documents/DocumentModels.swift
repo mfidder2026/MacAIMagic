@@ -205,6 +205,8 @@ enum LocalModel {
         if thinking > 0 {
             body["reasoning_budget_message"] = "\n\n" + L("Genoeg nagedacht; nu schrijf ik het antwoord.") + "\n"
         }
+        // the chat's conversation in this engine is saved first, so it need not be read again afterwards
+        await SlotKeeper.yield(to: url)
         var req = URLRequest(url: url.appendingPathComponent("v1/chat/completions"))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")

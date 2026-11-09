@@ -149,7 +149,12 @@ that types and reads the C64 screen) is the kind of skill the app lets you add.
 - **Images**: button, drag and drop, or paste (⌘V, also while typing: screenshots, copied images, image files from the Finder)
 - **Web search**: the model calls `web_search` and `fetch_url` by itself. The app runs them (DuckDuckGo, or Brave Search
   with your own API key) and shows each step and the sources.
-- Conversations are saved locally
+- Conversations are saved locally, and so is **the engine's place in them**: when another conversation, a task or
+  Documents gets the model, or the engine stops, what it has read of the conversation goes to the SSD
+  (`--slot-save-path`) and comes back when you go on, also after a restart. Measured with Qwen3.8-Flash-Next on the M3
+  Max: after a restart a conversation of 18,000 tokens went on reading 81 tokens (0.6 s) instead of all of it (about
+  45 s); for DeepSeek-V4.1-Flash, which reads ~145 tokens/s, a conversation of 30,000 tokens is 3.5 minutes. At most
+  40 GB, the oldest first (Settings → Engine).
 - The Mac stays awake while the engine runs (the display may still sleep), so long answers and benchmarks don't freeze
 - Local API on `http://127.0.0.1:8080`: OpenAI (`/v1`), Anthropic (`/v1/messages`) and Responses (`/v1/responses`)
 - **Help** (sidebar → **Hulp**, the **?** at the top right of every page, or ⌘?): searchable help for every part of

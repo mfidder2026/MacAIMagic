@@ -1057,5 +1057,10 @@
  "Hoe lang het model eerst nadenkt: langer is beter bij lastige vragen, maar trager": "Wie lange das Modell zuerst nachdenkt: länger ist bei schwierigen Fragen besser, aber langsamer",
  "Geldt voor Denken: hoog. Daarna schrijft het model zijn antwoord. Zonder grens kan een model bij een lastige vraag blijven twijfelen en nooit antwoorden. Laag is 2.000 tokens, normaal 8.000.": "Gilt für Denken: hoch. Danach schreibt das Modell seine Antwort. Ohne Grenze kann ein Modell bei einer schwierigen Frage weiter zweifeln und nie antworten. Niedrig sind 2.000 Tokens, normal 8.000.",
  "8B MoE · 1B actief · 4 bit · 5 GB in het geheugen · snel · voor een Mac met 8 GB": "8B MoE · 1B aktiv · 4 Bit · 5 GB im Speicher · schnell · für einen Mac mit 8 GB",
- "Het model herhaalde zichzelf in '%@'; de herhaling is weggelaten. Controleer het einde.": "Das Modell hat sich in '%@' wiederholt; die Wiederholung wurde weggelassen. Prüfen Sie das Ende."
+ "Het model herhaalde zichzelf in '%@'; de herhaling is weggelaten. Controleer het einde.": "Das Modell hat sich in '%@' wiederholt; die Wiederholung wurde weggelassen. Prüfen Sie das Ende.",
+ "Gesprekken in de engine bewaren": "Gespräche in der Engine behalten",
+ "Wat de engine van een gesprek gelezen heeft, gaat naar de SSD als een ander gesprek of een taak het model krijgt, of als de engine stopt. Verder gaan leest het dan niet opnieuw: bij DeepSeek scheelt dat minuten. Hooguit 40 GB, de oudste gaan eerst.": "Was die Engine von einem Gespräch gelesen hat, geht auf die SSD, wenn ein anderes Gespräch oder eine Aufgabe das Modell bekommt oder die Engine stoppt. Beim Weitermachen wird es dann nicht neu gelesen: bei DeepSeek spart das Minuten. Höchstens 40 GB, die ältesten gehen zuerst.",
+ "Wis (%@)": "Löschen (%@)",
+ "1 eerdere stap": "1 früherer Schritt",
+ "Gedachtegang en 1 stap": "Gedankengang und 1 Schritt"
 }

@@ -165,6 +165,9 @@ final class Settings: ObservableObject {
     }
     /// Speculative decoding with the model's multi-token prediction head (GLM, Qwen).
     @AppStorage("mtp") var mtp = true
+    /// Save a conversation's place in the engine when another one takes it or the engine stops, and read it back
+    /// (SlotKeeper): continuing a long conversation then does not read it all again.
+    @AppStorage("keepEngineMemory") var keepEngineMemory = true
     /// Drifting, brightening background colours (off: a still background, calmer)
     @AppStorage("animatedBackground") var animatedBackground = false
     /// Cluster: "main" (this Mac runs the engine, helpers add memory) or "helper" (this Mac lends its GPU)

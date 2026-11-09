@@ -527,7 +527,7 @@ struct AnswerView: View {
                     let hidden = showEarlier ? 0 : parts.count - Self.live
                     if hidden > 0 {
                         Button { showEarlier = true } label: {
-                            Label(L("\(hidden) eerdere stappen"), systemImage: "list.bullet").font(.callout).foregroundStyle(.tertiary)
+                            Label((hidden == 1 ? L("1 eerdere stap") : L("\(hidden) eerdere stappen")), systemImage: "list.bullet").font(.callout).foregroundStyle(.tertiary)
                         }
                         .buttonStyle(.plain)
                     }
@@ -592,7 +592,7 @@ struct AnswerView: View {
                 }
                 .padding(.top, 6)
             } label: {
-                Label(steps == 0 ? L("Gedachtegang") : L("Gedachtegang en \(steps) stappen"),
+                Label(steps == 0 ? L("Gedachtegang") : steps == 1 ? L("Gedachtegang en 1 stap") : L("Gedachtegang en \(steps) stappen"),
                       systemImage: steps == 0 ? "brain" : "list.bullet")
                     .font(.callout.weight(.medium)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

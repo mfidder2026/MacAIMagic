@@ -49,6 +49,11 @@ BASIC V2, met een spook-sprite en muziek in de intro:
 |---|---|
 | ![De intro van het C64-spel](screenshots/c64-intro.png) | ![Een kamer in het C64-spel](screenshots/c64-game.png) |
 
+**Gesprekken blijven in de engine.** Krijgt een ander gesprek, een taak of Documenten het model, of stopt de engine,
+dan gaat wat de engine van een gesprek gelezen heeft naar de SSD, en het komt terug als je verdergaat, ook na een
+herstart. Gemeten met Qwen3.8-Flash-Next: na een herstart las een gesprek van 18.000 tokens nog 81 tokens (0,6 s)
+in plaats van alles (~45 s); bij DeepSeek scheelt het minuten. Hooguit 40 GB (Instellingen → Engine).
+
 **Systeemcontrole**: bij elke start controleert de app (zijbalk → **Systeem**) de engine, het downloadgereedschap, de
 modellen, de schijfruimte, de GPU-limiet en de ontwikkeltools van Apple. Wat hij zelf kan oplossen doet hij, de rest
 biedt hij aan met één knop. Hij raadt het beste model aan dat helemaal in het geheugen van deze Mac past (128 GB:

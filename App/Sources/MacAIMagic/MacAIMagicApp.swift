@@ -81,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         MainActor.assumeIsolated {
             app?.store.save()
-            app?.engine.stop()
+            app?.engine.stopForQuit()
             app?.documentEngines.fast.stop()
             app?.cluster.stopHelper()
             app?.documents.save()

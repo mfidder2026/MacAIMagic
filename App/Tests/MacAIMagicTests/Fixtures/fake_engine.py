@@ -1,8 +1,10 @@
 """A stand-in for llama-server's chat API, for the tests of the chat client.
 
 The last user message decides: "SCHRIJF" asks for write_file, "MAILSTUUR" for mail_send (and after the result says KLAAR), "PLAN" sets a
-task list, anything else gets "Antwoord op: <text>". GET /stats says how many requests ran at once at most.
-Usage: fake_engine.py <port>
+task list, anything else gets "Antwoord op: <text>". GET /stats says how many requests ran at once at most, and which
+slot saves and restores came (POST /slots/0?action=save|restore, as llama-server with --slot-save-path; a save writes the
+file in <slotdir>, a restore of a file that is not there fails).
+Usage: fake_engine.py <port> [slotdir]
 """
 import json, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -11,6 +13,8 @@ lock = threading.Lock()
 now = 0
 most = 0
 requests = []
+slots = []
+slotdir = sys.argv[2] if len(sys.argv) > 2 else None
 
 
 def chunk(delta, finish=None):
@@ -22,7 +26,7 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        body = json.dumps({"most": most, "requests": len(requests)}).encode()
+        body = json.dumps({"most": most, "requests": len(requests), "slots": slots}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
@@ -32,6 +36,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         global now, most
         req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path.startswith("/slots/"):
+            return self.slot(req)
         with lock:
             now += 1
             most = max(most, now)
@@ -41,6 +47,25 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             with lock:
                 now -= 1
+
+    def slot(self, req):
+        import os
+        action = self.path.split("action=")[-1]
+        name = req.get("filename", "")
+        path = os.path.join(slotdir, name) if slotdir else None
+        ok = True
+        if action == "save" and path:
+            open(path, "wb").write(b"kv" * 64)
+        elif action == "restore":
+            ok = bool(path) and os.path.exists(path)
+        with lock:
+            slots.append(action + " " + name.split("--")[-1].removesuffix(".bin"))
+        body = json.dumps({"id_slot": 0, "filename": name} if ok else {"error": "file not found"}).encode()
+        self.send_response(200 if ok else 400)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def answer(self, req):
         msgs = req["messages"]

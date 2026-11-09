@@ -348,3 +348,28 @@ cache from the same memory as everything else, so 8 bits only saves memory, and 
 contexts the app uses; the gain after 16K for Ministral is within the noise. The app keeps the cache in 16 bits. It could
 pay on a Mac with 8 or 16 GB, where the context is short for lack of memory; that has not been measured.
 
+
+## 10. A conversation's place in the engine, kept across a switch and a restart (2026-11-09)
+
+The engine runs with one slot (`--parallel 1`). What it read of a conversation (its KV cache) was lost when another
+conversation, a task, the heartbeat or Documents used the model, and when the engine stopped. llama.cpp's own prompt
+cache in RAM (`--cache-ram`, 8 GB by default) helps between conversations, but one DeepSeek-V4.1-Flash state is 5.3 GB
+(engine.log: "removing oldest entry (size = 5321.999 MiB)"), so a second conversation pushes the first out, and nothing
+survives a restart. The idea came from colibri (github.com/JustVugg/colibri), which keeps a conversation's state
+across restarts and "parks" it during an agent's side requests.
+
+llama-server can write a slot to a file and read it back (`--slot-save-path`, `POST /slots/0?action=save|restore`).
+The app now does so (`SlotKeeper`): the conversation that had the engine is saved when another one gets it, or before
+the engine stops (also when the app quits); a conversation that comes back is restored first. The file name holds the
+model, the context size, vision and the draft head, so a state never goes into an engine set up differently.
+
+Measured:
+
+| | |
+|---|---|
+| Ling-3.0-tiny on the CPU, a 6,820-token prompt | read in 23 s; saved in 0.05 s (122 MB); restored in 0.02 s, also in an engine started anew; the next turn read 36 tokens |
+| Ministral-3-8B with its vision projector | saves (544 tokens, 76 MB): vision does not stop it |
+| Qwen3.8-Flash-Next Q4 in the app (vision and MTP on), a conversation of 18,000 tokens | stopping the model saved 1.2 GB, including 5 context checkpoints (563 MB) and the MTP draft state (44 MB); after starting it again the next question read 81 tokens in 0.64 s instead of the whole conversation (~45 s at ~400 tokens/s) |
+
+Not measured: DeepSeek-V4.1-Flash and GLM-5.3-Flash themselves (their states are 5 GB and more; a few seconds on the
+SSD), and a cluster, where the app does not use it.

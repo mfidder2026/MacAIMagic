@@ -43,6 +43,8 @@ final class ChatClient: ObservableObject {
     static let imagesKept = 3
     /// Gets a token count per streamed delta, for the live speed chart.
     weak var metrics: LiveMetrics?
+    /// The engine's keeper of conversation states: whoever gets the model, gets its own place back.
+    weak var slots: SlotKeeper?
     /// The model the engine runs, for the system prompt.
     var modelName = "DeepSeek-V4.1-Flash"
     private var tasks: [Conversation.ID: Task<Void, Never>] = [:]
@@ -627,6 +629,7 @@ final class ChatClient: ObservableObject {
         req.httpBody = try? JSONSerialization.data(withJSONObject: body, options: .sortedKeys)
         req.timeoutInterval = 900
         guard await gate.acquire(id) else { return }
+        await slots?.enter(id)
         let reply = try? await URLSession.shared.data(for: req)
         gate.release()
         guard let (data, resp) = reply, (resp as? HTTPURLResponse)?.statusCode == 200,
@@ -764,6 +767,7 @@ final class ChatClient: ObservableObject {
         req.timeoutInterval = 1800
         func complete() async -> String? {
             guard await gate.acquire(id) else { return nil }
+            await slots?.enter(id)
             let reply = try? await URLSession.shared.data(for: req)
             gate.release()
             guard let (data, resp) = reply, (resp as? HTTPURLResponse)?.statusCode == 200,
@@ -944,7 +948,7 @@ final class ChatClient: ObservableObject {
     /// Thinking in the later rounds of one answer. The first round plans the work; after that a round only takes the
     /// next step, and DeepSeek-V4.1-Flash used the full 16,000 tokens in nearly every round (14 minutes a step at 19
     /// tokens/s, 2026-11-08). So later rounds get at most this much, also when the setting has no limit.
-    static let followUpThinking = 4_000
+    nonisolated static let followUpThinking = 4_000
 
     /// The user only says to go on ("ga door", "verder", "continue") with work the model was doing: its last answer
     /// took steps. Such a round needs no new plan. After the first round of a new task it measured 16,328 tokens of
@@ -1007,6 +1011,7 @@ final class ChatClient: ObservableObject {
         let owner = Self.runConversation ?? UUID()
         guard await gate.acquire(owner) else { throw CancellationError() }
         defer { gate.release() }
+        await slots?.enter(owner)
         let (bytes, resp) = try await URLSession.shared.bytes(for: req)
         if let http = resp as? HTTPURLResponse, http.statusCode != 200 {
             var msg = ""

@@ -27,9 +27,18 @@ final class EngineController: ObservableObject {
     private let fixedPort: Int?
     private let logFile: URL
 
-    init(port: Int? = nil, logFile: URL = Paths.engineLog) {
+    /// Keeps a conversation's place in the engine across a switch and a restart (see SlotKeeper).
+    let slots: SlotKeeper
+
+    init(port: Int? = nil, logFile: URL = Paths.engineLog, slots: SlotKeeper? = nil) {
         fixedPort = port
         self.logFile = logFile
+        self.slots = slots ?? SlotKeeper()
+    }
+
+    /// What a saved conversation state belongs to: the same model, context, vision and draft head.
+    nonisolated static func slotKey(model: ModelInfo, plan: MemoryPlan, vision: URL?, speculative: Bool) -> String {
+        "\(model.id)-c\(plan.contextSize)-v\(vision == nil ? 0 : 1)-s\(speculative ? 1 : 0)"
     }
 
     private var host: String { fixedPort == nil ? Settings.shared.host : "127.0.0.1" }
@@ -76,6 +85,8 @@ final class EngineController: ObservableObject {
         if !plan.fitsInMemory || plan.experts == 0 { args += ["--no-repack"] }
         if plan.expertCache > 0 { args += ["--moe-cache-mib", String(plan.expertCache >> 20)] }
         if let vision { args += ["--mmproj", vision.path] }
+        // a conversation's place in the engine can be saved and read back (not tried on a cluster)
+        if s.keepEngineMemory && rpc == nil { args += ["--slot-save-path", slots.folder.path] }
         // cluster: the helpers' GPUs join as RPC devices
         if let rpc { args += ["--rpc", rpc] }
         // multi-token prediction: a small head guesses the next tokens, the model checks them in one pass
@@ -139,6 +150,12 @@ final class EngineController: ObservableObject {
         }
         process = p
         preventSleep(true)
+        if Settings.shared.keepEngineMemory && rpc == nil {
+            let speculative = p.arguments!.contains("--spec-type")
+            slots.started(baseURL: baseURL, key: Self.slotKey(model: model, plan: plan, vision: vision, speculative: speculative))
+        } else {
+            slots.stopped()
+        }
         loadProgress = 0
         logTail = ["$ \(bin.lastPathComponent) " + p.arguments!.joined(separator: " ")]
         state = .starting(L("Model laden…"))
@@ -159,6 +176,26 @@ final class EngineController: ObservableObject {
     private var stopping = false
 
     func stop() {
+        // the conversation in the engine is saved first, so it continues after a restart without reading it all again
+        if process != nil, state == .running, !stopping, slots.hasUnsaved {
+            stopping = true
+            healthTask?.cancel()
+            Task {
+                await slots.saveCurrent()
+                stopNow()
+            }
+            return
+        }
+        stopNow()
+    }
+
+    /// For quitting the app: the save blocks (nothing async runs any more), then the engine stops.
+    func stopForQuit() {
+        if process != nil, state == .running { slots.saveBlocking() }
+        stopNow()
+    }
+
+    private func stopNow() {
         stopping = process != nil
         healthTask?.cancel()
         process?.interrupt()
@@ -196,6 +233,7 @@ final class EngineController: ObservableObject {
     private func terminated(code: Int32) {
         healthTask?.cancel()
         process = nil
+        slots.stopped()
         preventSleep(false)
         try? logHandle?.close()
         logHandle = nil
