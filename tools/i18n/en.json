@@ -1062,5 +1062,22 @@
  "Wat de engine van een gesprek gelezen heeft, gaat naar de SSD als een ander gesprek of een taak het model krijgt, of als de engine stopt. Verder gaan leest het dan niet opnieuw: bij DeepSeek scheelt dat minuten. Hooguit 40 GB, de oudste gaan eerst.": "What the engine has read of a conversation goes to the SSD when another conversation or a task gets the model, or when the engine stops. Going on then does not read it again: with DeepSeek that saves minutes. At most 40 GB, the oldest go first.",
  "Wis (%@)": "Clear (%@)",
  "1 eerdere stap": "1 earlier step",
- "Gedachtegang en 1 stap": "Reasoning and 1 step"
+ "Gedachtegang en 1 stap": "Reasoning and 1 step",
+ "Geen tekstbestand (%@).": "Not a text file (%@).",
+ "De eerste %@ van %@.": "The first %@ of %@.",
+ "%@ ontladen… (%@)": "%@ unloading… (%@)",
+ "%@ ontladen…": "%@ unloading…",
+ "… en nog %@": "… and %@ more",
+ "Verwijder project…": "Delete project…",
+ "Project '%@' verwijderen?": "Delete project '%@'?",
+ "Naar de prullenmand": "Move to Trash",
+ "Alleen uit de lijst": "Only remove from the list",
+ "Naar de prullenmand verplaatst de hele map: concepten, documenten, bijlagen en huisstijl. Je kunt hem daar terugzetten. Alleen uit de lijst laat de map staan.": "Move to Trash moves the whole folder: drafts, documents, attachments and house style. You can put it back from there. Only remove from the list leaves the folder where it is.",
+ "Model ontladen…": "Unloading model…",
+ "Model geladen": "Model loaded",
+ "Verberg de bestanden van de werkmap": "Hide the working folder's files",
+ "Toon de bestanden van de werkmap naast de chat": "Show the working folder's files beside the chat",
+ "nog ongeveer %@ s": "about %@ s to go",
+ "Het eerste laden van %@ GB duurt enkele minuten.": "The first load of %@ GB takes a few minutes.",
+ "Het geheugen komt vrij zodra het model gestopt is.": "The memory is freed as soon as the model has stopped."
 }

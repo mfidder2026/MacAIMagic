@@ -156,6 +156,28 @@ final class DocumentStudio: ObservableObject {
         }
     }
 
+    /// How a project goes to the Trash (a stand-in in the tests).
+    var trashItem: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }
+
+    /// Deletes the open project: `trash` moves its whole folder (drafts, documents, attachments, house style) to the
+    /// Trash, where it can be put back; otherwise it only leaves the list (a folder opened from elsewhere may hold more).
+    /// Then the first other project opens, or a fresh "Mijn project".
+    func removeProject(trash: Bool) {
+        let gone = folder
+        // the draft is written first, so nothing writes back into the folder once it is gone
+        save()
+        selected = nil
+        if trash {
+            do { try trashItem(gone) } catch { problem = error.localizedDescription; return }
+        }
+        projects.removeAll { $0.standardizedFileURL == gone.standardizedFileURL }
+        Settings.shared.documentProjects = projects.map(\.path).joined(separator: "\n")
+        let next = projects.first { FileManager.default.fileExists(atPath: $0.path) }
+            ?? root.appendingPathComponent(L("Mijn project"), isDirectory: true)
+        try? FileManager.default.createDirectory(at: next, withIntermediateDirectories: true)
+        choose(folder: next)
+    }
+
     func choose(folder new: URL) {
         save()
         folder = new

@@ -353,6 +353,7 @@ private struct PillBody: View {
         case .running: return Part(text: role.map { L("\(name) actief (\($0))") } ?? L("\(name) actief"), color: Theme.mint, rank: 1)
         case .starting: return Part(text: role.map { L("\(name) laden… (\($0))") } ?? L("\(name) laden…"), color: Theme.amber, rank: 2)
         case .failed: return Part(text: L("\(name): fout"), color: .red, rank: 3)
+        case .stopping: return Part(text: role.map { L("\(name) ontladen… (\($0))") } ?? L("\(name) ontladen…"), color: Theme.status(.stopping), rank: 2)
         case .stopped: return nil
         }
     }
@@ -370,10 +371,17 @@ private struct PillBody: View {
     var body: some View {
         let list = parts
         let color = list.max { $0.rank < $1.rank }?.color ?? .gray
+        // loading or unloading: a gauge with the percentage in place of the dot
+        let moving = [engine, fast].first { if case .starting = $0.state { return true }; return $0.state == .stopping }
         HStack(spacing: 7) {
-            Circle().fill(color).frame(width: 8, height: 8).shadow(color: color, radius: 4)
+            if let moving {
+                LoadGauge(engine: moving, size: 13)
+            } else {
+                Circle().fill(color).frame(width: 8, height: 8).shadow(color: color, radius: 4)
+            }
             Text(list.isEmpty ? L("Geen model · klik om te starten") : list.map(\.text).joined(separator: " · "))
                 .font(.callout.weight(.medium)).lineLimit(1)
+            if let moving { LoadGauge(engine: moving, size: 0, showsText: true).font(.callout.weight(.medium)).foregroundStyle(.secondary) }
         }
         .padding(.horizontal, 11).padding(.vertical, 5)
         .background(.ultraThinMaterial, in: Capsule())

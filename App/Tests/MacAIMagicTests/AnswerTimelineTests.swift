@@ -53,7 +53,15 @@ final class AnswerTimelineTests: XCTestCase {
 
     func testGist() {
         XCTAssertEqual(PartView.gist("regel een\nregel twee", live: false), "regel een regel twee")
-        XCTAssertEqual(PartView.gist(String(repeating: "a", count: 500) + "einde", live: true).suffix(5), "einde")
+        // while thinking: the last lines one below the other, not one block that runs together
+        XCTAssertEqual(PartView.gist("een\ntwee\n\n  drie\nvier\nvijf", live: true), "twee\ndrie\nvier\nvijf")
+        // the line being written keeps its end, an earlier long one its start
+        let live = PartView.gist(String(repeating: "b", count: 300) + "\n" + String(repeating: "a", count: 500) + "einde", live: true)
+            .components(separatedBy: "\n")
+        XCTAssertEqual(live[0].count, PartView.gistWidth)
+        XCTAssertTrue(live[0].hasSuffix("…"))
+        XCTAssertTrue(live[1].hasSuffix("einde"))
+        XCTAssertEqual(live[1].count, PartView.gistWidth)
     }
 }
 

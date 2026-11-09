@@ -69,6 +69,40 @@ final class SlotKeeperTests: XCTestCase {
         XCTAssertFalse(keeper.hasUnsaved, "saved after its answer: a quit has nothing left to do")
     }
 
+    /// The notes in MACAIMAGIC.md change while a conversation goes on (the model writes lessons there): its system prompt
+    /// stays as it began, so the engine reuses what it read and a restored state still fits. A new conversation sees them.
+    func testAConversationKeepsTheNotesItBeganWith() async throws {
+        let saved = (Settings.shared.workspaceTools, Settings.shared.learnFromChats)
+        Settings.shared.workspaceTools = true
+        Settings.shared.learnFromChats = false
+        defer { Settings.shared.workspaceTools = saved.0; Settings.shared.learnFromChats = saved.1 }
+        let ws = dir.appendingPathComponent("werkmap")
+        try FileManager.default.createDirectory(at: ws, withIntermediateDirectories: true)
+        let notes = ws.appendingPathComponent("MACAIMAGIC.md")
+        try "Gebruik VICE.".write(to: notes, atomically: true, encoding: .utf8)
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        var a = Conversation(), b = Conversation()
+        a.workspace = ws.path
+        b.workspace = ws.path
+        store.conversations = [a, b]
+        let chat = ChatClient()
+
+        chat.send(text: "hallo", attachments: [], in: a.id, store: store, baseURL: url)
+        try await waitUntil { !chat.isBusy(a.id) }
+        try "Gebruik VICE.\n\n## Geleerd\n- iets nieuws".write(to: notes, atomically: true, encoding: .utf8)
+        chat.send(text: "verder", attachments: [], in: a.id, store: store, baseURL: url)
+        try await waitUntil { !chat.isBusy(a.id) }
+        chat.send(text: "nieuw", attachments: [], in: b.id, store: store, baseURL: url)
+        try await waitUntil { !chat.isBusy(b.id) }
+
+        let (data, _) = try await URLSession.shared.data(from: url.appendingPathComponent("systems"))
+        let systems = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String])
+        XCTAssertEqual(systems.count, 3)
+        XCTAssertEqual(systems[0], systems[1], "the same conversation keeps its start")
+        XCTAssertFalse(systems[1].contains("iets nieuws"))
+        XCTAssertTrue(systems[2].contains("iets nieuws"), "a new conversation reads the notes as they are now")
+    }
+
     func testAnotherEngineSetupDoesNotRestoreAndOffSavesNothing() async throws {
         let keeper = SlotKeeper(folder: dir)
         let a = UUID(), b = UUID()

@@ -29,6 +29,27 @@ final class SkillsTests: XCTestCase {
         XCTAssertTrue(Skills.run(ToolCall(id: "1", name: "use_skill", arguments: #"{"name":"nope"}"#), skills: skills).contains("no skill"))
     }
 
+    /// The same as WinAIMagic's AMacSkillPutInTheFolderLoadsWithItsFolder, the other way round: a WinAIMagic skill copied
+    /// into the user's skills folder loads, says where its files are, points its Windows folder here, and says what differs.
+    func testAWindowsSkillPutInTheFolderLoadsWithItsFolder() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("skills-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let builtin = tmp.appendingPathComponent("builtin"), user = tmp.appendingPathComponent("user")
+        for (root, dir, text) in [(builtin, "win", "---\nname: win\nplatform: windows\n---\nB"),
+                                  (user, "c64_basic", "---\nname: c64\nplatform: windows\n---\npython %LOCALAPPDATA%\\WinAIMagic\\Skills\\c64_basic\\c64run.py spel.prg")] {
+            try FileManager.default.createDirectory(at: root.appendingPathComponent(dir), withIntermediateDirectories: true)
+            try text.write(to: root.appendingPathComponent(dir).appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
+        }
+        let skills = Skills.load(from: [builtin, user], own: user)
+        XCTAssertEqual(skills.map(\.name), ["c64"], "a built-in Windows skill stays out, the user's own loads")
+        let text = Skills.run(ToolCall(id: "1", name: "use_skill", arguments: #"{"name":"c64"}"#), skills: skills)
+        let folder = try XCTUnwrap(skills.first?.folder).path
+        XCTAssertEqual(URL(fileURLWithPath: folder).resolvingSymlinksInPath(), user.appendingPathComponent("c64_basic").resolvingSymlinksInPath())
+        XCTAssertTrue(text.contains("are in: " + folder), text)
+        XCTAssertTrue(text.contains("python " + folder + "\\c64run.py"), text)
+        XCTAssertTrue(text.contains("this computer is a Mac"), text)
+    }
+
     func testBuiltInSkillsLoad() {
         let skills = Skills.load(from: [Paths.bundledSkills].compactMap { $0 })
         XCTAssertGreaterThanOrEqual(skills.count, 8)

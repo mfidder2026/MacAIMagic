@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `1cf5577`** (2026-11-09: the answer card and thinking levels, made from here; Windows is at 1.14.4). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `ea715d4`** (2026-11-09: version 1.14.8; the Mac then took 1.14.9). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -35,6 +35,8 @@ Commit on `main` and push: the other machine only sees `main`.
 5. Never present the Windows numbers as measured here. Write what was measured on this platform, and say so when something is an estimate.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
+
+**Taken over from `f77a1a4` … `ea715d4` (2026-11-09):** the model dot shows the engine state (`bbbb693`), a skill in the user's folder loads whatever its platform (`563b379`, the other way round: a Windows skill here), the last 4 thinking lines (`d1f9d01`), the load/unload gauge with a remembered clock (`abd8af4`, the Mac's own first guess: 1.5 GB/s of model memory), deleting a Documents project (`b5c78ab`), the working folder's files beside the chat (`18367d9`, polled once a second instead of a watcher). Not needed: `35cde7b` (a WinUI wrap panel), and the version commits `f77a1a4`, `7cd6c64`, `b0b381c`, `ea715d4`. The owner's C64 skill was repaired on the PC (c64build.py, tokenizing like the C64); that lives in the PC's own skills folder and is not on GitHub.
 
 **Taken over from `a320ea0` … `1cf5577` (2026-11-09):** Ling-3.0-tiny as the model for a Mac with 8 GB (`7b921e5`, `5cecf08`; Nanbeige was never released and is not taken), the loop guard and the DRY sampler in Documents (`62b9b0e`), and a Telegram card that no longer drops during a passing network problem (`a320ea0`). Not needed: the Windows speech engine (`a5a23c9`, the Mac has SpeechAnalyzer), packaging (`c0c512f`, `62b9b0e`'s setup), the README (`f2a0a16`), and the commits that take over the Mac's own work (`4c845e6`, `b7517f6`, `00d0211`, `1cf5577`).
 

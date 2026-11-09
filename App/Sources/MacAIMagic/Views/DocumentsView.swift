@@ -9,6 +9,7 @@ struct DocumentsView: View {
     @EnvironmentObject var studio: DocumentStudio
     @EnvironmentObject var engine: EngineController
     @State private var askingProjectName = false
+    @State private var askingRemove = false
     @State private var projectName = ""
 
     var body: some View {
@@ -77,10 +78,19 @@ struct DocumentsView: View {
                 }
                 Button(L("Open een bestaande map…"), action: chooseFolder)
                 Button(L("Toon in Finder")) { NSWorkspace.shared.activateFileViewerSelecting([studio.folder]) }
+                Divider()
+                Button(L("Verwijder project…"), role: .destructive) { askingRemove = true }
             } label: {
                 Label(studio.folder.lastPathComponent, systemImage: "folder.fill").font(.headline).lineLimit(1)
             }
             .disabled(studio.busy)
+            .confirmationDialog(L("Project '\(studio.folder.lastPathComponent)' verwijderen?"), isPresented: $askingRemove) {
+                Button(L("Naar de prullenmand"), role: .destructive) { studio.removeProject(trash: true) }
+                Button(L("Alleen uit de lijst")) { studio.removeProject(trash: false) }
+                Button(L("Annuleer"), role: .cancel) {}
+            } message: {
+                Text(L("Naar de prullenmand verplaatst de hele map: concepten, documenten, bijlagen en huisstijl. Je kunt hem daar terugzetten. Alleen uit de lijst laat de map staan."))
+            }
         }
     }
 
@@ -611,6 +621,7 @@ extension EngineController.State {
         case .running: return L("Draait")
         case .starting(let what): return what
         case .failed(let why): return why
+        case .stopping: return L("Model ontladen…")
         case .stopped: return idle
         }
     }

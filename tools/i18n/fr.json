@@ -1062,5 +1062,22 @@
  "Wat de engine van een gesprek gelezen heeft, gaat naar de SSD als een ander gesprek of een taak het model krijgt, of als de engine stopt. Verder gaan leest het dan niet opnieuw: bij DeepSeek scheelt dat minuten. Hooguit 40 GB, de oudste gaan eerst.": "Ce que le moteur a lu d'une conversation va sur le SSD quand une autre conversation ou une tâche prend le modèle, ou quand le moteur s'arrête. Pour continuer, il ne la relit pas : avec DeepSeek, cela fait gagner des minutes. 40 Go au plus, les plus anciennes partent en premier.",
  "Wis (%@)": "Effacer (%@)",
  "1 eerdere stap": "1 étape précédente",
- "Gedachtegang en 1 stap": "Raisonnement et 1 étape"
+ "Gedachtegang en 1 stap": "Raisonnement et 1 étape",
+ "Geen tekstbestand (%@).": "Pas un fichier texte (%@).",
+ "De eerste %@ van %@.": "Les premiers %@ sur %@.",
+ "%@ ontladen… (%@)": "%@ déchargement… (%@)",
+ "%@ ontladen…": "%@ déchargement…",
+ "… en nog %@": "… et %@ de plus",
+ "Verwijder project…": "Supprimer le projet…",
+ "Project '%@' verwijderen?": "Supprimer le projet '%@' ?",
+ "Naar de prullenmand": "Mettre à la corbeille",
+ "Alleen uit de lijst": "Seulement retirer de la liste",
+ "Naar de prullenmand verplaatst de hele map: concepten, documenten, bijlagen en huisstijl. Je kunt hem daar terugzetten. Alleen uit de lijst laat de map staan.": "Mettre à la corbeille déplace tout le dossier : brouillons, documents, pièces jointes et charte graphique. Vous pouvez l'y récupérer. Seulement retirer de la liste laisse le dossier en place.",
+ "Model ontladen…": "Déchargement du modèle…",
+ "Model geladen": "Modèle chargé",
+ "Verberg de bestanden van de werkmap": "Masquer les fichiers du dossier de travail",
+ "Toon de bestanden van de werkmap naast de chat": "Afficher les fichiers du dossier de travail à côté du chat",
+ "nog ongeveer %@ s": "encore environ %@ s",
+ "Het eerste laden van %@ GB duurt enkele minuten.": "Le premier chargement de %@ Go prend quelques minutes.",
+ "Het geheugen komt vrij zodra het model gestopt is.": "La mémoire est libérée dès que le modèle est arrêté."
 }

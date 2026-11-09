@@ -53,7 +53,12 @@ BASIC V2, met een spook-sprite en muziek in de intro:
 dan gaat wat de engine van een gesprek gelezen heeft naar de SSD, en het komt terug als je verdergaat, ook na een
 herstart. Gemeten met Qwen3.8-Flash-Next: na een herstart las een gesprek van 18.000 tokens nog 81 tokens (0,6 s)
 in plaats van alles (~45 s); met DeepSeek-V4.1-Flash ging een gesprek van 19.913 tokens verder in 1,4 s in plaats van
-het in 145 s opnieuw te lezen (81 MB op de SSD). Hooguit 40 GB (Instellingen → Engine).
+het in 145 s opnieuw te lezen (81 MB op de SSD). Een gesprek houdt de notities en skills waarmee het begon, zodat een
+nieuwe les in MACAIMAGIC.md het begin van de prompt niet verandert.
+
+**De bestanden van de werkmap naast de chat**: de knop </> naast de werkmap toont rechts de bestanden, en de tekst van
+een bestand, alleen om te lezen, die meeloopt met wat het model schrijft. **Laden en ontladen** tonen een meter met
+percentage en de resterende seconden. Hooguit 40 GB (Instellingen → Engine).
 
 **Systeemcontrole**: bij elke start controleert de app (zijbalk → **Systeem**) de engine, het downloadgereedschap, de
 modellen, de schijfruimte, de GPU-limiet en de ontwikkeltools van Apple. Wat hij zelf kan oplossen doet hij, de rest

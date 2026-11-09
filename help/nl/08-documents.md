@@ -17,3 +17,6 @@ Maak Word-documenten zonder cloud-AI. Een **project** is een map met:
 Wat er op het voorblad moet, vul je één keer per project in.
 
 > Een snel model doet het kleine werk (notities per pagina, spelling) en een zwaar model het schrijven. Kies ze onder Modellen met **Snel** en **Zwaar**. Passen ze niet samen, dan doet één model alles.
+
+## Een project verwijderen
+Kies in het projectmenu **Verwijder project…**. **Naar de prullenmand** verplaatst de hele map (concepten, documenten, bijlagen en huisstijl); je kunt hem daar terugzetten. **Alleen uit de lijst** laat de map staan, voor een map die je van elders opende. Daarna opent het volgende project, of een nieuw "Mijn project".

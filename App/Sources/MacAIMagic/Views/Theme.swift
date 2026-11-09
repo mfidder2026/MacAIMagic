@@ -13,6 +13,29 @@ enum Theme {
     static let cool = LinearGradient(colors: [cyan, accent], startPoint: .leading, endPoint: .trailing)
     static let userBubble = LinearGradient(colors: [accent.opacity(0.55), violet.opacity(0.45)], startPoint: .topLeading, endPoint: .bottomTrailing)
 
+    /// The colour of an engine's state, in the status pill and on the model chip: green runs, amber loads, pink failed,
+    /// blue unloads, grey off. (A family colour on the chip read as "not loaded".)
+    static func status(_ s: EngineController.State) -> Color {
+        switch s {
+        case .running: return mint
+        case .starting: return amber
+        case .failed: return pink
+        case .stopping: return Color(red: 0.4, green: 0.6, blue: 1.0)
+        case .stopped: return Color(white: 0.55)
+        }
+    }
+
+    /// What that state means, as a tooltip.
+    static func statusText(_ s: EngineController.State) -> String {
+        switch s {
+        case .running: return L("Model geladen")
+        case .starting(let message): return message
+        case .failed: return L("Engine fout")
+        case .stopping: return L("Model ontladen…")
+        case .stopped: return L("Model niet geladen")
+        }
+    }
+
     static func family(_ f: String) -> Color { f == "glm" ? mint : (f == "qwen" ? amber : accent) }
     static func familyGradient(_ f: String) -> LinearGradient {
         switch f {

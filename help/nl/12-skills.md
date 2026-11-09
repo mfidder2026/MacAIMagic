@@ -32,6 +32,7 @@ platform: macos
 Schrijf hier de stappen en commando's.
 ```
 3. Een eigen skill met dezelfde naam als een ingebouwde, vervangt die ingebouwde.
+4. Een skill van WinAIMagic (`platform: windows`) mag zo in de map: hij laadt toch. Het model krijgt te horen waar de bestanden van de skill staan, en wat op een Mac anders is (zsh in plaats van PowerShell, `python3`, `$HOME`).
 
 ## Een skill laten maken
 Vraag het in de chat: *"Maak een skill voor programmeren in C64-assembler."* Het model schrijft hem, laat hem eerst op een kaart zien, en zet hem na jouw goedkeuring in de map met eigen skills. Daarna staat hij in de lijst.

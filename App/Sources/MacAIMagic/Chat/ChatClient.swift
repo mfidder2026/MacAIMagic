@@ -28,7 +28,8 @@ final class ChatClient: ObservableObject {
     @Published private(set) var learning = false
     /// The notes as they were before this conversation's lessons went in: the model knows those already, and a changed
     /// system prompt would make the engine read the whole conversation again. An edit by the user counts at once.
-    private var frozenNotes: (conversation: Conversation.ID, modified: Date?, text: String?)?
+    /// The store of the conversations that run, for their notes as they were when they began.
+    private weak var runStore: ConversationStore?
     /// The engine's context in tokens (set when it starts).
     var contextLimit = 65_536
     /// At this share of the context the conversation is summarized before the next request.
@@ -142,6 +143,7 @@ final class ChatClient: ObservableObject {
             }
         }
         running.insert(conversation)
+        runStore = store
         onSend?(conversation)
         // this conversation's folder for the tools and the system prompt, for the whole run
         let folder = store.conversations.first { $0.id == conversation }?.workspace ?? ""
@@ -180,7 +182,7 @@ final class ChatClient: ObservableObject {
             step.automatic = true
             store.update(id) { c in
                 c.messages.append(step)
-                c.messages.append(ChatMessage(role: .tool, text: "# Skill: \(skill.name)\n\n\(skill.body)", toolCallId: call.id))
+                c.messages.append(ChatMessage(role: .tool, text: Skills.text(skill), toolCallId: call.id))
             }
         }
     }
@@ -640,19 +642,23 @@ final class ChatClient: ObservableObject {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let message = (json["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any],
               let answer = message["content"] as? String else { return }
-        let before = notesForPrompt(ws)
         let added = WorkspaceNotes.add(lessons: WorkspaceNotes.lessons(from: answer), in: ws)
         guard !added.isEmpty else { return }
-        frozenNotes = (id, WorkspaceNotes.modified(in: ws), before)
         store.update(id) { c in
             guard let i = c.messages.indices.last else { return }
             c.messages[i].activities.append(ToolActivity(label: L("MACAIMAGIC.md bijgewerkt: \(added.count) nieuw geleerd"), done: true, output: added.joined(separator: "\n")))
         }
     }
 
-    private func notesForPrompt(_ ws: URL) -> String? {
-        if let f = frozenNotes, f.conversation == Self.runConversation, f.modified == WorkspaceNotes.modified(in: ws) { return f.text }
-        return WorkspaceNotes.forPrompt(in: ws)
+    /// Notes as this conversation first saw them (Conversation.notes). The model and the app write lessons into
+    /// MACAIMAGIC.md while a conversation goes on; reading the file anew each time changed the start of the prompt, and
+    /// the engine read the whole conversation again (seen with DeepSeek: 50,353 tokens, 357 s, after a restore).
+    private func frozenNotes(_ key: String, read: () -> String?) -> String? {
+        guard let id = Self.runConversation, let store = runStore, let c = store.conversations.first(where: { $0.id == id }) else { return read() }
+        if let kept = c.notes?[key] { return kept.isEmpty ? nil : kept }
+        let now = read()
+        store.update(id) { c in c.notes = (c.notes ?? [:]).merging([key: now ?? ""]) { $1 } }
+        return now
     }
 
     // MARK: - stopping too early
@@ -784,6 +790,8 @@ final class ChatClient: ObservableObject {
         guard let summary = answer, !summary.isEmpty else { return }
         store.update(id) { c in
             c.summary = summary
+            // the whole conversation is read anew after a summary anyway: the notes may be brought up to date
+            c.notes = nil
             c.summaryUpTo = last.id
             c.contextTokens = nil
         }
@@ -832,7 +840,7 @@ final class ChatClient: ObservableObject {
             system += " " + L("Je kunt het web doorzoeken met web_search en pagina's lezen met fetch_url. Doe dat voor actuele informatie en noem je bronnen met hun URL.")
         }
         // the user's general notes, for every conversation (the folder's notes come after them)
-        if let text = try? String(contentsOf: Paths.generalNotes, encoding: .utf8), !text.isEmpty {
+        if let text = frozenNotes("general", read: { (try? String(contentsOf: Paths.generalNotes, encoding: .utf8)).flatMap { $0.isEmpty ? nil : $0 } }) {
             system += "\n\n" + L("Algemene notities van de gebruiker (MACAIMAGIC.md), volg ze op:") + "\n" + String(text.prefix(8000))
         }
         if s.workspaceTools, let ws = WorkspaceTools.workspace {
@@ -843,15 +851,17 @@ final class ChatClient: ObservableObject {
             system += "\n\n" + L("Je werkt in de map \(ws.path) op deze Mac. Je hebt gereedschap om daar echt te werken: list_dir, read_file (ook het einde van logbestanden met tail), write_file (ook binaire bestanden via base64, bijvoorbeeld een C64 .prg), edit_file en run_command (zsh in die map: scripts starten, code bouwen of testen, programma's openen met open). Zeg dus nooit dat je geen bestanden kunt maken of uitvoeren: doe het. Werk in stappen: bekijk eerst wat er is, maak of wijzig bestanden, voer ze uit, lees de uitvoer of het log, en verbeter tot het werkt. Een programma met een venster (een emulator, een app) start je los van run_command, met open of met & aan het eind: run_command wacht anders tot het programma stopt en breekt het af na de time-out. Afhankelijk van de rechten die de gebruiker heeft ingesteld vraagt de app soms eerst toestemming; leg kort uit wat je doet.")
             system += " " + L("Buiten deze map werken list_dir en read_file niet, maar met run_command kun je wel overal op deze Mac zoeken en lezen (ls, mdfind, cat) en geïnstalleerde programma's starten, bijvoorbeeld uit /Applications. Zeg dus niet dat je niet op deze Mac kunt zoeken: doe het met run_command. Schrijf buiten de werkmap alleen als de gebruiker daarom vraagt.")
             // the user's own notes for this folder and what was learned here, like CLAUDE.md for Claude Code
-            if let text = notesForPrompt(ws) {
+            if let text = frozenNotes("folder:" + ws.path, read: { WorkspaceNotes.forPrompt(in: ws) }) {
                 system += "\n\n" + L("Notities van de gebruiker voor deze werkmap (MACAIMAGIC.md), volg ze op:") + "\n" + text
             }
         }
         // Instellingen → Systeembeheer: nothing is added while they are off
         if s.systemManagement { system += "\n\n" + SystemTools.promptSection() }
         if s.skills {
-            let section = Skills.promptSection(Skills.all)
-            if !section.isEmpty { system += "\n\n" + section }
+            // also as this conversation first saw it: a skill the model rewrites must not change the start of the prompt
+            if let section = frozenNotes("skills", read: { let t = Skills.promptSection(Skills.all); return t.isEmpty ? nil : t }) {
+                system += "\n\n" + section
+            }
         }
         if s.appTools && appControl != nil { system += "\n\n" + AppTools.promptSection(skills: s.skills) }
         if offersSteps {

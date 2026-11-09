@@ -139,7 +139,7 @@ final class DocumentEngines: ObservableObject {
             switch engine.state {
             case .running: return
             case .failed(let why): throw Zip.Failure(why)
-            case .stopped: throw Zip.Failure(L("De engine is gestopt."))
+            case .stopped, .stopping: throw Zip.Failure(L("De engine is gestopt."))
             case .starting: try await Task.sleep(for: .milliseconds(300))
             }
         }

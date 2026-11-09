@@ -1062,5 +1062,22 @@
  "Wat de engine van een gesprek gelezen heeft, gaat naar de SSD als een ander gesprek of een taak het model krijgt, of als de engine stopt. Verder gaan leest het dan niet opnieuw: bij DeepSeek scheelt dat minuten. Hooguit 40 GB, de oudste gaan eerst.": "Was die Engine von einem Gespräch gelesen hat, geht auf die SSD, wenn ein anderes Gespräch oder eine Aufgabe das Modell bekommt oder die Engine stoppt. Beim Weitermachen wird es dann nicht neu gelesen: bei DeepSeek spart das Minuten. Höchstens 40 GB, die ältesten gehen zuerst.",
  "Wis (%@)": "Löschen (%@)",
  "1 eerdere stap": "1 früherer Schritt",
- "Gedachtegang en 1 stap": "Gedankengang und 1 Schritt"
+ "Gedachtegang en 1 stap": "Gedankengang und 1 Schritt",
+ "Geen tekstbestand (%@).": "Keine Textdatei (%@).",
+ "De eerste %@ van %@.": "Die ersten %@ von %@.",
+ "%@ ontladen… (%@)": "%@ wird entladen… (%@)",
+ "%@ ontladen…": "%@ wird entladen…",
+ "… en nog %@": "… und %@ weitere",
+ "Verwijder project…": "Projekt löschen…",
+ "Project '%@' verwijderen?": "Projekt '%@' löschen?",
+ "Naar de prullenmand": "In den Papierkorb",
+ "Alleen uit de lijst": "Nur aus der Liste",
+ "Naar de prullenmand verplaatst de hele map: concepten, documenten, bijlagen en huisstijl. Je kunt hem daar terugzetten. Alleen uit de lijst laat de map staan.": "In den Papierkorb verschiebt den ganzen Ordner: Entwürfe, Dokumente, Anhänge und Hausstil. Sie können ihn dort zurücklegen. Nur aus der Liste lässt den Ordner stehen.",
+ "Model ontladen…": "Modell wird entladen…",
+ "Model geladen": "Modell geladen",
+ "Verberg de bestanden van de werkmap": "Dateien des Arbeitsordners ausblenden",
+ "Toon de bestanden van de werkmap naast de chat": "Dateien des Arbeitsordners neben dem Chat zeigen",
+ "nog ongeveer %@ s": "noch etwa %@ s",
+ "Het eerste laden van %@ GB duurt enkele minuten.": "Das erste Laden von %@ GB dauert einige Minuten.",
+ "Het geheugen komt vrij zodra het model gestopt is.": "Der Speicher wird frei, sobald das Modell gestoppt ist."
 }

@@ -9,6 +9,8 @@ struct Skill: Equatable {
     /// "macos", "windows" or "all".
     var platform: String
     var body: String
+    /// The folder of a skill the user put in the skills folder (nil for a built-in one): its scripts sit there.
+    var folder: URL? = nil
 }
 
 enum Skills {
@@ -36,7 +38,8 @@ enum Skills {
     }
 
     /// Every SKILL.md one level down in these folders; a later folder replaces a skill of the same name.
-    static func load(from folders: [URL], platform: String = "macos") -> [Skill] {
+    /// `own`: the user's skills folder; a skill there loads whatever platform it names.
+    static func load(from folders: [URL], platform: String = "macos", own ownFolder: URL? = Paths.userSkills) -> [Skill] {
         var byName: [String: Skill] = [:]
         let fm = FileManager.default
         for folder in folders {
@@ -44,8 +47,12 @@ enum Skills {
             for dir in items {
                 let file = dir.appendingPathComponent("SKILL.md")
                 guard let text = try? String(contentsOf: file, encoding: .utf8),
-                      let skill = parse(text, fallbackName: dir.lastPathComponent),
-                      skill.platform == "all" || skill.platform == platform else { continue }
+                      var skill = parse(text, fallbackName: dir.lastPathComponent) else { continue }
+                // a built-in skill of another platform stays out; one the user put in the skills folder always loads
+                // (WinAIMagic's owner copied a Mac skill to the PC, and it was dropped without a word)
+                let own = ownFolder.map { folder.standardizedFileURL == $0.standardizedFileURL } ?? false
+                if own { skill.folder = dir }
+                guard skill.platform == "all" || skill.platform == platform || own else { continue }
                 byName[skill.name.lowercased()] = skill
             }
         }
@@ -77,8 +84,29 @@ enum Skills {
 
     static func run(_ call: ToolCall, skills: [Skill] = all) -> String {
         let name = (WorkspaceTools.args(call)["name"] as? String ?? "").trimmingCharacters(in: .whitespaces).lowercased()
-        if let s = skills.first(where: { $0.name.lowercased() == name }) { return "# Skill: \(s.name)\n\n\(s.body)" }
+        if let s = skills.first(where: { $0.name.lowercased() == name }) { return text(s) }
         return "There is no skill named \"\(name)\". Available: " + skills.map(\.name).joined(separator: ", ")
+    }
+
+    /// What the model reads of a skill. A user's skill says where its files are, so its scripts can be found; one written
+    /// for Windows gets its WinAIMagic folder replaced by the real one here and a note on what differs on a Mac.
+    static func text(_ s: Skill) -> String {
+        var body = s.body
+        var head = "# Skill: \(s.name)\n\n"
+        if let folder = s.folder {
+            // %LOCALAPPDATA%\WinAIMagic\Skills\c64_basic, $env:LOCALAPPDATA\... and C:\Users\x\AppData\Local\...: this folder
+            body = body.replacingOccurrences(of: #"(%LOCALAPPDATA%|\$env:LOCALAPPDATA|[A-Za-z]:\\Users\\[^\\\s"'`]+\\AppData\\Local)\\WinAIMagic\\Skills\\[^\\\s"'`]+"#,
+                                              with: NSRegularExpression.escapedTemplate(for: folder.path), options: .regularExpression)
+            head += "This skill's own files (scripts beside SKILL.md) are in: \(folder.path)\n"
+            if s.platform != "all" && s.platform != "macos" {
+                head += "This skill was written for \(s.platform), and this computer is a Mac. Adapt its commands: run_command runs zsh, "
+                    + "so use `python3` instead of `python`, `$HOME` instead of `$env:USERPROFILE`, ls/mdfind instead of Get-ChildItem, "
+                    + "pgrep/pkill instead of Get-Process/Stop-Process, `open` instead of Start-Process, and / instead of \\ in paths. "
+                    + "Programs named in it (such as an emulator) may be installed elsewhere here or not at all: look for them before you use them.\n"
+            }
+            head += "\n"
+        }
+        return head + body
     }
 
     /// Words that say nothing about a subject.

@@ -144,6 +144,9 @@ that types and reads the C64 screen) is the kind of skill the app lets you add.
 - **Work in a folder**: choose a folder per chat (shown at the top of the chat) and the model can list, read, write and edit files there (also binary files,
   such as a C64 `.prg`), run commands and scripts, and read the end of log files. Everything stays inside that folder;
   what the model may do is set in a rights matrix: **L S U** (read, write, run) next to the folder button, each Allow, Ask first or Deny (default: reading is allowed, writing and running ask first; a question offers Allow, Deny, or Always in this conversation). A `MACAIMAGIC.md` in the folder is passed to the model as notes for that folder (like `CLAUDE.md` for Claude Code), for example how to start an emulator; general notes for every conversation go in `~/Library/Application Support/MacAIMagic/MACAIMAGIC.md` (Settings → Chat → Open bestand). Both are read again for every message. Programs with a window are started detached, so the command's time-out does not close them.
+- **The working folder's files beside the chat**: the </> button next to the folder shows its files on the right, and
+  the text of a file, read only, following what the model writes within a second
+- **Loading and unloading** show a gauge with a percentage and the seconds to go; the app learns how long each model takes
 - **Languages**: English, German, French or Dutch, chosen in Settings and at first taken from macOS; the model gets its instructions in the same language.
 - **Context**: a meter at the top of the chat shows how much of the model's context a conversation takes (64K by default, up to 1M for DeepSeek and GLM, 256K for Qwen). At 80% the start of the conversation is summarized by the model and sent as a summary instead (the messages stay visible, with a marker); there is also a button to do it now.
 - **Images**: button, drag and drop, or paste (⌘V, also while typing: screenshots, copied images, image files from the Finder)
@@ -154,7 +157,8 @@ that types and reads the C64 screen) is the kind of skill the app lets you add.
   (`--slot-save-path`) and comes back when you go on, also after a restart. Measured with Qwen3.8-Flash-Next on the M3
   Max: after a restart a conversation of 18,000 tokens went on reading 81 tokens (0.6 s) instead of all of it (about
   45 s); with DeepSeek-V4.1-Flash Compact, a conversation of 19,913 tokens went on in 1.4 s instead of reading it
-  again for 145 s (its saved state is 81 MB). At most 40 GB, the oldest first (Settings → Engine).
+  again for 145 s (its saved state is 81 MB). A conversation keeps the notes and skill list it began with, so a lesson
+  written into MACAIMAGIC.md does not change the start of its prompt. At most 40 GB, the oldest first (Settings → Engine).
 - The Mac stays awake while the engine runs (the display may still sleep), so long answers and benchmarks don't freeze
 - Local API on `http://127.0.0.1:8080`: OpenAI (`/v1`), Anthropic (`/v1/messages`) and Responses (`/v1/responses`)
 - **Help** (sidebar → **Hulp**, the **?** at the top right of every page, or ⌘?): searchable help for every part of

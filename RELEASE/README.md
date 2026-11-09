@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.5 (macOS, Apple Silicon)
+# MacAIMagic 1.14.9 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.5-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.9-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,20 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.5-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.9-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.9 (1.14.6 to 1.14.8 were WinAIMagic versions):
+- **Long conversations go on without reading them again.** When another conversation, a task or Documents takes the model, when an answer is done, and when the engine stops, what the engine has read of a conversation goes to the SSD; it comes back when you go on, also after a restart. Measured with DeepSeek-V4.1-Flash on the M3 Max: a conversation of 19,913 tokens went on in 1.4 s instead of reading it again for 145 s (81 MB on the SSD). A conversation keeps the notes (MACAIMAGIC.md) and the skill list it began with, so a lesson the model writes no longer makes the engine read everything again. Settings → Engine: "Keep conversations in the engine", at most 40 GB. Every save and restore is in the engine log.
+- **The working folder's files beside the chat**: the </> button next to the folder shows its files on the right, with the text of a file, read only, following what the model writes.
+- **A gauge while a model loads or unloads**, with a percentage and "about N s to go", and "Unloading model…" as a state of its own. It learns how long each model took.
+- **The dot on the model chip shows whether the model is loaded** (green, amber, blue, grey) instead of the model family's colour.
+- **While the model thinks**, its last 4 lines stand one below the other instead of one moving block.
+- **Documents: a project can be deleted**, to the Trash or only off the list.
+- **A WinAIMagic skill put in the skills folder loads**, with a note on what differs on a Mac.
+- **The window comes back** from the Dock or by opening the app again, also after it stayed in the menu bar.
+- "Thinking and 1 step" instead of "1 steps".
 
 New in 1.14.5 (1.14.3 and 1.14.4 were WinAIMagic versions):
 - **An answer is one card.** Every thought, text and step of all the rounds of an answer stands in the order it came. Before, a round's text could jump above the steps, and text shown under a step vanished after a few seconds. While the model works the card shows its latest 14 parts; a finished answer folds its work into one line, "Gedachtegang en N stappen".

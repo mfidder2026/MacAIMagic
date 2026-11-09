@@ -14,7 +14,22 @@ struct ChatView: View {
 
     private var conversation: Conversation? { store.conversations.first { $0.id == conversationID } }
 
+    @EnvironmentObject var settings: Settings
+    @AppStorage("filesPanel") private var showFiles = false
+
     var body: some View {
+        HStack(spacing: 0) {
+            chatColumn
+            // the working folder's files beside the chat (</> next to the folder)
+            if showFiles, settings.workspaceTools, let folder = conversation?.workspace, !folder.isEmpty {
+                FilesPanel(folder: URL(fileURLWithPath: folder, isDirectory: true))
+                    .transition(.move(edge: .trailing))
+            }
+        }
+        .navigationTitle(conversation?.displayTitle ?? "MacAIMagic")
+    }
+
+    private var chatColumn: some View {
         VStack(spacing: 0) {
             LiveStrip()
             if let c = conversation, !c.messages.isEmpty {
@@ -77,7 +92,6 @@ struct ChatView: View {
             if !engine.state.isRunning { EngineBanner(fast: app.documentEngines.fast) }
             Composer(conversationID: conversationID, text: $draft)
         }
-        .navigationTitle(conversation?.displayTitle ?? "MacAIMagic")
     }
 
     /// What sits between the messages and the input field (the step card, an approval card): when it changes, the
@@ -222,6 +236,7 @@ private struct OpenAtEnd: ViewModifier {
 private struct WorkspaceChip: View {
     @EnvironmentObject var store: ConversationStore
     @EnvironmentObject var settings: Settings
+    @AppStorage("filesPanel") private var showFiles = false
 
     var body: some View {
         if settings.workspaceTools, let id = store.selection, let folder = store.conversations.first(where: { $0.id == id })?.workspace {
@@ -236,6 +251,14 @@ private struct WorkspaceChip: View {
             }
             .buttonStyle(.plain)
             .help(L("Werkmap van dit gesprek: klik om hem in de Finder te openen"))
+            Button { withAnimation(.easeOut(duration: 0.2)) { showFiles.toggle() } } label: {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .font(.callout.weight(.semibold))
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .background(showFiles ? AnyShapeStyle(Theme.accent.opacity(0.35)) : AnyShapeStyle(.ultraThinMaterial), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(showFiles ? L("Verberg de bestanden van de werkmap") : L("Toon de bestanden van de werkmap naast de chat"))
         }
     }
 }
@@ -251,9 +274,11 @@ private struct LiveStrip: View {
         HStack(spacing: 12) {
             let m = engine.model ?? app.selectedModel
             HStack(spacing: 6) {
-                Circle().fill(Theme.familyGradient(m?.family ?? "deepseek")).frame(width: 9, height: 9)
+                // the dot says whether the model is loaded, like the status at the top
+                Circle().fill(Theme.status(engine.state)).frame(width: 9, height: 9)
                 Text(m?.name ?? L("Geen model")).font(.callout.weight(.semibold))
             }
+            .help(Theme.statusText(engine.state))
             .padding(.horizontal, 10).padding(.vertical, 5)
             .background(.ultraThinMaterial, in: Capsule())
             WorkspaceChip()
@@ -353,10 +378,25 @@ private struct EngineBanner: View {
         HStack {
             switch engine.state {
             case .starting(let s):
-                ProgressView().controlSize(.small)
-                // only a large model takes minutes; a small one is there in seconds
-                let gb = Int((app.selectedModel?.files.reduce(UInt64(0)) { $0 + $1.size } ?? 0) / 1_000_000_000)
-                Text(gb >= 50 ? L("\(s) Het eerste laden van \(gb) GB duurt enkele minuten.") : s)
+                LoadGauge(engine: engine, size: 34)
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s).fontWeight(.medium)
+                        if let left = engine.phaseRemaining(at: context.date) {
+                            Text(L("nog ongeveer \(left) s")).foregroundStyle(.secondary)
+                        } else {
+                            // only a large model takes minutes; a small one is there in seconds
+                            let gb = Int((app.selectedModel?.files.reduce(UInt64(0)) { $0 + $1.size } ?? 0) / 1_000_000_000)
+                            if gb >= 50 { Text(L("Het eerste laden van \(gb) GB duurt enkele minuten.")).foregroundStyle(.secondary) }
+                        }
+                    }
+                }
+            case .stopping:
+                LoadGauge(engine: engine, size: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L("Model ontladen…")).fontWeight(.medium)
+                    Text(L("Het geheugen komt vrij zodra het model gestopt is.")).foregroundStyle(.secondary)
+                }
             case .failed(let e):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
                 Text(e).lineLimit(2)
@@ -625,7 +665,7 @@ struct PartView: View {
                     if !open {
                         // what it thinks now, or what it thought: the gist without opening it
                         Text(Self.gist(text, live: live)).font(.caption).foregroundStyle(.tertiary)
-                            .lineLimit(live ? 3 : 1).truncationMode(live ? .head : .tail)
+                            .lineLimit(live ? Self.gistLines : 1).truncationMode(.tail)
                     }
                 }
             }
@@ -661,10 +701,20 @@ struct PartView: View {
         }
     }
 
-    /// The thinking as one line: its end while the model thinks, its start afterwards.
+    /// Lines of thinking shown while the model thinks, and how long each may be (WinAIMagic's numbers).
+    nonisolated static let gistLines = 4, gistWidth = 120
+
+    /// The thinking without opening it. While the model thinks: its last lines, one below the other (they ran together
+    /// into one fast-moving block, and pixel art and lists became unreadable); the line being written keeps its end, an
+    /// earlier one its start. Afterwards: its start as one line.
     nonisolated static func gist(_ text: String, live: Bool) -> String {
-        let flat = text.split(whereSeparator: \.isNewline).joined(separator: " ")
-        return live ? String(flat.suffix(400)) : String(flat.prefix(200))
+        let lines = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard live else { return String(lines.joined(separator: " ").prefix(200)) }
+        var last = Array(lines.suffix(gistLines))
+        for i in last.indices where last[i].count > gistWidth {
+            last[i] = i == last.count - 1 ? "…" + last[i].suffix(gistWidth - 1) : last[i].prefix(gistWidth - 1) + "…"
+        }
+        return last.joined(separator: "\n")
     }
 }
 

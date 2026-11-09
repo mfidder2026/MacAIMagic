@@ -26,7 +26,10 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        body = json.dumps({"most": most, "requests": len(requests), "slots": slots}).encode()
+        if self.path == "/systems":
+            body = json.dumps([r["messages"][0]["content"] for r in requests if r.get("stream")]).encode()
+        else:
+            body = json.dumps({"most": most, "requests": len(requests), "slots": slots}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))

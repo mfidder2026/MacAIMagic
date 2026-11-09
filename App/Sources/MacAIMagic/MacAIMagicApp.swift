@@ -25,6 +25,7 @@ struct MacAIMagicApp: App {
                 .environmentObject(app.images)
                 .environmentObject(app.tasks)
                 .environmentObject(Settings.shared)
+                .background(MainWindow.Capture())
                 .frame(minWidth: 1000, minHeight: 680)
                 .tint(Theme.accent)
                 .preferredColorScheme(.dark)
@@ -98,9 +99,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// A click on the Dock icon (or opening the app again) with no window: it comes back.
+    /// A click on the Dock icon (or opening the app again) with no window: it comes back. Returning true alone did not
+    /// bring it back once the app had stayed in the menu bar (seen 2026-11-09): the window is opened here.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { NSApp.setActivationPolicy(.regular) }
-        return true
+        guard !flag else { return true }
+        MainActor.assumeIsolated { MainWindow.show() }
+        return false
     }
 }

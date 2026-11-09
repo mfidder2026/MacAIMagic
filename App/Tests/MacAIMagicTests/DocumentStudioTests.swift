@@ -402,6 +402,29 @@ final class DocumentStudioTests: XCTestCase {
         XCTAssertTrue(writing.allSatisfy { ($0.body["dry_multiplier"] as? Double) == 0.8 })
     }
 
+    /// WinAIMagic's AProjectCanBeRemoved: to the Trash (a stand-in) or only off the list; the next project opens.
+    func testAProjectCanBeRemoved() throws {
+        let saved = (Settings.shared.documentProjects, Settings.shared.documentFolder)
+        defer { Settings.shared.documentProjects = saved.0; Settings.shared.documentFolder = saved.1 }
+        let other = folder.deletingLastPathComponent().appendingPathComponent("macaimagic-docs-ander-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: other) }
+        studio.choose(folder: other)
+        studio.choose(folder: folder)
+        var trashed: [URL] = []
+        studio.trashItem = { trashed.append($0) }
+
+        studio.removeProject(trash: false)
+        XCTAssertEqual(trashed, [], "only off the list: the folder stays")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertFalse(studio.projects.contains { $0.standardizedFileURL == folder.standardizedFileURL })
+        XCTAssertEqual(studio.folder.standardizedFileURL, other.standardizedFileURL, "the other project opens")
+
+        studio.removeProject(trash: true)
+        XCTAssertEqual(trashed.map(\.standardizedFileURL), [other.standardizedFileURL])
+        XCTAssertFalse(studio.projects.contains { $0.standardizedFileURL == other.standardizedFileURL })
+    }
+
     func testWritingKeepsThePlannedSections() async throws {
         FakeModel.answer = { system, user in
             if system.contains("hoe een document eruit moet zien") { return Self.plan }

@@ -78,6 +78,10 @@ struct Conversation: Codable, Identifiable, Hashable {
     var hidden: Bool? = nil
     /// The Telegram account this conversation talks with (Instellingen → Telegram), if any.
     var telegram: Int64? = nil
+    /// The notes (MACAIMAGIC.md, general and per folder) as they were when this conversation began: its system prompt
+    /// stays the same, so the engine reuses what it read (and a saved state still fits). "" is no file. A change counts for
+    /// new conversations, and for this one after its summary.
+    var notes: [String: String]? = nil
 
     /// The title in the chosen language while it is still the default.
     var displayTitle: String { title == "Nieuw gesprek" ? L("Nieuw gesprek") : title }

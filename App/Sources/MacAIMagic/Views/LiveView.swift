@@ -230,6 +230,8 @@ struct EngineButton: View {
         case .running, .starting:
             Button(role: .destructive) { engine.stop() } label: { Label(L("Stop model"), systemImage: "stop.fill") }
                 .buttonStyle(.bordered)
+        case .stopping:
+            Label(L("Model ontladen…"), systemImage: "hourglass").foregroundStyle(.secondary)
         default:
             Button { app.startEngine() } label: { Label(L("Start \(app.selectedModel?.shortName ?? L("model"))"), systemImage: "play.fill").padding(.horizontal, 6) }
                 .buttonStyle(.borderedProminent).tint(Theme.accent).disabled(!app.canStart)

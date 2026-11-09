@@ -38,13 +38,32 @@ struct MenuBarView: View {
     }
 
     private func show(_ pane: Pane?) {
+        if MainWindow.open == nil { MainWindow.open = openWindow }
+        MainWindow.show()
+        if let pane { AppNavigator.shared.pane = pane }
+    }
+}
+
+/// The app's one window: shown again from the Dock, from `open`, and from the menu bar.
+@MainActor
+enum MainWindow {
+    /// SwiftUI's action that opens a new main window; taken from the first window's environment.
+    static var open: OpenWindowAction?
+
+    static func show() {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         if let w = NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true && $0.canBecomeMain }) {
+            if w.isMiniaturized { w.deminiaturize(nil) }
             w.makeKeyAndOrderFront(nil)
         } else {
-            openWindow(id: "main")
+            open?(id: "main")
         }
-        if let pane { AppNavigator.shared.pane = pane }
+    }
+
+    /// Keeps the open action of the window it sits in.
+    struct Capture: View {
+        @Environment(\.openWindow) private var openWindow
+        var body: some View { Color.clear.onAppear { MainWindow.open = openWindow } }
     }
 }

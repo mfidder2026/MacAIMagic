@@ -5,7 +5,8 @@ import IOKit.pwr_mgt
 @MainActor
 final class EngineController: ObservableObject {
     enum State: Equatable {
-        case stopped, starting(String), running, failed(String)
+        /// `stopping`: unloading, from the stop until the process has ended; nothing is sent to it then.
+        case stopped, starting(String), running, stopping, failed(String)
         var isRunning: Bool { self == .running }
     }
 
@@ -15,6 +16,20 @@ final class EngineController: ObservableObject {
     var onStateChange: ((State) -> Void)?
     @Published private(set) var logTail: [String] = []
     @Published private(set) var loadProgress: Double = 0
+    /// When the current load or unload began and how long it should take (LoadClock): the gauge runs on this.
+    @Published private(set) var phaseStart: Date?
+    private(set) var phaseExpected: TimeInterval = 0
+    /// The gauge's value now, 0..0.99 (while loading or unloading).
+    func phaseFraction(at now: Date = Date()) -> Double {
+        guard let phaseStart else { return 0 }
+        let reported = state == .stopping ? 0 : loadProgress
+        return LoadClock.fraction(reported: reported, elapsed: now.timeIntervalSince(phaseStart), expected: phaseExpected)
+    }
+    /// Seconds still to go, nil when it is past the expected time.
+    func phaseRemaining(at now: Date = Date()) -> Int? {
+        guard let phaseStart else { return nil }
+        return LoadClock.remaining(elapsed: now.timeIntervalSince(phaseStart), expected: phaseExpected)
+    }
 
     private var process: Process?
     /// Keeps the Mac awake while the engine runs: during idle sleep a running answer or benchmark freezes for minutes.
@@ -166,6 +181,8 @@ final class EngineController: ObservableObject {
         loadProgress = 0
         logTail = ["$ \(bin.lastPathComponent) " + p.arguments!.joined(separator: " ")]
         state = .starting(L("Model laden…"))
+        phaseStart = Date()
+        phaseExpected = LoadClock.expected("load:" + model.id, guess: LoadClock.firstLoad(model.memory ?? model.totalSize))
         pollHealth()
     }
 
@@ -182,11 +199,22 @@ final class EngineController: ObservableObject {
     /// Set while a stop that was asked for is under way: how the process then ends is no failure.
     private var stopping = false
 
+    /// Unloading begins: a state of its own until the process is gone, with its own clock.
+    private func beginUnloading() {
+        guard process != nil, state != .stopping else { return }
+        if let id = model?.id {
+            phaseExpected = LoadClock.expected("unload:" + id, guess: LoadClock.firstUnload(model?.memory ?? model?.totalSize ?? 0))
+        }
+        phaseStart = Date()
+        state = .stopping
+    }
+
     func stop() {
         // the conversation in the engine is saved first, so it continues after a restart without reading it all again
         if process != nil, state == .running, !stopping, slots.hasUnsaved {
             stopping = true
             healthTask?.cancel()
+            beginUnloading()
             Task {
                 await slots.saveCurrent()
                 stopNow()
@@ -207,6 +235,7 @@ final class EngineController: ObservableObject {
 
     private func stopNow() {
         stopping = process != nil
+        beginUnloading()
         healthTask?.cancel()
         process?.interrupt()
         let p = process
@@ -252,6 +281,10 @@ final class EngineController: ObservableObject {
         // "rsets->data count == 0"), and that is no failure of the model.
         let asked = stopping
         stopping = false
+        if state == .stopping, let start = phaseStart, let id = model?.id {
+            LoadClock.record("unload:" + id, took: Date().timeIntervalSince(start))
+        }
+        phaseStart = nil
         if [0, 2, 15].contains(code) || asked {
             state = .stopped
         } else {
@@ -283,6 +316,10 @@ final class EngineController: ObservableObject {
                 req.timeoutInterval = 2
                 if let (_, resp) = try? await URLSession.shared.data(for: req),
                    (resp as? HTTPURLResponse)?.statusCode == 200 {
+                    if let start = self.phaseStart, let id = self.model?.id {
+                        LoadClock.record("load:" + id, took: Date().timeIntervalSince(start))
+                    }
+                    self.phaseStart = nil
                     self.state = .running
                     self.loadProgress = 1
                     return

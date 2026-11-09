@@ -17,7 +17,7 @@ Elke kaart zegt voor deze Mac of het model **helemaal in het geheugen past**, **
 ## Knoppen op een kaart
 - **Download**: gaat verder na een onderbreking, en elk bestand wordt gecontroleerd (sha256).
 - **Controleer op update**: kijkt in een paar seconden of er een nieuwere versie is, zonder het hele model te lezen.
-- **Start** / **Stop**: laadt het model in de engine.
+- **Start** / **Stop**: laadt het model in de engine, of haalt het eruit. Tijdens het laden en het ontladen loopt een ronde meter met een percentage, in de status bovenaan en in de chat; hij rekent met hoe lang het die keer ervoor duurde.
 - **Snel** / **Zwaar**: welk model Documenten gebruikt voor klein werk en voor het schrijven.
 - **Kies voor afbeeldingen**: het model voor Beeld.
 - **Verwijder model**: maakt de schijfruimte vrij (stop het model eerst).

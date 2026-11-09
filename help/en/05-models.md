@@ -17,7 +17,7 @@ Each card says for this Mac whether the model **fits whole in memory**, **stream
 ## Buttons on a card
 - **Download**: carries on after an interruption, and every file is checked (sha256).
 - **Check for update**: sees within seconds whether there is a newer version, without reading the whole model.
-- **Start** / **Stop**: loads the model into the engine.
+- **Start** / **Stop**: loads the model into the engine, or takes it out. While it loads or unloads a round gauge with a percentage runs, in the status at the top and in the chat; it goes by how long it took the time before.
 - **Fast** / **Heavy**: which model Documents uses for small work and for writing.
 - **Choose for images**: the model for Images.
 - **Delete model**: frees the disk space (stop the model first).
