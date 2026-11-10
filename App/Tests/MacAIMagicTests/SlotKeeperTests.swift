@@ -251,7 +251,14 @@ final class SlotKeeperTests: XCTestCase {
                               tensorSplit: [], threads: 8, contextSize: 8192, warnings: [])
         let args = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan, vision: nil)
         XCTAssertEqual(args.firstIndex(of: "--slot-save-path").map { args[$0 + 1] }, dir.path)
+        XCTAssertEqual(args.firstIndex(of: "--ctx-checkpoints").map { args[$0 + 1] }, EngineController.keptCheckpoints)
         XCTAssertFalse(engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan, vision: nil, rpc: "1.2.3.4:50052").contains("--slot-save-path"))
+        // with conversations not kept, the engine's own default stays
+        Settings.shared.keepEngineMemory = false
+        defer { Settings.shared.keepEngineMemory = true }
+        let off = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan, vision: nil)
+        XCTAssertFalse(off.contains("--slot-save-path"))
+        XCTAssertFalse(off.contains("--ctx-checkpoints"))
         XCTAssertNotEqual(EngineController.slotKey(model: model, plan: plan, vision: nil, speculative: false),
                           EngineController.slotKey(model: model, plan: plan, vision: URL(fileURLWithPath: "/v"), speculative: false))
     }

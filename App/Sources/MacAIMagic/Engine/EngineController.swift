@@ -58,6 +58,9 @@ final class EngineController: ObservableObject {
         logTail.append(line)
     }
 
+    /// The context checkpoints the engine keeps per conversation while conversations are kept (its default is 32).
+    nonisolated static let keptCheckpoints = "4"
+
     /// What a saved conversation state belongs to: the same model, context, vision and draft head.
     nonisolated static func slotKey(model: ModelInfo, plan: MemoryPlan, vision: URL?, speculative: Bool) -> String {
         "\(model.id)-c\(plan.contextSize)-v\(vision == nil ? 0 : 1)-s\(speculative ? 1 : 0)"
@@ -116,8 +119,11 @@ final class EngineController: ObservableObject {
         if !plan.fitsInMemory || plan.experts == 0 { args += ["--no-repack"] }
         if plan.expertCache > 0 { args += ["--moe-cache-mib", String(plan.expertCache >> 20)] }
         if let vision { args += ["--mmproj", vision.path] }
-        // a conversation's place in the engine can be saved and read back (not tried on a cluster)
-        if s.keepEngineMemory && rpc == nil { args += ["--slot-save-path", slots.folder.path] }
+        // a conversation's place in the engine can be saved and read back (not tried on a cluster), with only the last
+        // context checkpoints: a hybrid model adds a few every turn and a saved state carries them all. With the engine's
+        // default of 32, Qwen3.8-Flash-Next (3 per turn, ~112 MB each) saved 1.9 GB after six turns on the M3 Max
+        // (WinAIMagic saw the same with Qwen3.6). The last ones are what the next turn needs.
+        if s.keepEngineMemory && rpc == nil { args += ["--slot-save-path", slots.folder.path, "--ctx-checkpoints", Self.keptCheckpoints] }
         // cluster: the helpers' GPUs join as RPC devices
         if let rpc { args += ["--rpc", rpc] }
         // multi-token prediction: a small head guesses the next tokens, the model checks them in one pass

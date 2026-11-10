@@ -406,3 +406,27 @@ are given, two runs (they differ by 5-8%):
   same place for every setting that checks several tokens at once: rounding in the batched check).
 - Not measured: ngram-mod for Ling-3.0-tiny or Qwen3.6 (no MTP head), and for models larger than memory (each checked
   token can need other experts from the SSD), so those get no guessing, as before.
+
+## 12. Kept conversations and context checkpoints (2026-11-10)
+
+A hybrid model (Qwen3.8-Flash-Next, Qwen3.6) keeps a recurrent state next to its KV cache. To go back in a
+conversation llama.cpp stores context checkpoints of that state, a few per turn, and a saved conversation
+(`/slots/0?action=save`, section 10) carries all of them. The engine's default keeps 32. WinAIMagic found this with
+Qwen3.6 on the PC (2 GB per conversation, 6 s per save) and keeps 4; measured here before taking it over.
+
+Qwen3.8-Flash-Next Q4 on the M3 Max with the app's arguments (MTP + ngram-mod, vision, 64K context), a first message
+of 12,230 tokens and five short follow-ups, the slot saved after every answer (scratchpad `slot_bench.py`):
+
+| Turn | default (32): file / save | `--ctx-checkpoints 4`: file / save |
+|---|---|---|
+| 1 | 731 MB / 0.13 s | 731 MB / 0.09 s |
+| 2 | 1,070 MB / 0.21 s | 958 MB / 0.15 s |
+| 4 | 1,750 MB / 0.28 s | 962 MB / 0.14 s |
+| 6 | 2,429 MB / 0.40 s | 966 MB / 0.15 s |
+| restore | 0.45 s, then read 23 tokens | 0.16 s, then read 23 tokens |
+
+Each turn added 3 checkpoints of ~112 MB. On this SSD the save stays short either way, but the space grows without
+limit up to 32 checkpoints (~3.6 GB a conversation) and fills the 40 GB for kept conversations fast. With 4 the
+follow-ups read the same 22-26 tokens, also after a restore. So the app keeps 4 while conversations are kept
+(`EngineController.keptCheckpoints`); with the setting off the engine's default stays. Not measured: Qwen3.6 on
+the Mac, and a conversation that goes back further than the last checkpoints (an edited earlier message).

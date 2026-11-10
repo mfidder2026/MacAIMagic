@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `7d15739`** (2026-11-10: WinAIMagic 1.14.9, which takes over the Mac's 1.14.9 and needs nothing here; the Mac then took 1.14.10). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `04209a5`** (2026-11-10: WinAIMagic 1.14.11 and the take-over of the Mac's 475ef67; the Mac then took 1.14.12). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
@@ -35,6 +35,8 @@ Commit on `main` and push: the other machine only sees `main`.
 5. Never present the Windows numbers as measured here. Write what was measured on this platform, and say so when something is an estimate.
 6. Move the marker above to the last commit you considered, also when a change does not apply.
 7. Put `Takes over WinAIMagic <sha>` in the commit message. Report to the owner in plain words what was taken over, what was adapted and what does not apply.
+
+**Taken over from `46c0d7a` … `04209a5` (2026-11-10):** only the last context checkpoints while conversations are kept (`46c0d7a`, adapted: `--ctx-checkpoints 4`, measured here with Qwen3.8-Flash-Next, see the commit). Not needed: its tray fix (WinUI), `c80559e` and `04209a5` (they take over the Mac's own commits), `ee69ec2` (version 1.14.11).
 
 **Taken over from `f77a1a4` … `ea715d4` (2026-11-09):** the model dot shows the engine state (`bbbb693`), a skill in the user's folder loads whatever its platform (`563b379`, the other way round: a Windows skill here), the last 4 thinking lines (`d1f9d01`), the load/unload gauge with a remembered clock (`abd8af4`, the Mac's own first guess: 1.5 GB/s of model memory), deleting a Documents project (`b5c78ab`), the working folder's files beside the chat (`18367d9`, polled once a second instead of a watcher). Not needed: `35cde7b` (a WinUI wrap panel), and the version commits `f77a1a4`, `7cd6c64`, `b0b381c`, `ea715d4`. The owner's C64 skill was repaired on the PC (c64build.py, tokenizing like the C64); that lives in the PC's own skills folder and is not on GitHub.
 
