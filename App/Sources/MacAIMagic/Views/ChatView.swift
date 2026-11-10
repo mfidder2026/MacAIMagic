@@ -586,7 +586,12 @@ struct AnswerView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    ForEach(Array(parts.suffix(hidden > 0 ? Self.live : parts.count))) { part in PartView(part: part) }
+                    // only the newest text in full: a card of earlier texts of code grew past 8,000 points, more than
+                    // macOS draws in one view, and shrank by thousands when one left the window: the chat went blank
+                    let newest = parts.last { if case .text = $0 { return true }; return false }?.id
+                    ForEach(Array(parts.suffix(hidden > 0 ? Self.live : parts.count))) { part in
+                        PartView(part: part, compact: part.id != newest)
+                    }
                     working
                 } else {
                     finished(parts)
@@ -633,14 +638,14 @@ struct AnswerView: View {
     @ViewBuilder private func finished(_ parts: [AnswerPart]) -> some View {
         let (work, tail) = AnswerPart.split(parts)
         if work.count == 1, case .thought = work[0] {
-            PartView(part: work[0])
+            PartView(part: work[0], compact: true)
         } else if work.count > 0 && work.count <= 3 && !work.contains(where: { if case .thought = $0 { return true }; return false }) {
-            ForEach(work) { part in PartView(part: part) }
+            ForEach(work) { part in PartView(part: part, compact: true) }
         } else if !work.isEmpty {
             let steps = work.filter(\.isStep).count
             DisclosureGroup(isExpanded: $showWork) {
                 VStack(alignment: .leading, spacing: 10) {
-                    ForEach(work) { part in PartView(part: part) }
+                    ForEach(work) { part in PartView(part: part, compact: true) }
                 }
                 .padding(.top, 6)
             } label: {
@@ -654,9 +659,11 @@ struct AnswerView: View {
     }
 }
 
-/// One part of an answer.
+/// One part of an answer. `compact`: a text shows its first lines only (an earlier text while the model works, and the
+/// texts in the folded work), until the user asks for all of it.
 struct PartView: View {
     let part: AnswerPart
+    var compact = false
     @State private var open = false
     @State private var showAll = false
 
@@ -684,7 +691,11 @@ struct PartView: View {
         case .step(let a):
             ActivityRow(activity: a)
         case .text(_, let text):
-            if !showAll, let f = MessageRow.folded(text) {
+            if compact, !showAll, let p = Self.preview(text) {
+                Text(p.shown).font(.callout).foregroundStyle(.secondary).lineLimit(Self.previewLines).truncationMode(.tail)
+                Button(L("… \(p.hidden.formatted()) tekens verborgen · Toon alles")) { showAll = true }
+                    .buttonStyle(.link).font(.caption)
+            } else if !showAll, let f = MessageRow.folded(text) {
                 // a monologue of 100,000 characters is one view taller than macOS draws: the chat went blank
                 MarkdownText(text: f.head)
                 Button(L("… \(f.hidden.formatted()) tekens verborgen · Toon alles")) { showAll = true }
@@ -715,6 +726,16 @@ struct PartView: View {
 
     /// Lines of thinking shown while the model thinks, and how long each may be (WinAIMagic's numbers).
     nonisolated static let gistLines = 4, gistWidth = 120
+    nonisolated static let previewLines = 3
+
+    /// The first lines of a text (without a code fence), and how many characters are not shown; nil when it is short.
+    nonisolated static func preview(_ text: String) -> (shown: String, hidden: Int)? {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: true)
+            .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.hasPrefix("```") && !$0.isEmpty }
+        let shown = lines.prefix(previewLines).map { String($0.prefix(gistWidth)) }.joined(separator: "\n")
+        let hidden = text.count - shown.count
+        return hidden > 200 ? (shown, hidden) : nil
+    }
 
     /// The thinking without opening it. While the model thinks: its last lines, one below the other (they ran together
     /// into one fast-moving block, and pixel art and lists became unreadable); the line being written keeps its end, an

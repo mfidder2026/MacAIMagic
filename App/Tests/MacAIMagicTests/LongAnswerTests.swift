@@ -1,4 +1,6 @@
 import XCTest
+import SwiftUI
+import AppKit
 @testable import MacAIMagic
 
 /// A model that plans aloud must not fill its context and start over, and the engine must be able to reuse the
@@ -50,5 +52,50 @@ final class LongMessageViewTests: XCTestCase {
 
     func testAnOrdinaryAnswerIsNotFolded() {
         XCTAssertNil(MessageRow.folded(String(repeating: "x", count: 5000)))
+    }
+}
+
+/// While a C64 task ran, the chat scrolled into empty space (2026-11-10): the live answer card showed its last 14 parts
+/// in full, three rounds of assembler code made it 8,876 points high (more than macOS draws in one view), and it shrank
+/// by thousands of points when a text left those 14 or the answer finished.
+@MainActor final class LiveCardHeightTests: XCTestCase {
+    private func code(lines: Int) -> String {
+        "Hier is de code:\n\n```asm\n" + (1...lines).map { String(format: "        lda #$%02x          ; regel %d van de intro", $0 % 256, $0) }.joined(separator: "\n") + "\n```"
+    }
+
+    private func height(_ rounds: [ChatMessage], streaming: Bool) -> CGFloat {
+        let v = NSHostingView(rootView: AnswerView(rounds: rounds, streaming: streaming).frame(width: 860))
+        v.frame = NSRect(x: 0, y: 0, width: 860, height: 100)
+        v.layoutSubtreeIfNeeded()
+        return v.fittingSize.height
+    }
+
+    private func rounds(_ n: Int, lines: Int) -> [ChatMessage] {
+        (0..<n).map { _ in
+            var m = ChatMessage(role: .assistant, text: code(lines: lines))
+            m.reasoning = "Ik denk na over de volgende stap."
+            m.activities = [ToolActivity(label: "Schrijven: intro.asm", done: true), ToolActivity(label: "Uitvoeren: build.sh", done: true)]
+            return m
+        }
+    }
+
+    func testOnlyTheNewestTextIsShownWholeWhileTheModelWorks() {
+        for lines in [200, 330] {      // ~10,000 characters (not folded) and ~16,700 (folded)
+            let one = height(rounds(1, lines: lines), streaming: true)
+            let six = height(rounds(6, lines: lines), streaming: true)
+            let done = height(rounds(6, lines: lines), streaming: false)
+            print("LIVE \(lines) lines: one round \(one), six rounds \(six), finished \(done)")
+            XCTAssertGreaterThan(one, 2000, "the newest text is there in full")
+            XCTAssertLessThan(six, one + 1200, "earlier texts are a few lines each")
+            XCTAssertLessThan(abs(six - done), 1200, "finishing does not shrink the card by thousands of points")
+        }
+    }
+
+    func testAPreviewIsTheFirstLinesWithoutTheCodeFence() throws {
+        let p = try XCTUnwrap(PartView.preview(code(lines: 50)))
+        XCTAssertEqual(p.shown.components(separatedBy: "\n").count, PartView.previewLines)
+        XCTAssertTrue(p.shown.hasPrefix("Hier is de code:"))
+        XCTAssertFalse(p.shown.contains("```"))
+        XCTAssertNil(PartView.preview("Kort."))
     }
 }
