@@ -165,6 +165,9 @@ final class Settings: ObservableObject {
     }
     /// Speculative decoding with the model's multi-token prediction head (GLM, Qwen).
     @AppStorage("mtp") var mtp = true
+    /// ngram-mod beside MTP: what the model writes again from the conversation (code it changes, a file it rewrites)
+    /// is proposed in long stretches at once. Measured: changing code twice as fast, the rest unchanged.
+    @AppStorage("ngramMod") var ngramMod = true
     /// Save a conversation's place in the engine when another one takes it or the engine stops, and read it back
     /// (SlotKeeper): continuing a long conversation then does not read it all again.
     @AppStorage("keepEngineMemory") var keepEngineMemory = true

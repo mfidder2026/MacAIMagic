@@ -72,6 +72,10 @@ struct SettingsView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     Toggle(L("Afbeeldingen (vision, 1 GB extra)"), isOn: $settings.vision)
                     Toggle(L("Sneller schrijven met MTP (GLM en Qwen)"), isOn: $settings.mtp)
+                    Toggle(L("Herhaalde tekst sneller schrijven"), isOn: $settings.ngramMod)
+                        .disabled(!settings.mtp)
+                    Text(L("Neemt het model tekst over die al in het gesprek staat, zoals code die het aanpast of een bestand dat het herschrijft, dan schrijft het die in grote stukken tegelijk: tot twee keer zo snel. Het antwoord blijft hetzelfde. Werkt samen met MTP en geldt na het herstarten van de engine."))
+                        .font(.caption).foregroundStyle(.secondary)
                     Toggle(L("Gesprekken in de engine bewaren"), isOn: $settings.keepEngineMemory)
                     HStack(alignment: .firstTextBaseline) {
                         Text(L("Wat de engine van een gesprek gelezen heeft, gaat naar de SSD als een ander gesprek of een taak het model krijgt, of als de engine stopt. Verder gaan leest het dan niet opnieuw: bij DeepSeek scheelt dat minuten. Hooguit 40 GB, de oudste gaan eerst."))

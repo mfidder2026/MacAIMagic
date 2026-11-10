@@ -69,6 +69,7 @@ final class AppControl: AppControlling {
         ("systemPrompt", Setting(get: { Settings.shared.systemPrompt }, options: nil, kind: "text") { v in Settings.shared.systemPrompt = v; return true }),
         ("webSearch", flag(\.webSearch)),
         ("mtp", flag(\.mtp)),
+        ("ngramMod", flag(\.ngramMod)),
         ("autoStart", flag(\.autoStart)),
         ("animatedBackground", flag(\.animatedBackground)),
         ("workspaceTools", flag(\.workspaceTools)),
@@ -363,7 +364,7 @@ final class AppControl: AppControlling {
             let (key, setting) = Self.setting(arg(a, "setting"))!
             guard setting.set(arg(a, "value")) else { return "Error: that is not a value for \(key)." }
             if key == "featureTelegram" { TelegramService.shared.restart() }
-            let later = ["contextSize", "mtp", "vision"].contains(key) ? " It counts after the engine restarts." : ""
+            let later = ["contextSize", "mtp", "ngramMod", "vision"].contains(key) ? " It counts after the engine restarts." : ""
             return "\(key) is now \(setting.get()).\(later)"
         case "find_helpers":
             app.cluster.recheckManual()

@@ -129,9 +129,11 @@ final class EngineController: ObservableObject {
         // file it rewrites, a quote) it proposes the rest of that stretch at once. Measured on the M3 Max with
         // Qwen3.8-Flash-Next Q4 (tools/spec_bench.py): changing code 52-53 -> 115-122 tok/s; a story, code, an
         // explanation and thinking at the same speed as MTP alone (it proposed nothing there).
+        // ("Herhaalde tekst sneller schrijven" in the settings)
         if s.mtp && model.hasMTP && plan.expertCache == 0 {
-            if model.mtp == "file", let draft { args += ["--spec-type", "draft-mtp,ngram-mod", "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
-            else if model.mtp == "builtin" { args += ["--spec-type", "draft-mtp,ngram-mod", "--spec-draft-n-max", "2"] }
+            let types = s.ngramMod ? "draft-mtp,ngram-mod" : "draft-mtp"
+            if model.mtp == "file", let draft { args += ["--spec-type", types, "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
+            else if model.mtp == "builtin" { args += ["--spec-type", types, "--spec-draft-n-max", "2"] }
         }
         return args
     }

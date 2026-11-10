@@ -1,7 +1,7 @@
 ---
 title: Modellen
 icon: square.stack.3d.up
-keywords: model klein Ling Ministral downloaden compact Q4 MTP geheugen SSD GPU-limiet update verwijderen snel zwaar afbeeldingen modelmap
+keywords: model klein Ling Ministral downloaden compact Q4 MTP geheugen SSD GPU-limiet update verwijderen snel zwaar afbeeldingen modelmap herhaalde tekst ngram
 ---
 ## Welk model?
 Elke kaart zegt voor deze Mac of het model **helemaal in het geheugen past**, **van de SSD streamt** (trager) of **te groot** is. **Systeem** raadt het beste model aan dat helemaal past.
@@ -10,7 +10,7 @@ Elke kaart zegt voor deze Mac of het model **helemaal in het geheugen past**, **
 |---|---|
 | **Compact** | Alles wat een token nodig heeft staat in het geheugen. De snelle keuze. |
 | **Q4** | Dichter bij de originele gewichten, maar groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD. |
-| **MTP** | GLM en Qwen raden de volgende tokens vooraf; dezelfde antwoorden, tot 65% sneller schrijven. Aan/uit onder Instellingen → Engine. |
+| **MTP** | GLM en Qwen raden de volgende tokens vooraf; dezelfde antwoorden, tot 65% sneller schrijven. Aan/uit onder Instellingen → Engine. Daaronder **Herhaalde tekst sneller schrijven**: code aanpassen gaat er tot twee keer zo snel mee. |
 
 **Voor een Mac met 8 of 16 GB** zijn er twee kleine modellen. **Ministral-3-8B** leest ook afbeeldingen en wordt aangeraden op 16 GB. **Ling-3.0-tiny** gebruikt maar 1B van zijn 8B per woord en is daardoor drie keer zo snel, maar leest geen afbeeldingen. Het wordt aangeraden op 8 GB, waar macOS het grootste deel in het geheugen houdt en de rest van de SSD leest.
 
