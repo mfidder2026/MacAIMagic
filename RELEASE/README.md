@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.9 (macOS, Apple Silicon)
+# MacAIMagic 1.14.10 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.9-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.10-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,21 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.9-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.10-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.10 (fixes found by a review of the code):
+- **No more reading the whole conversation again after a task.** The question for lessons after a task with steps went with thinking off, and DeepSeek's template then changes the start of the prompt: the engine read everything again (52,232 tokens, 383 s, in real use). It now uses the same settings as the answers.
+- **"Stop model" stops at once**, also while the model writes: measured with DeepSeek-V4.1-Flash, the engine was gone 3.9 s after the click instead of writing on for up to a minute. The last finished answer was saved already.
+- The app no longer stops when the model asks to read a file with a negative number of lines, or when an engine address in Settings is not a valid address (such as `::1`).
+- The model can no longer write outside the working folder through a symbolic link in it.
+- A picture in a conversation while the model has no vision no longer breaks that conversation: it goes as a line of text, and Telegram says the photo cannot be looked at.
+- Telegram: a second message while the model loads gets "still busy" instead of nothing, and cards and reports no longer stop after the connection restarts.
+- **Documents with a cluster**: with helper Macs chosen and no model loaded, "Make" stopped at once with "The engine stopped" while the model then loaded anyway; it now waits for the helpers' check. Scheduled tasks wait for it too.
+- A scheduled task no longer gives up on an old error while the model loads anyway.
+- A command that ignores the stop is ended after 3 s, so its conversation goes on.
+- The files panel keeps its place in the open file when the folder changes, and stays quick with large files.
 
 New in 1.14.9 (1.14.6 to 1.14.8 were WinAIMagic versions):
 - **Long conversations go on without reading them again.** When another conversation, a task or Documents takes the model, when an answer is done, and when the engine stops, what the engine has read of a conversation goes to the SSD; it comes back when you go on, also after a restart. Measured with DeepSeek-V4.1-Flash on the M3 Max: a conversation of 19,913 tokens went on in 1.4 s instead of reading it again for 145 s (81 MB on the SSD). A conversation keeps the notes (MACAIMAGIC.md) and the skill list it began with, so a lesson the model writes no longer makes the engine read everything again. Settings → Engine: "Keep conversations in the engine", at most 40 GB. Every save and restore is in the engine log.

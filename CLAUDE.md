@@ -21,7 +21,7 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `ea715d4`** (2026-11-09: version 1.14.8; the Mac then took 1.14.9). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `7d15739`** (2026-11-10: WinAIMagic 1.14.9, which takes over the Mac's 1.14.9 and needs nothing here; the Mac then took 1.14.10). Everything after it has not been considered for the Mac yet.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
