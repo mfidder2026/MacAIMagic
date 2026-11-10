@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.10 (macOS, Apple Silicon)
+# MacAIMagic 1.14.12 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.10-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.12-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,19 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.10-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.12-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.12 (1.14.11 was a WinAIMagic version):
+- **Changing code is written about twice as fast.** Beside MTP the engine now also proposes text that is already in the conversation (ngram-mod): when the model gives back code it changes or rewrites a file, it guesses long stretches at once. Measured with Qwen3.8-Flash-Next Q4 on the M3 Max: changing code 115-122 instead of 52-53 tokens per second; a story, new code, an explanation and thinking stay as fast as with MTP alone. Settings → Engine: "Herhaalde tekst sneller schrijven" (on).
+- **Watch along**: a screenshot the model makes with a command (a program, the C64 emulator) shows small beside its step; click it to see it larger. A finished answer keeps a row of them under "Gedachtegang".
+- **The chat no longer scrolls into empty space** while the model writes a lot of code: earlier answer texts fold to their first lines while the model works.
+- **The answer stays in view** when a step (such as updating the notes) comes after it.
+- **The right skill loads by itself**: "commodore 64 kickassembler" now loads an assembler skill, not a BASIC one about the same computer.
+- **Documents**: the cover is filled also from what a small model writes, a section cut off at its limit goes on where it stopped, a page's own footnote numbers no longer show up as sources, and a page that fails is replaced by another one.
+- A system change without a check (such as `defaults write`) gets one, so its result is verified.
+- **Kept conversations stay small.** A hybrid model (Qwen3.8-Flash-Next, Qwen3.6) adds context checkpoints every turn, and a saved conversation carried them all. Measured with Qwen3.8-Flash-Next on the M3 Max, a conversation of 12,000 tokens: after six turns 2.4 GB on the SSD and growing by 340 MB per turn; now about 0.96 GB that stays the same, saved in 0.15 s and read back in 0.16 s, after which the model still reads only 23 tokens. (Taken over from WinAIMagic 1.14.11.)
 
 New in 1.14.10 (fixes found by a review of the code):
 - **No more reading the whole conversation again after a task.** The question for lessons after a task with steps went with thinking off, and DeepSeek's template then changes the start of the prompt: the engine read everything again (52,232 tokens, 383 s, in real use). It now uses the same settings as the answers.
