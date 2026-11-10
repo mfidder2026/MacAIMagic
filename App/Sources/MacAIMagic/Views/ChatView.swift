@@ -521,6 +521,21 @@ enum AnswerPart: Identifiable {
 
     var isStep: Bool { if case .step = self { return true } else { return false } }
 
+    /// A finished answer: what folds away, and what stays in view. The last text stays in view with what came after
+    /// it: the steps after the answer, such as "MACAIMAGIC.md bijgewerkt" from learning, folded the answer itself
+    /// away in 1.14.10 (only "Gedachtegang en 28 stappen" was left).
+    static func split(_ parts: [AnswerPart]) -> (work: [AnswerPart], tail: [AnswerPart]) {
+        let isText: (AnswerPart) -> Bool = { if case .text = $0 { return true }; return false }
+        let isThought: (AnswerPart) -> Bool = { if case .thought = $0 { return true }; return false }
+        // a text the model wrote before more work is no answer: then only a step or two may follow it
+        if let t = parts.lastIndex(where: isText), !parts[(t + 1)...].contains(where: isThought), parts.count - t - 1 <= 2 {
+            return (Array(parts[..<t]), Array(parts[t...]))
+        }
+        let start = parts.lastIndex { if case .text = $0 { return false }; if case .error = $0 { return false }; return true }
+            .map { $0 + 1 } ?? 0
+        return (Array(parts[..<start]), Array(parts[start...]))
+    }
+
     /// The parts of the rounds; the last round's thinking is live while the model has not started its text.
     static func of(_ rounds: [ChatMessage], streaming: Bool) -> [AnswerPart] {
         var parts: [AnswerPart] = []
@@ -616,10 +631,7 @@ struct AnswerView: View {
 
     /// A finished answer: its last text and error stay in view, all that came before folds into one line.
     @ViewBuilder private func finished(_ parts: [AnswerPart]) -> some View {
-        let tailStart = parts.lastIndex { if case .text = $0 { return false }; if case .error = $0 { return false }; return true }
-            .map { $0 + 1 } ?? 0
-        let work = Array(parts[..<tailStart])
-        let tail = Array(parts[tailStart...])
+        let (work, tail) = AnswerPart.split(parts)
         if work.count == 1, case .thought = work[0] {
             PartView(part: work[0])
         } else if work.count > 0 && work.count <= 3 && !work.contains(where: { if case .thought = $0 { return true }; return false }) {

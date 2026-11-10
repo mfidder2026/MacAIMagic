@@ -39,6 +39,32 @@ final class AnswerTimelineTests: XCTestCase {
         XCTAssertEqual(Set(parts.map(\.id)).count, parts.count, "ids are unique")
     }
 
+    /// In 1.14.10 the learning step after the answer ("MACAIMAGIC.md bijgewerkt") folded the answer away: only
+    /// "Gedachtegang en 28 stappen" was left in the chat.
+    func testTheAnswerStaysInViewWithAStepAfterIt() {
+        func kinds(_ parts: [AnswerPart]) -> [String] {
+            parts.map { p in
+                switch p {
+                case .thought: return "denk"
+                case .step(let a): return a.label
+                case .text(_, let t): return t
+                default: return "?"
+                }
+            }
+        }
+        let rounds = [round("", reasoning: "plan", steps: ["Uitvoeren: c64run"]),
+                      round("De tekst breekt nu op spaties af.", reasoning: "klaar", steps: ["MACAIMAGIC.md bijgewerkt"])]
+        let (work, tail) = AnswerPart.split(AnswerPart.of(rounds, streaming: false))
+        XCTAssertEqual(kinds(work), ["denk", "Uitvoeren: c64run", "denk"])
+        XCTAssertEqual(kinds(tail), ["De tekst breekt nu op spaties af.", "MACAIMAGIC.md bijgewerkt"])
+        // a text before much more work folds with that work; the last parts after it stay in view
+        let early = [round("Ik begin.", steps: ["a", "b", "c"]), round("", reasoning: "", steps: [])]
+        XCTAssertEqual(kinds(AnswerPart.split(AnswerPart.of(early, streaming: false)).tail), [])
+        // a text and then thinking: the old rule
+        let thinking = [round("Tussendoor."), round("", reasoning: "denk verder", steps: ["x"])]
+        XCTAssertEqual(kinds(AnswerPart.split(AnswerPart.of(thinking, streaming: false)).tail), [])
+    }
+
     func testOnlyTheLastRoundThinksLive() {
         let parts = AnswerPart.of([round("", reasoning: "a", steps: ["x"]), round("", reasoning: "b")], streaming: true)
         let live = parts.compactMap { p -> Bool? in if case .thought(_, _, let l) = p { return l }; return nil }
