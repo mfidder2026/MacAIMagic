@@ -7,6 +7,8 @@ import AppKit
 final class FakeModel: URLProtocol {
     nonisolated(unsafe) static var requests: [(host: String, body: [String: Any])] = []
     nonisolated(unsafe) static var answer: (String, String) -> String = { _, _ in "" }
+    /// Whether the answer to this user message stops at the token limit.
+    nonisolated(unsafe) static var cutOff: (String) -> Bool = { _ in false }
 
     override class func canInit(with request: URLRequest) -> Bool { request.url?.host?.hasSuffix(".model.test") == true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -27,8 +29,9 @@ final class FakeModel: URLProtocol {
         let body = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] ?? [:]
         let messages = body["messages"] as? [[String: Any]] ?? []
         Self.requests.append((request.url?.host ?? "", body))
-        let text = Self.answer(messages.first?["content"] as? String ?? "", messages.last?["content"] as? String ?? "")
-        let chunk: [String: Any] = ["choices": [["delta": ["content": text], "finish_reason": "stop"]]]
+        let user = messages.last?["content"] as? String ?? ""
+        let text = Self.answer(messages.first?["content"] as? String ?? "", user)
+        let chunk: [String: Any] = ["choices": [["delta": ["content": text], "finish_reason": Self.cutOff(user) ? "length" : "stop"]]]
         let sse = "data: " + String(decoding: try! JSONSerialization.data(withJSONObject: chunk), as: UTF8.self) + "\n\ndata: [DONE]\n\n"
         client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(sse.utf8))
@@ -52,6 +55,7 @@ final class DocumentStudioTests: XCTestCase {
         Settings.shared.language = "nl"     // the fake model recognizes the requests by their Dutch text
         URLProtocol.registerClass(FakeModel.self)
         FakeModel.requests = []
+        FakeModel.cutOff = { _ in false }
         searched = []
         studio = DocumentStudio(folder: folder)
         studio.endpoint = { role in
@@ -208,7 +212,69 @@ final class DocumentStudioTests: XCTestCase {
         XCTAssertFalse(body.contains("ruis.example"))
         XCTAssertTrue(studio.notes.contains { $0.contains("[9]") })
         XCTAssertTrue(studio.notes.contains { $0.contains("'bron 3'") })
-        XCTAssertTrue(studio.notes.contains { $0.contains("2 pagina's") })
+        // the page that did not load and the one about something else were stand-ins: no remark about them
+        XCTAssertFalse(studio.notes.contains { $0.contains("geen bruikbare pagina") }, "\(studio.notes)")
+        // the model is told how many sources there are
+        XCTAssertTrue(FakeModel.requests.contains { (($0.body["messages"] as? [[String: Any]])?.last?["content"] as? String ?? "").contains("[1] tot en met [2]") })
+    }
+
+    /// In 1.14.10, 5 pages that did not load were said, although others stood in for them; now only a question
+    /// without any page is named.
+    func testAPageThatFailsIsReplacedAndOnlyAQuestionWithoutPagesIsNamed() async throws {
+        var read: [String] = []
+        studio.searchWeb = { q in
+            q.contains("leeg") ? [WebTools.Hit(title: "Kapot", url: "https://kapot.example/\(q.count)", snippet: "")]
+                : (1...6).map { WebTools.Hit(title: "P\($0)", url: "https://\($0 % 2 == 0 ? "kapot" : "goed").example/\($0)", snippet: "") }
+        }
+        studio.fetchPage = { url in
+            read.append(url)
+            if url.contains("kapot") { throw URLError(.cannotFindHost) }
+            return ("Goed", "Inhoud [12] met een voetnoot[a].")
+        }
+        var pages: [String] = []
+        FakeModel.answer = { system, user in
+            if system.contains("hoe een document eruit moet zien") { return Self.planWithoutSearch + "ZOEK: mfa eisen\nZOEK: leeg onderwerp\n" }
+            if system.contains("webpagina") { pages.append(user); return "Een feit [3]." }
+            if system.contains("voorblad") { return "" }
+            return "Tekst [1]."
+        }
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: true)
+        try await waitUntilDone()
+        XCTAssertNil(studio.problem)
+        // 4 per question: the 3 good pages of the first question are all read, the failures do not count
+        XCTAssertEqual(read.filter { $0.contains("goed") }.count, 3, "\(read)")
+        XCTAssertEqual(studio.notes.filter { $0.contains("geen bruikbare pagina") }.count, 1, "\(studio.notes)")
+        XCTAssertTrue(studio.notes.contains { $0.contains("'leeg onderwerp'") })
+        // a page's own footnote marks do not reach the model, nor its notes the writer
+        XCTAssertFalse(pages.contains { $0.contains("[12]") || $0.contains("[a]") })
+        let writer = FakeModel.requests.compactMap { (($0.body["messages"] as? [[String: Any]])?.last?["content"] as? String) }.filter { $0.contains("Schrijf nu de inhoud") }
+        XCTAssertFalse(writer.isEmpty)
+        XCTAssertFalse(writer.contains { $0.contains("Een feit [3]") })
+    }
+
+    /// A section about 5 architecture layers stopped at the token limit in 1.14.10; now the model goes on writing.
+    func testALongSectionGoesOnWhereItStopped() async throws {
+        let start = "Eerste alinea, die lang genoeg is om te blijven staan, over de eerste lagen.\n\nTweede alinea die afgebr"
+        FakeModel.answer = { system, user in
+            if system.contains("hoe een document eruit moet zien") { return "TITEL: AQS\nOPBOUW: eisen.txt\n# Lagen\n> Vijf lagen.\n" }
+            if system.contains("voorblad") { return "" }
+            return user.contains("Je schreef al dit begin") ? "Tweede alinea, nu heel." : start
+        }
+        FakeModel.cutOff = { !$0.contains("Je schreef al dit begin") && $0.contains("Schrijf nu de inhoud") }
+        try attach("eisen.txt", "Iets.")
+        studio.make(request: "Maak een AQS", useWeb: false)
+        try await waitUntilDone()
+        XCTAssertFalse(studio.notes.contains { $0.contains("te lang werd") }, "\(studio.notes)")
+        let body = DocumentDraft(markdown: studio.text).body
+        XCTAssertTrue(body.contains("over de eerste lagen.\n\nTweede alinea, nu heel."), body)
+        XCTAssertFalse(body.contains("afgebr"))
+    }
+
+    func testACutOffTextEndsOnAWholeSentence() {
+        XCTAssertEqual(DocumentStudio.completePart("Een zin. Nog een hele lange zin die doorloopt. En dan af").text, "Een zin. Nog een hele lange zin die doorloopt.")
+        XCTAssertEqual(DocumentStudio.completePart("Klaar.").joint, "\n\n")
+        XCTAssertEqual(DocumentStudio.withoutFootnotes("Feit[3] en [citation needed] maar [link](https://x) en [B] blijft"), "Feit en  maar [link](https://x) en [B] blijft")
     }
 
     func testTheListOfSourcesIsNoReasonForAWarning() async throws {
