@@ -375,3 +375,34 @@ Measured:
 
 DeepSeek's state is small on disk, so the 5.3 GB entries in llama.cpp's RAM cache seen before must hold more than the
 conversation's own cells (not looked into). Not measured: GLM-5.3-Flash, and a cluster, where the app does not use it.
+
+## 11. Guessing ahead: MTP, ngram-mod and DFlash on Qwen3.8-Flash-Next (2026-11-10)
+
+From a survey of GitHub projects (AirLLM, streamlx, inferssd, the MLX DFlash ports): the pinned engine (`ddf48f8`) already
+has more ways to guess tokens ahead than MTP: `ngram-mod` (it looks the last 24 tokens up in what was already in the
+context and proposes the next stretch of up to 64 tokens) and `draft-dflash` (a small drafter writes a block of tokens in
+one pass). `tools/spec_bench.py` starts the engine with the app's arguments per setting and writes five texts at
+temperature 0. Measured on the M3 Max 128 GB, Qwen3.8-Flash-Next Q4 with vision, tokens per second; where two numbers
+are given, two runs (they differ by 5-8%):
+
+| Setting | Story | Writing code | Changing code | Explanation (Dutch) | Thinking (a sum) |
+|---|---|---|---|---|---|
+| No guessing | 31.4 / 33.4 | 31.3 / 33.1 | 30.7 / 32.5 | 30.7 / 31.1 | 31.3 / 32.5 |
+| MTP, 2 ahead (MacAIMagic up to 1.14.10) | 35.6 / 32.8 | 51.3 / 47.1 | 53.0 / 52.2 | 39.3 / 38.8 | 46.1 / 44.2 |
+| MTP, 3 ahead | 32.6 | 53.0 | 60.9 | 36.1 | 46.5 |
+| **MTP, 2 ahead, with ngram-mod** | 33.1 / 34.2 | 43.3 / 47.8 | **114.9 / 122.0** | 36.6 / 38.0 | 41.1 / 44.5 |
+| MTP, 3 ahead, with ngram-mod | 32.7 | 54.1 | 123.2 | 35.5 | 45.8 |
+| DFlash2 drafter (incoai, Q4_K_M, 0.36 GB), 4 ahead | 22.0 | 43.4 | 68.4 | 20.8 | 39.0 |
+| DFlash2 drafter, 8 ahead | 17.6 | 36.0 | 84.4 | 16.7 | 36.3 |
+
+- **ngram-mod** only proposes when the model writes again what the conversation already holds (here: giving back 40
+  lines of Swift with one change). Elsewhere it proposed nothing: the counts of guessed and accepted tokens were exactly
+  those of MTP alone, and the speed differences are within the run-to-run spread. MacAIMagic now uses
+  `--spec-type draft-mtp,ngram-mod` for the models with an MTP head that fit in memory.
+- **DFlash** runs (its model card says llama.cpp cannot drive it for this model yet; llama.cpp #30927, in the pin, fixed
+  that), but the big model accepted only ~10% of its guesses on Dutch prose (110 of 1,150 in the story), so it made
+  stories and explanations 30-45% slower. Only on changing code did it win, and there ngram-mod wins more. Not used.
+- **The text** was the same as without guessing in every setting, except one near-tie word in the thinking task (the
+  same place for every setting that checks several tokens at once: rounding in the batched check).
+- Not measured: ngram-mod for Ling-3.0-tiny or Qwen3.6 (no MTP head), and for models larger than memory (each checked
+  token can need other experts from the SSD), so those get no guessing, as before.

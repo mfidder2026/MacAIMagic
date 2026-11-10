@@ -212,6 +212,32 @@ final class SlotKeeperTests: XCTestCase {
         XCTAssertEqual(keeper.used, 1000)
     }
 
+    /// Measured on the M3 Max with Qwen3.8-Flash-Next: ngram-mod beside MTP doubled the speed of changing code and cost
+    /// nothing elsewhere. A model larger than memory gets neither: checking more tokens needs more experts from the SSD.
+    func testMTPComesWithNgramModOnlyForAModelInMemory() throws {
+        let saved = Settings.shared.mtp
+        defer { Settings.shared.mtp = saved }
+        Settings.shared.mtp = true
+        let engine = EngineController(port: 1, slots: SlotKeeper(folder: dir))
+        let model = try XCTUnwrap(ModelCatalog.shared.model("qwen3.8-flash-next-q4"))
+        XCTAssertEqual(model.mtp, "file")
+        func plan(cache: UInt64) -> MemoryPlan {
+            MemoryPlan(physical: 128 << 30, gpuLimit: 110 << 30, suggestedWiredLimitMB: 0, dense: 6 << 30, experts: 76 << 30, engram: 0,
+                       overhead: 4 << 30, layers: 48, hostExpertLayers: [], gpuExperts: 0, cpuExperts: 0, expertCache: cache,
+                       tensorSplit: [], threads: 12, contextSize: 65536, warnings: [])
+        }
+        let draft = URL(fileURLWithPath: "/mtp.gguf")
+        let args = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(cache: 0), vision: nil, draft: draft)
+        XCTAssertEqual(args.firstIndex(of: "--spec-type").map { args[$0 + 1] }, "draft-mtp,ngram-mod")
+        XCTAssertEqual(args.firstIndex(of: "--model-draft").map { args[$0 + 1] }, draft.path)
+        XCTAssertEqual(args.firstIndex(of: "--spec-draft-n-max").map { args[$0 + 1] }, "2")
+        let streamed = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(cache: 90 << 30), vision: nil, draft: draft)
+        XCTAssertFalse(streamed.contains("--spec-type"))
+        // without MTP, no ngram-mod either: it was measured only beside MTP
+        Settings.shared.mtp = false
+        XCTAssertFalse(engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(cache: 0), vision: nil, draft: draft).contains("--spec-type"))
+    }
+
     func testTheEngineGetsTheFolderUnlessItIsACluster() throws {
         let engine = EngineController(port: 1, slots: SlotKeeper(folder: dir))
         let model = try XCTUnwrap(ModelCatalog.shared.model("ministral-3-8b-q4"))
