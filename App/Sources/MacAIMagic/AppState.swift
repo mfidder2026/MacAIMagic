@@ -168,16 +168,36 @@ final class AppState: ObservableObject {
         return fast.model?.id == selectedModel?.id ? fast.model : nil
     }
 
+    /// A start that was asked for but waits for something first (the cluster check, the second engine making room): the
+    /// engine still says "stopped" then. Whoever waits for the model must wait for this too (`startBegun()`), or it took
+    /// that "stopped" for a failed start: Documents gave up at once while the model then loaded anyway.
+    @Published private(set) var startPending = false
+
+    /// Returns once a start that was asked for has really begun (or was not possible after all).
+    func startBegun() async {
+        while startPending { try? await Task.sleep(for: .milliseconds(200)) }
+    }
+
     /// `forImage`: the image being made needs the chat model first, to improve its description.
     func startEngine(forImage: Bool = false, helpersChecked: Bool = false) {
         // the same model twice in memory helps nothing: the copy on the second engine makes room for the real one
         if chatModelOnFast != nil {
-            Task { await documentEngines.fast.stopAndWait(); startEngine(forImage: forImage) }
+            startPending = true
+            Task {
+                await documentEngines.fast.stopAndWait()
+                startPending = false
+                startEngine(forImage: forImage)
+            }
             return
         }
         // a helper that does not answer would make the start wait for minutes: it stays out, and Cluster says why
         if !helpersChecked && cluster.role == .main && !cluster.selected.isEmpty {
-            Task { await cluster.checkBeforeStart(); startEngine(forImage: forImage, helpersChecked: true) }
+            startPending = true
+            Task {
+                await cluster.checkBeforeStart()
+                startPending = false
+                startEngine(forImage: forImage, helpersChecked: true)
+            }
             return
         }
         if index == nil { loadIndex() }

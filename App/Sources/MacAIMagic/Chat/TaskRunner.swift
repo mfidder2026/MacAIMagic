@@ -102,6 +102,7 @@ extension AppState {
             guard canStart else { return false }
             startEngine()
             modelStartedByTasks = true
+            await startBegun()
         }
         let start = Date()
         // a "failed" or "stopped" from before this start is old news: only after the engine was starting (or after a

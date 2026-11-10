@@ -108,6 +108,8 @@ final class DocumentEngines: ObservableObject {
             if case .starting = app.engine.state {} else {
                 guard app.canStart else { throw Zip.Failure(L("Download eerst een model onder Modellen.")) }
                 app.startEngine()
+                // with cluster helpers the start waits for their check first: "stopped" until then is no failure
+                await app.startBegun()
             }
             try await wait(app.engine)
         }

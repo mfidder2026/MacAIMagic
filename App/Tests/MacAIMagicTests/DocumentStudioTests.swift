@@ -406,6 +406,9 @@ final class DocumentStudioTests: XCTestCase {
     func testAProjectCanBeRemoved() throws {
         let saved = (Settings.shared.documentProjects, Settings.shared.documentFolder)
         defer { Settings.shared.documentProjects = saved.0; Settings.shared.documentFolder = saved.1 }
+        // only this test's two projects, whatever an earlier run left in the list (read when a studio is made)
+        Settings.shared.documentProjects = ""
+        let studio = DocumentStudio(folder: folder)
         let other = folder.deletingLastPathComponent().appendingPathComponent("macaimagic-docs-ander-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: other) }
@@ -927,7 +930,10 @@ final class FastModelTests: XCTestCase {
         app.selectedModelID = "qwen3.8-flash-next-q4"
         let real = DocumentEngines(app: app)
         real.heavyEngine = { (URL(string: "http://heavy.model.test")!, "zwaar") }
-        XCTAssertEqual(real.fastChoice?.id, "qwen3.6-35b-a3b-q4")
+        // the smallest downloaded model that fits beside it: which one depends on what this Mac has (Ling-3.0-tiny since 1.14.5)
+        let choice = try XCTUnwrap(real.fastChoice, "a smaller downloaded model fits beside the heavy one")
+        XCTAssertNotEqual(choice.id, app.selectedModelID)
+        print("FAST choice:", choice.id)
 
         // whatever goes wrong below: no engine stays behind next to the user's
         defer { real.stopFast() }

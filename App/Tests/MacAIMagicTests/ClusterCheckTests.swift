@@ -28,6 +28,38 @@ final class ClusterCheckTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.5, "it gives up within its time")
     }
 
+    /// With helpers chosen a start first asks them, and the engine says "stopped" until then. Whoever waits for the model
+    /// (Documents, a task) must not take that for a failed start: Documents gave up at once while the model then loaded.
+    func testAStartThatWaitsForTheHelpersIsPending() async throws {
+        let app = AppState()
+        let saved = (app.cluster.selected, Settings.shared.clusterRole, app.selectedModelID)
+        defer {
+            (app.cluster.selected, Settings.shared.clusterRole, app.selectedModelID) = saved
+            for h in app.cluster.helpers where h.host.hasPrefix("10.9.8.") { app.cluster.remove(h) }
+        }
+        Settings.shared.clusterRole = "main"
+        app.cluster.probeOverride = { _ in 16310 }
+        app.cluster.addManual("10.9.8.1:50052", save: false)
+        try await Task.sleep(for: .milliseconds(100))
+        app.cluster.selected = ["10.9.8.1:50052"]
+        app.cluster.reachOverride = { _, _ in try? await Task.sleep(for: .milliseconds(600)); return false }
+        // a model that is not downloaded: the start itself then does nothing, only the waiting is tested here (an unknown
+        // id falls back to the catalog's first model, and that one would really start)
+        guard let absent = app.models.catalog.models.first(where: { !app.models.status($0.id).isComplete }) else {
+            throw XCTSkip("every model is downloaded here")
+        }
+        app.selectedModelID = absent.id
+        XCTAssertNil(app.index, "nothing to start")
+        app.startEngine()
+        XCTAssertTrue(app.startPending, "the start waits for the helpers")
+        XCTAssertEqual(app.engine.state, .stopped)
+        let t0 = Date()
+        await app.startBegun()
+        XCTAssertFalse(app.startPending)
+        XCTAssertGreaterThan(Date().timeIntervalSince(t0), 0.4, "startBegun waited for the check")
+        XCTAssertNil(app.engine.model, "no engine was started")
+    }
+
     func testAHelperThatDoesNotAnswerStaysOutWithTheReason() async throws {
         let c = ClusterController()
         let saved = c.selected
