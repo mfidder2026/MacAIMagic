@@ -120,22 +120,47 @@ enum Skills {
         Set(text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init))
     }
 
-    /// The skills a question is clearly about: a word of the skill's name, and at least three words of its name and
-    /// description together in the question. A small model often skips use_skill; then the app loads these itself.
-    static func matching(_ question: String, in skills: [Skill] = all) -> [Skill] {
-        let asked = words(question)
-        let scored: [(Skill, Int)] = skills.compactMap { s in
-            let name = words(s.name.replacingOccurrences(of: "-", with: " ")).subtracting(common)
-            let terms = name.union(words(s.description).filter { ($0.count >= 4 || $0.contains { $0.isNumber }) }).subtracting(common)
-            // "sprite" counts for "sprites": a shared start of at least four letters
-            func found(_ term: String) -> Bool {
-                asked.contains { $0 == term || (min($0.count, term.count) >= 4 && ($0.hasPrefix(term) || term.hasPrefix($0))) }
-            }
-            let hits = terms.filter(found).count
-            guard name.contains(where: found), hits >= 3 else { return nil }
-            return (s, hits)
+    /// The words of a question, and what two words next to each other also mean: "kick assembler" is "kickassembler",
+    /// and "commodore 64" is "c64" (a name's first letter with its number, also "amiga 500" for "a500").
+    nonisolated static func questionWords(_ text: String) -> Set<String> {
+        let list = text.lowercased().split { !$0.isLetter && !$0.isNumber }.map(String.init)
+        var out = Set(list)
+        for (a, b) in zip(list, list.dropFirst()) {
+            out.insert(a + b)
+            if let first = a.first, first.isLetter, a.allSatisfy(\.isLetter), b.allSatisfy(\.isNumber) { out.insert(String(first) + b) }
         }
-        return scored.sorted { $0.1 > $1.1 }.prefix(2).map(\.0)
+        return out
+    }
+
+    /// The skills a question is clearly about: a word of the skill's name that no other skill has, and at least three
+    /// words of its name and description together in the question. A small model often skips use_skill; then the app
+    /// loads these itself. Two skills on one subject (C64 BASIC and C64 assembler) share "c64" and "commodore", so the
+    /// question must name what sets one apart ("basic", "assembler"): "commodore 64 assembler programmeur" loaded the
+    /// BASIC skill and never the assembler one (2026-11-10).
+    static func matching(_ question: String, in skills: [Skill] = all) -> [Skill] {
+        let asked = questionWords(question)
+        func terms(_ s: Skill) -> (name: Set<String>, all: Set<String>) {
+            let name = words(s.name.replacingOccurrences(of: "-", with: " ")).subtracting(common)
+            return (name, name.union(words(s.description).filter { ($0.count >= 4 || $0.contains { $0.isNumber }) }).subtracting(common))
+        }
+        let sets = skills.map(terms)
+        // "sprite" counts for "sprites" (a shared start of four letters), "assembler" for "kickassembler" (six inside)
+        func found(_ term: String) -> Bool {
+            asked.contains { w in
+                w == term || (min(w.count, term.count) >= 4 && (w.hasPrefix(term) || term.hasPrefix(w)))
+                    || (min(w.count, term.count) >= 6 && (term.contains(w) || w.contains(term)))
+            }
+        }
+        let scored: [(Skill, own: Int, hits: Int)] = skills.indices.compactMap { i in
+            let (name, all) = sets[i]
+            let others = sets.indices.filter { $0 != i }.reduce(into: Set<String>()) { $0.formUnion(sets[$1].all) }
+            let hits = all.filter(found)
+            // a word of the name that no other skill has: "basic" or "v2", "kickassembler"; "c64" does not tell them apart
+            let ownName = sets.indices.filter { $0 != i }.reduce(name) { $0.subtracting(sets[$1].name) }
+            guard (ownName.isEmpty ? name : ownName).contains(where: found), hits.count >= 3 else { return nil }
+            return (skills[i], hits.subtracting(others).count, hits.count)
+        }
+        return scored.sorted { ($0.own, $0.hits) > ($1.own, $1.hits) }.prefix(2).map(\.0)
     }
 
     static func label(for call: ToolCall) -> String {
