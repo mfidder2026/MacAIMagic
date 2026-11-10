@@ -103,6 +103,29 @@ final class SystemToolsTests: XCTestCase {
         XCTAssertNil(SystemTools.readableCheck("defaults write d k v 2>/dev/null"))
     }
 
+    /// Qwen3.8 left out the check of a defaults write, so the card showed no current value.
+    func testACheckIsDerivedForADefaultsWrite() throws {
+        XCTAssertEqual(SystemTools.derivedCheck("defaults write com.apple.dock orientation -string left && killall Dock"),
+                       "defaults read com.apple.dock orientation")
+        XCTAssertEqual(SystemTools.derivedCheck("defaults write -g AppleShowAllExtensions -bool true"), "defaults read -g AppleShowAllExtensions")
+        XCTAssertEqual(SystemTools.derivedCheck(#"defaults -currentHost write "com.apple.screensaver" idleTime 600"#),
+                       #"defaults -currentHost read "com.apple.screensaver" idleTime"#)
+        // two keys, or no defaults write, or a key that is no key: no guess
+        XCTAssertNil(SystemTools.derivedCheck("defaults write a b 1; defaults write a c 2"))
+        XCTAssertNil(SystemTools.derivedCheck("pmset -a displaysleep 30"))
+        XCTAssertNil(SystemTools.derivedCheck("defaults write a -dict-add x y"))
+        XCTAssertNil(SystemTools.derivedCheck("defaults write a $(whoami) 1"))
+        // the same key twice is one value
+        XCTAssertEqual(SystemTools.derivedCheck("defaults write a b 1; killall Dock; defaults write a b 1"), "defaults read a b")
+
+        let call = ToolCall(id: "1", name: "system_change", arguments: #"""
+        {"summary":"Dock left","steps":[{"title":"Dock","apply":"defaults write com.apple.dock orientation -string left; killall Dock","undo":"defaults write com.apple.dock orientation -string bottom; killall Dock"},{"title":"Own","check":"defaults read a b","apply":"defaults write a c 1","undo":"x"}]}
+        """#)
+        let steps = try SystemTools.plan(from: call).steps
+        XCTAssertEqual(steps[0].check, "defaults read com.apple.dock orientation")
+        XCTAssertEqual(steps[1].check, "defaults read a b", "the model's own check stays")
+    }
+
     func testWarnings() {
         func step(_ apply: String, undo: String = "x") -> SystemTools.Step {
             SystemTools.Step(title: "t", check: "", apply: apply, undo: undo, admin: true)

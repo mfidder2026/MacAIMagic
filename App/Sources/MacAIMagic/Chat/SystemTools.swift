@@ -166,8 +166,11 @@ enum SystemTools {
             let apply = (s["apply"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !apply.isEmpty else { throw PlanError.emptyApply(i + 1) }
             let admin = (s["admin"] as? Bool) ?? ((s["admin"] as? String)?.lowercased() == "true")
+            var check = (s["check"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            // Qwen3.8 left the check out of a defaults write: then the card showed no value and nothing was recorded
+            if check.isEmpty { check = derivedCheck(apply) ?? "" }
             steps.append(Step(title: (s["title"] as? String ?? "").isEmpty ? apply : s["title"] as! String,
-                              check: (s["check"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
+                              check: check,
                               apply: apply,
                               undo: (s["undo"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines),
                               admin: admin))
@@ -315,6 +318,22 @@ enum SystemTools {
             if d == "-g" || d == "-globalDomain" { d = "NSGlobalDomain" }
             return d
         }.filter { $0 != "-currentHost" && !$0.hasPrefix("/") }
+    }
+
+    /// The check for a step that writes one preference, `defaults write d k …` → `defaults read d k`. Nil when the step
+    /// writes none or more than one, or when the result would not only read.
+    static func derivedCheck(_ apply: String) -> String? {
+        let word = #"("[^"$`]+"|'[^']+'|[^\s;|&<>()$`'"]+)"#
+        guard let re = try? NSRegularExpression(pattern: #"\bdefaults\s+(-currentHost\s+)?write\s+"# + word + #"\s+"# + word) else { return nil }
+        let ns = apply as NSString
+        let reads = Set(re.matches(in: apply, range: NSRange(location: 0, length: ns.length)).compactMap { m -> String? in
+            // `defaults write d -dict …` names no key
+            if ns.substring(with: m.range(at: 3)).hasPrefix("-") { return nil }
+            let host = m.range(at: 1).location == NSNotFound ? "" : "-currentHost "
+            return "defaults \(host)read \(ns.substring(with: m.range(at: 2))) \(ns.substring(with: m.range(at: 3)))"
+        })
+        guard reads.count == 1, let check = reads.first, isReadOnly(check) else { return nil }
+        return check
     }
 
     /// A check as models often write it, `defaults read d k 2>/dev/null || echo "not set"`, without the parts that

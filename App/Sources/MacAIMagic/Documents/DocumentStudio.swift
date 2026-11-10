@@ -721,21 +721,43 @@ final class DocumentStudio: ObservableObject {
             let (url, model) = try await endpoint(.fast)
             let answer = try await LocalModel.complete(
                 url: url, model: model,
-                system: L("Je vult velden van een voorblad in uit een opdracht. Geef per veld dat in de opdracht staat een regel 'veld: waarde'. Verzin niets: een veld waarvan de waarde er niet staat laat je weg."),
+                system: L("Je vult velden van een voorblad in uit een opdracht. Schrijf per veld waarvan de waarde in de opdracht staat een regel met alleen de naam van het veld, een dubbele punt en de waarde, zoals '\(empty[0]): …'. Verzin niets: een veld waarvan de waarde er niet staat laat je weg."),
                 user: L("Velden: \(empty.joined(separator: ", "))") + "\n\n" + input, maxTokens: 300, temperature: 0.1)
-            for line in answer.text.components(separatedBy: "\n") {
-                guard let colon = line.firstIndex(of: ":") else { continue }
-                let key = DocxFields.normalized(String(line[..<colon]))
-                let value = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
-                if !value.isEmpty, let i = draft.fields.firstIndex(where: { DocxFields.normalized($0.key) == key && empty.contains($0.key) }) {
-                    draft.fields[i].value = value
-                }
+            for (key, value) in Self.coverValues(answer.text, fields: empty) {
+                if let i = draft.fields.firstIndex(where: { $0.key == key }) { draft.fields[i].value = value }
             }
             finish(id)
         }
         text = draft.markdown
         rememberFields(draft)
         save()
+    }
+
+    private static let fieldLabels: Set<String> = ["veld", "field", "feld", "champ", "naam", "name", "nom"]
+    private static let noValue = Rx("^\\(?((onbekend|niet (bekend|vermeld|genoemd|gegeven)|unknown|not (given|stated|mentioned)|n/?a|n\\.v\\.t)\\b|[-–…. ]+$)", .caseInsensitive)
+
+    /// The fast model's lines 'field: value' for the cover. A small model writes 'veld: Klant: …' (Ling did, so the
+    /// cover stayed empty), a bullet or bold; only the fields asked for count, and "unknown" is no value.
+    static func coverValues(_ answer: String, fields: [String]) -> [(key: String, value: String)] {
+        var found: [(key: String, value: String)] = []
+        for raw in answer.components(separatedBy: "\n") {
+            var line = raw.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "")
+                .trimmingCharacters(in: .whitespaces)
+            while let first = line.first, "-*•·".contains(first) { line = String(line.dropFirst()).trimmingCharacters(in: .whitespaces) }
+            while let colon = line.firstIndex(of: ":") {
+                let name = DocxFields.normalized(String(line[..<colon]))
+                let rest = line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+                if fieldLabels.contains(name) { line = rest; continue }
+                guard let key = fields.first(where: { DocxFields.normalized($0) == name }), !found.contains(where: { $0.key == key }) else { break }
+                var value = rest
+                if value.count >= 2, let q = value.first, "'\"‘“".contains(q), let e = value.last, "'\"’”".contains(e) {
+                    value = String(value.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+                }
+                if !value.isEmpty, !DocumentDraft.isEmptyField(value), !noValue.test(value) { found.append((key, value)) }
+                break
+            }
+        }
+        return found
     }
 
     /// The attachments for a prompt; what is too long goes through the fast model as notes first.

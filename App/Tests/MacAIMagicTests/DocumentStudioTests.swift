@@ -112,6 +112,23 @@ final class DocumentStudioTests: XCTestCase {
 
     // MARK: - the way of a document
 
+    /// Ling wrote "veld: Klant: Gemeente Voorbeeld", so in 1.14.10 the cover stayed empty.
+    func testTheCoverReadsWhatASmallModelWrites() {
+        let answer = """
+        veld: Klant: Gemeente Voorbeeld
+        - **versie:** 0.2
+        Aanleiding: Verouderde koppeling
+        auteur: 'M. Fidder'
+        Klant: Andere klant
+        """
+        let found = DocumentStudio.coverValues(answer, fields: ["Klant", "versie", "auteur"])
+        XCTAssertEqual(found.map(\.key), ["Klant", "versie", "auteur"])
+        XCTAssertEqual(found.map(\.value), ["Gemeente Voorbeeld", "0.2", "M. Fidder"])
+        // "unknown" and the template's own marking are no value
+        let none = DocumentStudio.coverValues("Klant: onbekend\nversie: (niet vermeld)\nauteur: [Auteur]\nproject: -", fields: ["Klant", "versie", "auteur", "project"])
+        XCTAssertTrue(none.isEmpty, "\(none)")
+    }
+
     func testTheAttachmentsDecideWhatTheDocumentConsistsOf() async throws {
         try attach("eisen.txt", "Een AQS bestaat uit een inleiding en bevindingen.")
         answer(plan: Self.plan)
