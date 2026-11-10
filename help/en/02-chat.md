@@ -1,7 +1,7 @@
 ---
 title: Chatting
 icon: bubble.left.and.bubble.right
-keywords: conversation question think thinking temperature system prompt context summary go on image paste copy stop
+keywords: conversation question think thinking temperature system prompt context summary go on image paste copy stop screenshot watch along
 ---
 ## Asking a question
 Type your question at the bottom and press **↩** or **⌘↩**. **⌥↩** starts a new line. The answer appears while the model writes; **Stop** ends it.
@@ -21,6 +21,9 @@ Type your question at the bottom and press **↩** or **⌘↩**. **⌥↩** sta
 
 ## Context and summaries
 A meter at the top of the conversation shows how much of the context it uses. At 80% the model summarizes the start; the messages stay visible, with a line where the summary begins. You can also have it done right away.
+
+## Watching along
+When the model takes a screenshot on the way (of a program or the C64 emulator), a small copy shows with that step. After the answer they stay in a row under **Reasoning**; click one for a larger copy.
 
 ## When the model stops before it is done
 Local models sometimes stop halfway. The app notices this, tells the model to go on, and shows that in the conversation. If it stops three times in a row, the app asks you to say "go on" or to give a hint.

@@ -321,6 +321,8 @@ final class ChatClient: ObservableObject {
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].activities = activities }
                 }
                 var text: String
+                // the pictures the step makes (an emulator screenshot): small, beside the step, so the user watches along
+                var shots: [Attachment] = []
                 if let agent {
                     switch await agent.check(call) {
                     case .refuse(let why):
@@ -357,7 +359,12 @@ final class ChatClient: ObservableObject {
                             text = "Error: \(error.localizedDescription)"
                         }
                     } else {
+                        let started = Date()
                         text = await WorkspaceTools.run(call)
+                        if call.name == "run_command" {
+                            let command = WorkspaceTools.args(call)["command"] as? String ?? ""
+                            shots = WorkspaceTools.newImages(since: started, mentioned: command + "\n" + text).compactMap(ImageAttachment.thumbnail)
+                        }
                     }
                 } else if isSystem {
                     let out = await runSystem(call, in: id, store: store)
@@ -416,6 +423,7 @@ final class ChatClient: ObservableObject {
                 }
                 activities[activities.count - 1].done = true
                 activities[activities.count - 1].output = String(text.prefix(4000))
+                if !shots.isEmpty { activities[activities.count - 1].images = shots }
                 store.update(id) { c in
                     if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].sources = [] }
                     // the reminder rides on the round's last result: a message of its own would break the tool turn

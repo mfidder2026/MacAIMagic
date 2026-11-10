@@ -521,6 +521,27 @@ enum AnswerPart: Identifiable {
 
     var isStep: Bool { if case .step = self { return true } else { return false } }
 
+    nonisolated static let maxPictures = 8
+
+    /// The pictures among these parts, in order: what the steps made and what the model looked at, each file once (its
+    /// newest copy, so a screenshot made again shows how it looks now).
+    static func pictures(_ parts: [AnswerPart]) -> [Attachment] {
+        var out: [Attachment] = []
+        for p in parts {
+            let found: [Attachment]
+            switch p {
+            case .step(let a): found = a.images ?? []
+            case .looked(_, let attachments): found = attachments
+            default: found = []
+            }
+            for a in found {
+                out.removeAll { $0.filename == a.filename }
+                out.append(a)
+            }
+        }
+        return out
+    }
+
     /// A finished answer: what folds away, and what stays in view. The last text stays in view with what came after
     /// it: the steps after the answer, such as "MACAIMAGIC.md bijgewerkt" from learning, folded the answer itself
     /// away in 1.14.10 (only "Gedachtegang en 28 stappen" was left).
@@ -654,8 +675,44 @@ struct AnswerView: View {
                     .font(.callout.weight(.medium)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // what the model saw on the way (emulator screenshots) stays in view while the steps are folded
+            let pictures = AnswerPart.pictures(work)
+            if !showWork && !pictures.isEmpty { Thumbnails(images: Array(pictures.suffix(AnswerPart.maxPictures))) }
         }
         ForEach(tail) { part in PartView(part: part) }
+    }
+}
+
+/// Small pictures in a row (screenshots a step made); a click shows one larger.
+struct Thumbnails: View {
+    let images: [Attachment]
+    @State private var shown: Attachment.ID?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(images) { a in
+                    if let img = NSImage(data: a.jpeg) {
+                        Button { shown = a.id } label: {
+                            Image(nsImage: img).resizable().interpolation(.none).scaledToFit()
+                                .frame(maxWidth: 190, maxHeight: 135)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(.white.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
+                        .help(a.filename)
+                        .popover(isPresented: Binding(get: { shown == a.id }, set: { if !$0 { shown = nil } })) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(nsImage: img).resizable().interpolation(.none).scaledToFit().frame(width: 540)
+                                Text(a.filename).font(.caption).foregroundStyle(.secondary)
+                            }
+                            .padding(10)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(height: 135)
     }
 }
 
@@ -955,6 +1012,7 @@ struct ActivityRow: View {
                 }
             }
             .buttonStyle(.plain)
+            if let images = activity.images, !images.isEmpty { Thumbnails(images: images) }
             if open, let out = activity.output {
                 ScrollView([.vertical, .horizontal]) {
                     Text(out).font(.caption.monospaced()).textSelection(.enabled).padding(8)

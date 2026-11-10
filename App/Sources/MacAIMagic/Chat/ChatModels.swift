@@ -26,6 +26,8 @@ struct ToolActivity: Codable, Hashable, Identifiable {
     var done: Bool
     /// What the tool returned (shortened), shown when the user opens the step.
     var output: String? = nil
+    /// Small copies of the pictures the step made (an emulator screenshot), so the user can watch along.
+    var images: [Attachment]? = nil
     var denied: Bool? = nil
 }
 

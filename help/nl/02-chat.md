@@ -1,7 +1,7 @@
 ---
 title: Chatten
 icon: bubble.left.and.bubble.right
-keywords: gesprek vraag denken nadenken temperatuur systeemprompt context samenvatting ga door afbeelding plakken kopiëren stop
+keywords: gesprek vraag denken nadenken temperatuur systeemprompt context samenvatting ga door afbeelding plakken kopiëren stop schermafdruk screenshot meekijken
 ---
 ## Een vraag stellen
 Typ je vraag onderin en druk op **↩** of **⌘↩**. Met **⌥↩** begin je een nieuwe regel. Het antwoord verschijnt terwijl het model schrijft; **Stop** breekt het af.
@@ -21,6 +21,9 @@ Typ je vraag onderin en druk op **↩** of **⌘↩**. Met **⌥↩** begin je e
 
 ## Context en samenvatten
 Bovenin het gesprek laat een meter zien hoeveel van de context het gesprek gebruikt. Bij 80% vat het model het begin samen; de berichten blijven zichtbaar, met een streep waar de samenvatting begint. Je kunt dat ook zelf meteen laten doen.
+
+## Meekijken
+Maakt het model onderweg een schermafdruk (van een programma of de C64-emulator), dan staat er een kleine versie bij die stap. Na het antwoord blijven ze in een rijtje onder **Gedachtegang** staan; klik erop voor een grotere versie.
 
 ## Als het model stopt voordat het klaar is
 Lokale modellen stoppen soms halverwege. De app merkt dat en zegt het model door te gaan; je ziet dat in het gesprek. Stopt het drie keer achter elkaar, dan vraagt de app jou om "ga door" te zeggen of een aanwijzing te geven.

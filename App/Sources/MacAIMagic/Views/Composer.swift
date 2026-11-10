@@ -213,18 +213,21 @@ enum ImageAttachment {
         return [a]
     }
 
-    static func make(from url: URL, minSide: CGFloat = 0) -> Attachment? {
+    static func make(from url: URL, minSide: CGFloat = 0, largest: CGFloat = maxSide, quality: Double = 0.85) -> Attachment? {
         guard let img = NSImage(contentsOf: url) else { return nil }
-        return make(from: img, name: url.lastPathComponent, minSide: minSide)
+        return make(from: img, name: url.lastPathComponent, minSide: minSide, largest: largest, quality: quality)
     }
+
+    /// A small copy for the chat (not for the model): at most 360 points, about 15 KB for an emulator screen.
+    static func thumbnail(_ url: URL) -> Attachment? { make(from: url, largest: 360, quality: 0.6) }
 
     /// `minSide` enlarges a small picture (a 384-pixel emulator screen) with sharp pixels, so its letters stay readable
     /// for the vision tower, which sees an image in patches of 14 pixels.
-    static func make(from image: NSImage, name: String, minSide: CGFloat = 0) -> Attachment? {
+    static func make(from image: NSImage, name: String, minSide: CGFloat = 0, largest: CGFloat = maxSide, quality: Double = 0.85) -> Attachment? {
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
         let w = CGFloat(cg.width), h = CGFloat(cg.height)
         let up = minSide > 0 && max(w, h) < minSide
-        let scale = up ? (minSide / max(w, h)).rounded(.down) : min(1, maxSide / max(w, h))
+        let scale = up ? (minSide / max(w, h)).rounded(.down) : min(1, largest / max(w, h))
         let size = NSSize(width: (w * scale).rounded(), height: (h * scale).rounded())
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width), pixelsHigh: Int(size.height),
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
@@ -236,7 +239,7 @@ enum ImageAttachment {
         if up { NSGraphicsContext.current?.cgContext.interpolationQuality = .none }
         NSGraphicsContext.current?.cgContext.draw(cg, in: CGRect(origin: .zero, size: size))
         NSGraphicsContext.restoreGraphicsState()
-        guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) else { return nil }
+        guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: quality]) else { return nil }
         return Attachment(filename: name, jpeg: jpeg)
     }
 }

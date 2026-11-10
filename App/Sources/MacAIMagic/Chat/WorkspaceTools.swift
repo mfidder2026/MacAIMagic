@@ -91,6 +91,43 @@ enum WorkspaceTools {
         }
     }
 
+    nonisolated static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "tif", "tiff", "bmp", "webp", "heic"]
+
+    /// The pictures a command made: image files in the work folder (two folders deep) changed since it started, and
+    /// image files its command line or output names (a screenshot in /tmp too). The newest `limit`, oldest first.
+    @MainActor static func newImages(since start: Date, mentioned: String, limit: Int = 4) -> [URL] {
+        var found: [String: (URL, Date)] = [:]
+        func consider(_ url: URL) {
+            guard imageExtensions.contains(url.pathExtension.lowercased()),
+                  let v = try? url.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey]),
+                  v.isRegularFile == true, let date = v.contentModificationDate, date >= start.addingTimeInterval(-1) else { return }
+            let real = url.resolvingSymlinksInPath()
+            found[real.path] = (real, date)
+        }
+        if let root = workspace, let e = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey, .isDirectoryKey],
+                                                                        options: [.skipsHiddenFiles, .skipsPackageDescendants]) {
+            var seen = 0
+            for case let url as URL in e {
+                seen += 1
+                if seen > 5000 { break }
+                // a/b/shot.png is two folders deep; deeper folders are not read
+                if (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
+                    if e.level >= 3 { e.skipDescendants() }
+                    continue
+                }
+                consider(url)
+            }
+        }
+        let names = try? NSRegularExpression(pattern: #"[^\s'"`<>|;=(){}\[\]]+\.(?:png|jpe?g|gif|tiff?|bmp|webp|heic)\b"#, options: .caseInsensitive)
+        let ns = mentioned as NSString
+        for m in names?.matches(in: mentioned, range: NSRange(location: 0, length: ns.length)) ?? [] {
+            let path = (ns.substring(with: m.range) as NSString).expandingTildeInPath
+            if path.hasPrefix("/") { consider(URL(fileURLWithPath: path)) }
+            else if let root = workspace { consider(root.appendingPathComponent(path)) }
+        }
+        return found.values.sorted { $0.1 < $1.1 }.suffix(limit).map(\.0)
+    }
+
     /// The conversation's own folder while the chat client runs its tools; falls back to the last chosen folder.
     /// A task-local value: each conversation's run carries its own, so two runs at once never use each other's folder.
     @TaskLocal static var current: String?
