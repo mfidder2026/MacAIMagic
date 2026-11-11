@@ -31,6 +31,8 @@ Lokale modellen stoppen soms halverwege. De app merkt dat en zegt het model door
 ## Als dezelfde fout steeds terugkomt
 Krijgt het model in één antwoord drie keer dezelfde foutmelding (bijvoorbeeld van een build of een script), dan zegt de app het: wat het veranderde, loste de fout niet op, dus het moet de regel uit de foutmelding letterlijk lezen en alleen die aanpassen, in plaats van steeds het hele bestand te herschrijven. Dat gebeurt opnieuw na elke volgende drie keer. Je ziet de melding als je die stap openklikt. Regelnummers tellen niet mee: een fout die een paar regels opschuift, telt als dezelfde.
 
+Schrijft het model in één antwoord drie keer hetzelfde bestand helemaal opnieuw, zonder dat een opdracht het ondertussen draait of bouwt, dan zegt de app ook dat: bouw of draai het nu en verbeter alleen wat misgaat. Een opdracht telt als het het bestand bij naam noemt (bijvoorbeeld `./build.sh intro.asm` of `build/intro.prg`).
+
 ## Instellingen voor antwoorden
 Onder **Instellingen → Chat**: denkniveau, hoe lang het model maximaal nadenkt (standaard 16.000 tokens), temperatuur (hoger is creatiever) en een eigen systeemprompt.
 

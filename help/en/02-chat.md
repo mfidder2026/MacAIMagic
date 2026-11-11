@@ -31,6 +31,8 @@ Local models sometimes stop halfway. The app notices this, tells the model to go
 ## When the same error keeps coming back
 When the model gets the same error three times in one answer (from a build or a script, for example), the app tells it: what it changed did not fix the error, so it should read the line the error names, word for word, and change only that line, instead of rewriting the whole file again. This happens again after every next three times. You see the note when you open that step. Line numbers do not count: an error that moved a few lines counts as the same one.
 
+When the model writes the same file in full three times in one answer, and no command runs or builds it in between, the app says that too: build or run it now and fix only what goes wrong. A command counts when it names the file (for example `./build.sh intro.asm` or `build/intro.prg`).
+
 ## Answer settings
 Under **Settings → Chat**: reasoning effort, how long the model may think (16,000 tokens by default), temperature (higher is more creative) and your own system prompt.
 

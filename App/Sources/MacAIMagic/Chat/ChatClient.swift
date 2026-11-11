@@ -201,6 +201,8 @@ final class ChatClient: ObservableObject {
         var roundsSinceSteps = 0
         // the same error in the results of the folder's tools, again and again: the model hears it the third time
         var repeated = RepeatedErrors()
+        // the same file written in full again and again, and never run: the model hears it the third time
+        var rewrites = UntestedRewrites()
         // a step was taken in an earlier round of this answer
         var tookSteps = false
         // "ga door" on work that is under way: the plan was made, so even the first round only takes the next step
@@ -424,7 +426,15 @@ final class ChatClient: ObservableObject {
                     text = String(text.prefix(room * 3 / 4)) + "\n… (shortened, the output was \(text.count) characters) …\n" + String(text.suffix(room / 4))
                 }
                 // on this result itself, so the model reads it with the error; the user sees it in the step's output
-                let warning = isWorkspace ? repeated.note(text).map { "\n\n" + $0 } ?? "" : ""
+                var warning = isWorkspace ? repeated.note(text).map { "\n\n" + $0 } ?? "" : ""
+                if isWorkspace && activities.last?.denied != true {
+                    let a = WorkspaceTools.args(call)
+                    if call.name == "write_file", !text.hasPrefix("Error"), let path = a["path"] as? String {
+                        warning += rewrites.wrote(path).map { "\n\n" + $0 } ?? ""
+                    } else if call.name == "run_command" {
+                        rewrites.ran(a["command"] as? String ?? "")
+                    }
+                }
                 activities[activities.count - 1].done = true
                 activities[activities.count - 1].output = String(text.prefix(4000)) + warning
                 if !shots.isEmpty { activities[activities.count - 1].images = shots }

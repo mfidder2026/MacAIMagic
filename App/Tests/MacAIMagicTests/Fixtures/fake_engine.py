@@ -101,6 +101,12 @@ class Handler(BaseHTTPRequestHandler):
             out.append(chunk({"tool_calls": [{"index": 0, "id": f"call_b{builds}", "type": "function",
                                               "function": {"name": "run_command", "arguments": json.dumps({"command": cmd})}}]}))
             out.append(chunk({}, "tool_calls"))
+        elif "HERSCHRIJF" in text and builds < 3:
+            # a model that writes the same program in full again and again, and never runs it (UntestedRewrites)
+            args = json.dumps({"path": "intro.asm", "content": "versie %d" % builds})
+            out.append(chunk({"tool_calls": [{"index": 0, "id": f"call_h{builds}", "type": "function",
+                                              "function": {"name": "write_file", "arguments": args}}]}))
+            out.append(chunk({}, "tool_calls"))
         elif "DRIE" in text and not after_tool:
             calls = [{"index": i, "id": f"call_d{i}", "type": "function",
                       "function": {"name": "write_file", "arguments": json.dumps({"path": f"d{i}.txt", "content": "x"})}} for i in range(3)]
