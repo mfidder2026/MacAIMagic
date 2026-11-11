@@ -5,17 +5,21 @@ five kinds of text at temperature 0, and records the writing speed, the draft ac
 lossless: the text should match the one without drafting, up to a near-tie token).
 Usage: tools/spec_bench.py <out.json> [config names...]
 MACAIMAGIC_DFLASH=<draft.gguf> adds the DFlash configurations (e.g. incoai/Qwen3.8-Flash-Next-DFlash2-GGUF Q4_K_M).
+MACAIMAGIC_ENGINE=<llama-server> and MACAIMAGIC_MTP=<mtp.gguf> measure another engine build or MTP drafter;
+MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0.
 Results on the M3 Max 128 GB: docs/RESEARCH.md, "Guessing ahead"."""
 import json, os, subprocess, sys, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENGINE = ROOT + "/engine/bin/llama-server"
+ENGINE = os.environ.get("MACAIMAGIC_ENGINE", ROOT + "/engine/bin/llama-server")
 M = os.path.expanduser("~/Library/Application Support/MacAIMagic/models")
 MODEL = M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-q4-00001-of-00004.gguf"
-MTP = M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-mtp.gguf"
+MTP = os.environ.get("MACAIMAGIC_MTP", M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-mtp.gguf")
 VISION = M + "/vision/qwen3.8-vision.gguf"
 DFLASH = os.environ.get("MACAIMAGIC_DFLASH")
 PORT = 8093
+# MACAIMAGIC_TEMP=1.0 writes as the app does (its default temperature), with a fixed seed
+TEMP = float(os.environ.get("MACAIMAGIC_TEMP", "0"))
 URL = f"http://127.0.0.1:{PORT}"
 
 # the app's arguments for this model (EngineController, MemoryPlan for a model that fits), without the slot saves
@@ -74,7 +78,7 @@ def run(name):
         call({"messages": [{"role": "user", "content": "Zeg hallo."}], "max_tokens": 16, "temperature": 0,
               "chat_template_kwargs": {"enable_thinking": False}})
         for key, prompt, think, n in TASKS:
-            d = call({"messages": [{"role": "user", "content": prompt}], "max_tokens": n, "temperature": 0,
+            d = call({"messages": [{"role": "user", "content": prompt}], "max_tokens": n, "temperature": TEMP, "seed": 42,
                       "chat_template_kwargs": {"enable_thinking": think}})
             t = d["timings"]
             msg = d["choices"][0]["message"]

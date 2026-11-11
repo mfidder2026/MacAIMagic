@@ -498,12 +498,38 @@ Qwen3.8-Flash-Next Q4, the Swift sources as context, then a request for a new po
   1.4 GB per step at 2 ahead. llamAmpere's shortlist gave +1.8% on Flash-Next on their card (45.80 to 46.61 tok/s);
   on this Mac the share of that layer is larger. Not measured.
 
-**Candidates, not yet measured here:**
-- the drafter's output layer in 4 bits, or a vocabulary shortlist;
-- the 280 newer llama.cpp commits after the pin, among them qwen4exp copying less per token (`749db7f`), MTP reading
-  its hidden state on the device (`a8fad21`), conv snapshots in one set_rows (`040ce19`) and Metal fusion kept within
-  one command buffer (`44f91a0`);
-- mb-MTP, since the app writes at temperature 1.0;
-- Metal fusion of qwen4exp's MoE routing and GDN step, as upstream did for DeepSeek-V4 and GLM (`ea40a3a`).
+**The candidates, measured** with `tools/spec_bench.py` (the app's arguments, five texts, two rounds each,
+alternating):
+
+| Task | Now | Drafter output layer in 4 bits | Engine at upstream `cb44fdb` (2026-11-11) |
+|---|---|---|---|
+| Story | 35.0 / 34.9 | 37.2 / 37.3 | 35.4 / 35.4 (now: 35.8 / 34.9) |
+| Writing code | 49.6 / 49.1 | 49.5 / 51.1 | 49.1 / 48.1 (now: 50.1 / 49.8) |
+| Changing code | 120.9 / 118.2 | 114.4 / 118.6 | 118.6 / 121.6 (now: 121.3 / 126.7) |
+| Explanation | 36.4 / 38.5 | 37.8 / 34.5 | 37.7 / 38.5 (now: 35.4 / 37.8) |
+| Thinking | 43.3 / 44.5 | 43.2 / 45.6 | 43.2 / 44.0 (now: 42.4 / 44.2) |
+
+- **The drafter's output layer in 4 bits** (`llama-quantize --output-tensor-type q4_K`, 644 to 341 MiB): about +1% on
+  average. Only the story is faster in both rounds (+6.6%). Same text, same accepted guesses. The drafter is not
+  what holds the speed back.
+- **The newer engine** (upstream + patch 0001; patch 0002, expert streaming, no longer applies there): +0.9% without
+  guessing (31.5 to 31.8 tok/s), -1.2% with the app's setting. Within the spread; same text and accepted guesses.
+- **Temperature 1.0** (the app's default), MTP 2 + ngram-mod, seed 42:
+
+  | Task | MTP, temperature 0 | MTP, temperature 1 | No guessing, temperature 1 | Guesses accepted (0 → 1) |
+  |---|---|---|---|---|
+  | Story | 35.3 | 33.0 | 32.6 | 44% → 38% |
+  | Writing code | 50.0 | 45.0 | 32.1 | 84% → 72% |
+  | Changing code | 124.0 | 118.5 | 31.4 | 93% → 93% |
+  | Explanation | 36.6 | 33.9 | 30.4 | 62% → 52% |
+  | Thinking | 43.3 | 44.6 | 31.5 | 66% → 68% |
+
+  mb-MTP accepts every guess that is the model's top pick, so at temperature 1 it gets at least the acceptance of
+  temperature 0 back: 4-10% here, at the cost of text that leans toward the most likely words.
+
+What is left is the efficiency of this model's GPU work on Metal: 31.5 tok/s without guessing is a quarter of the
+bandwidth. Faster would take Metal work for qwen4exp (fusing the MoE routing and the GDN step, as upstream did for
+DeepSeek-V4 and GLM in `ea40a3a`) or another engine; MTPLX (MLX) reports 41 tok/s on this model (section 1), not
+measured on the same texts.
 
 For WinAIMagic, llamAmpere itself is the thing to try on an RTX 30-series card; its numbers are not measured here.
