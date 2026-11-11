@@ -618,3 +618,39 @@ the app's engine, tokens per second (two rounds where two numbers were averaged)
 - Flash-Next stays the model for code and agent work.
 - Qwen3.6 is the quick choice where its answers are good enough, and for edits that copy text (282 tok/s with
   ngram-mod).
+
+## 16. The newest llama.cpp on every model (2026-11-12)
+
+Upstream `2cbe0ec` (2026-11-11, 285 commits after our pin `ddf48f8`) with patch 0001 and patch 0002 rebased onto it
+(`patches/upstream-2cbe0ec/`), next to the app's engine. What upstream brings for us on paper: a class-based LRU for
+the expert cache (#31233, its author: +6-7% on a warm cache, CUDA), ref-counted context checkpoints (#30137), fused
+GLM/DeepSeek routing on Metal (#31615), faster RPC loading (#29413).
+
+Measured on the M3 Max with `tools/allbench.py`: every model with the app's arguments (captured from the running app
+for DeepSeek Compact, GLM Compact and GLM Q4; for the others built the same way as the app does for a model that fits
+in memory, because the screen was locked), the engines alternating old, new, old, new; per run 3 stories of 200
+tokens and a prompt of ~1,940 tokens at temperature 0, and one fixed answer to check that the text is the same.
+GLM Q4 (larger than memory, 20 GB expert cache in the app's plan that night) with `tools/stream_bench.py`, 4 stories.
+
+| Model | Writing, tok/s (old → new) | Prompt, tok/s (old → new) | Same text |
+|---|---|---|---|
+| Ling-3.0-tiny Q4 | 132.6 → 132.8 (+0.2%) | 2,980 → 3,015 | yes |
+| Ministral-3-8B Q4 | 59.3 → 57.9 (-2.4%) | 511 → 529 | yes |
+| Qwen3.6-35B-A3B Q4 | 70.6 → 68.6 (-2.8%) | 1,420 → 1,361 | no, from a near tie on |
+| Qwen3.6-35B-A3B Heretic Q4 | 77.6 → 76.9 (-0.9%) | 1,344 → 1,338 | yes |
+| Qwen3.8-Flash-Next Q4 (MTP + ngram-mod) | 34.4 → 34.8 (+1.0%) | 501 → 495 | yes |
+| GLM-5.3-Flash Compact (MTP + ngram-mod) | 24.4 → 23.0 (**-5.5%**) | 183 → 180 | yes |
+| DeepSeek-V4.1-Flash Compact | 22.2 → 22.4 (+0.9%) | 189 → 192 | yes |
+| GLM-5.3-Flash Q4, from the SSD, second pair | 3.87 → 3.78 (-2%) | 56.4 → 54.1 | yes |
+
+- Within the spread except GLM Compact, which was slower on the new engine in all six stories of both pairs.
+- GLM Q4: the first pair looked like +25% (3.2 → 4.1 tok/s), but the new engine ran second, with more of the model in
+  the page cache. Swapped, the two are equal. The new engine reads ~5% fewer bytes from the SSD per token
+  (0.67-0.76 against 0.70-0.80 GB) in both pairs.
+- Qwen3.6: the texts are the same for 126 characters, then one word differs ("markeerde" / "vormt") and the rest
+  follows from it. Each engine gives its own text every time.
+- The warm start works across the change: the new engine read the cache file of the current engine (MOE1) and saved
+  its own (MOE2).
+
+**What follows:** moving the pin brings no speed on this Mac now, and costs GLM Compact ~5%. The rebased patch is kept
+for when an upstream change does help.
