@@ -5,7 +5,7 @@ platform: macos
 ---
 Tested on macOS 27.
 
-Read: `df -h /`, `du -sh ~/Downloads ~/Library/Caches ~/Movies ~/Library/Application\ Support`,
+Read: `df -h /`, `du -sh ~/Downloads ~/Library/Caches ~/Movies ~/"Library/Application Support"`,
 `du -d 1 -h ~/Library` (one level), `tmutil listlocalsnapshots /`, `mdfind -onlyin ~ "kMDItemFSSize > 2000000000"`
 (files over 2 GB), `ls -la ~/.Trash`.
 

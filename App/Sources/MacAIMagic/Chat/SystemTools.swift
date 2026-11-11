@@ -9,7 +9,7 @@ enum SystemTools {
     static let names: Set<String> = ["system_read", "system_change", "system_undo"]
 
     static let definitions: [[String: Any]] = [
-        function("system_read", "Read this Mac's settings and state without changing anything (diagnosis). Runs one command in the home folder. Only read-only commands are allowed, without pipes, ;, &&, redirection or $(…): for example defaults read, pmset -g, networksetup -getdnsservers \"Wi-Fi\", scutil --dns, launchctl list, system_profiler, df -h, du -sh, top -l 1, log show, brew list, softwareupdate --list, tmutil listlocalsnapshots /, ls, cat. For a change, use system_change.",
+        function("system_read", "Read this Mac's settings and state without changing anything (diagnosis). Runs one command in the home folder. Only read-only commands are allowed, without pipes, ;, &&, redirection, $(…), backslashes or {…} (quote a path with spaces): for example defaults read, pmset -g, networksetup -getdnsservers \"Wi-Fi\", scutil --dns, launchctl list, system_profiler, df -h, du -sh, top -l 1, log show, brew list, softwareupdate --list, tmutil listlocalsnapshots /, ls, cat. For a change, use system_change.",
                  ["command": ["type": "string", "description": "One read-only command line"]], required: ["command"]),
         function("system_change", "Change this Mac's settings with a plan the user approves first. Give every step a check (a read-only command that shows the current value), an apply (the change, zsh) and an undo (puts the old value back; write the value from the check in it). Set admin to true for a step that needs administrator rights: macOS then asks the user for the password; never use sudo. Admin steps run as root, so write full paths instead of ~. Restart what reads the setting in the same apply (killall Dock). Use the skill for the subject first when there is one.",
                  ["summary": ["type": "string", "description": "What the plan does, in one sentence for the user"],
@@ -36,26 +36,28 @@ enum SystemTools {
 
     // MARK: - reading only
 
-    /// The words of a command line, or nil when it does more than run one program: $, `, a line break, or ; | & < > ( )
-    /// outside quotes. Quotes are taken off.
+    /// The words of a command line, or nil when zsh could read it as more than one program with these words: $, `, a
+    /// backslash or a control character anywhere, or ; | & < > ( ) { } # outside quotes. Quotes are taken off.
+    /// It reads unicode scalars, not Characters: zsh reads bytes, so a quote followed by a combining accent is still a
+    /// quote to zsh, and "\r\n" is a line break, while Swift sees one Character that is neither.
     static func words(_ command: String) -> [String]? {
-        if command.contains(where: { "$`\n\r".contains($0) }) { return nil }
         var out: [String] = []
         var word = ""
-        var quote: Character?
+        var quote: Unicode.Scalar?
         var inWord = false
-        for c in command {
+        for c in command.unicodeScalars {
+            if c == "$" || c == "`" || c == "\\" || c.value == 0x7f || (c.value < 0x20 && c != "\t") { return nil }
             if let q = quote {
-                if c == q { quote = nil } else { word.append(c) }
+                if c == q { quote = nil } else { word.unicodeScalars.append(c) }
                 continue
             }
             if c == "'" || c == "\"" { quote = c; inWord = true; continue }
-            if ";|&<>()".contains(c) { return nil }
+            if ";|&<>(){}#".unicodeScalars.contains(c) { return nil }
             if c == " " || c == "\t" {
                 if inWord { out.append(word); word = ""; inWord = false }
                 continue
             }
-            word.append(c); inWord = true
+            word.unicodeScalars.append(c); inWord = true
         }
         guard quote == nil else { return nil }
         if inWord { out.append(word) }
@@ -65,7 +67,8 @@ enum SystemTools {
     /// Whether the app may run this without asking: one program from a list of read-only commands, with arguments that
     /// cannot change anything. Everything else is a change.
     static func isReadOnly(_ command: String) -> Bool {
-        guard let w = words(command) else { return false }
+        // a first word with = is an assignment to zsh (X=… prog runs prog), not the program
+        guard let w = words(command), !w[0].contains("=") else { return false }
         let program = (w[0] as NSString).lastPathComponent
         let args = Array(w.dropFirst())
         let first = args.first ?? ""

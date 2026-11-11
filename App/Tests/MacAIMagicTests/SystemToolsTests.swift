@@ -94,6 +94,24 @@ final class SystemToolsTests: XCTestCase {
         }
     }
 
+    /// The check and zsh must read a command the same way: whatever zsh would read as a second command, an escaped
+    /// option, an expansion or another program is refused (each of these was tried with harmless echoes in zsh).
+    func testTheShellReadsACommandAsTheCheckDoes() {
+        for c in [#"cat /dev/null \'; echo x #'"#, #"find . \-delete"#, "find . -{delete,print}", "find . -print {}",
+                  "X=/a/cat /bin/rm -rf x", "PATH=/tmp cat x",
+                  "cat /dev/null\r\necho x", "cat x\u{0}", "cat x\u{1b}", "cat x\u{7f}",
+                  "cat 'a'\u{301} ; echo x #'", "cat \"`\u{301};echo x`\u{301}\"", "cat \"$\u{301}(echo x)\"",
+                  "cat x # -l", "ls ~/Library/Application\\ Support"] {
+            XCTAssertFalse(SystemTools.isReadOnly(c), c.debugDescription)
+        }
+        // what stays allowed: quoted spaces, = and # inside quotes, a file name that is not ASCII, a tab
+        for c in [#"du -sh ~/"Library/Application Support""#, "cat ~/Documents/Café.txt", "ls\t-la",
+                  #"log show --predicate 'eventMessage contains "a=b #1"' --last 1m"#, "sysctl hw.memsize",
+                  "mdfind 'kMDItemDisplayName == \"x*\"'"] {
+            XCTAssertTrue(SystemTools.isReadOnly(c), c.debugDescription)
+        }
+    }
+
     func testChecksAsModelsWriteThem() {
         XCTAssertEqual(SystemTools.readableCheck(#"defaults read d k 2>/dev/null || echo "(sleutel bestaat nog niet)""#), "defaults read d k")
         XCTAssertEqual(SystemTools.readableCheck("pmset -g 2>&1"), "pmset -g")

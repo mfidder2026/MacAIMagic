@@ -470,7 +470,7 @@ final class ChatClient: ObservableObject {
         case "system_read":
             let command = (a["command"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard SystemTools.isReadOnly(command) else {
-                return ("This command is not on the list of read-only commands (one program, no pipes, ;, &&, redirection or $(…)). Read with a simpler command, or use system_change if it changes something.", false)
+                return ("This command is not on the list of read-only commands (one program, no pipes, ;, &&, redirection, $(…), backslashes or {…}; quote a path with spaces). Read with a simpler command, or use system_change if it changes something.", false)
             }
             switch s.systemRight(change: false) {
             case "deny":
