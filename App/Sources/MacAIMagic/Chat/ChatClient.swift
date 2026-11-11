@@ -206,6 +206,8 @@ final class ChatClient: ObservableObject {
         // "ga door" on work that is under way: the plan was made, so even the first round only takes the next step
         let goingOn = store.conversations.first(where: { $0.id == id }).map(Self.isGoOn) ?? false
         for turn in 0..<maxToolRounds {
+            // the last round is complete here (its results, a picture it looked at): on disk before the next one starts
+            store.saveOnTheWay()
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
                Double(used) > Double(contextLimit) * Self.compactAt {
                 await compact(id, store: store, baseURL: baseURL)

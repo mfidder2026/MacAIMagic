@@ -186,5 +186,17 @@ final class ConversationStore: ObservableObject {
     func save() {
         guard let data = try? JSONEncoder().encode(conversations) else { return }
         try? data.write(to: file, options: .atomic)
+        lastSaved = Date()
+    }
+
+    private var lastSaved = Date.distantPast
+    /// A long answer saves on the way at most this often (4 MB of conversations took 24 ms to write on the M3 Max).
+    static var saveEvery: TimeInterval = 10
+
+    /// What an answer did so far, while it goes on: an answer can run for hours, and the conversation was written only
+    /// at its end (the Terminator intro: two hours of steps in memory only, lost if the app had been killed).
+    func saveOnTheWay() {
+        guard Date().timeIntervalSince(lastSaved) >= Self.saveEvery else { return }
+        save()
     }
 }
