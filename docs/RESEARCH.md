@@ -459,3 +459,51 @@ Since then every picture stays a picture for the rest of the conversation; a ful
 which leaves the old pictures out. A conversation saved by an older version keeps its older looks as text
 (`Conversation.keepLooksAsSent`), so its saved engine state still fits. Not measured yet: a new look with the new
 version in a real run.
+
+## 14. llamAmpere's 110+ tok/s next to this Mac (2026-11-11)
+
+[llamAmpere](https://github.com/JakeATX/llamAmpere) (MIT, a llama.cpp fork) reports 110-125 tok/s writing for
+Qwen3.8-Flash-Next with a 100K-token prompt at temperature 1.0. That is on an NVIDIA RTX 3090 / 3090 Ti (936 GB/s;
+the M3 Max has 400 GB/s), with experts split between the card and RAM. It uses its own pieces:
+- a 3-bit model file in its own AI3 format with its own CUDA kernels (80 GB);
+- its own 2-bit MTP drafter (Q2S-B);
+- a 2-3 bit KV cache (SJ-KVaRN, TurboQuant types);
+- "mb-MTP": a guessed token is kept when the model rates it at least as likely as its own pick, so it is lossy and
+  only matters above temperature 0;
+- adaptive draft depth;
+- a 64K draft vocabulary shortlist.
+
+Everything except mb-MTP, adaptive depth and the shortlist is CUDA (sm86) only.
+
+Measured here with the app's engine settings (MTP 2 ahead + ngram-mod, vision, 262K context, 16-bit KV cache):
+Qwen3.8-Flash-Next Q4, the Swift sources as context, then a request for a new poem at temperature 0.
+
+| Context | Prompt reading | Writing | Guesses accepted |
+|---|---|---|---|
+| 1K | 470 tok/s | 36.7 tok/s | 84 of 156 |
+| 32K | 392 tok/s | 33.4 tok/s | 91 of 178 |
+| 100K | 378 tok/s | 28.7 tok/s | 86 of 164 |
+
+**What this shows:**
+- **Long context costs little here.** The model's sparse attention (QSA, the indexer is in the pin) reads only part of
+  the cache: -22% at 100K. Full attention would read ~24 KB per context token per written token (12 attention layers,
+  2 KV heads of 256), which is 3.2 GB at 128K.
+- **Changing code is already at their level.** Section 11 measured 115-122 tok/s, because ngram-mod copies what the
+  conversation already holds.
+- **New text is where the gap is.** A token reads ~3.4 GB of weights (6B active, ~4.5 bits), and 31-33 tok/s without
+  guessing is ~110 GB/s, a quarter of the bandwidth. A dense Ministral-8B reaches ~250 GB/s (section 9). For this
+  model the time goes to the many small GPU steps per token (48 layers of MoE routing and recurrent GDN state), not
+  to reading memory.
+- **The MTP drafter's output layer** is 2560 × 248,320 in Q8_0 (0.68 GB), read in full for every guessed token: about
+  1.4 GB per step at 2 ahead. llamAmpere's shortlist gave +1.8% on Flash-Next on their card (45.80 to 46.61 tok/s);
+  on this Mac the share of that layer is larger. Not measured.
+
+**Candidates, not yet measured here:**
+- the drafter's output layer in 4 bits, or a vocabulary shortlist;
+- the 280 newer llama.cpp commits after the pin, among them qwen4exp copying less per token (`749db7f`), MTP reading
+  its hidden state on the device (`a8fad21`), conv snapshots in one set_rows (`040ce19`) and Metal fusion kept within
+  one command buffer (`44f91a0`);
+- mb-MTP, since the app writes at temperature 1.0;
+- Metal fusion of qwen4exp's MoE routing and GDN step, as upstream did for DeepSeek-V4 and GLM (`ea40a3a`).
+
+For WinAIMagic, llamAmpere itself is the thing to try on an RTX 30-series card; its numbers are not measured here.
