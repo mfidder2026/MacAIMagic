@@ -560,4 +560,25 @@ of a layer (printed at exit). `llama-bench -p 0 -n 16`, Qwen3.8-Flash-Next Q4 (u
   for qwen4exp, as upstream did for DeepSeek-V4 and GLM in `ea40a3a`.
 - **mb-MTP** gives 4-10% (above).
 
+**The non-expert layers in 5 bits, measured** (2026-11-11). `llama-quantize --allow-requantize --keep-split
+--tensor-type-file` with every tensor named:
+- the Q8_0 non-expert layers became Q5_K, or Q5_1 where 640 or 320 columns do not allow K blocks;
+- the output layer became Q6_K;
+- the experts (including the five layers with Q8_0 down-experts), the lookup tables, the f32 router and the bf16
+  indexer stayed as they were.
+
+The result was 104,764 instead of 106,166 MiB, in 64 s. Per token about 4.85 instead of 6.33 GB.
+
+| | Now | Non-expert layers in 5 bits |
+|---|---|---|
+| Writing without guessing (llama-bench tg128, `-lm none`, two alternating rounds of 3) | 32.97 / 32.95 tok/s | 35.69 / 35.58 tok/s (+8%) |
+| Perplexity on 18K tokens (help pages, this file, Swift) | 5.78 | 5.89 (+1.9% ± 0.7%) |
+| KL divergence against the current file | – | 0.119 mean, 0.043 median, 1.03 at 99% |
+| Same top token | – | 85.4% |
+
+23% fewer bytes gave 8% more speed. For this model the 8-bit layers do not cost as much as their size suggests,
+perhaps because a Q5_K block takes more work to unpack than Q8_0 (not measured). The drift is large: one token in
+seven gets another top choice. llamAmpere's own 3-bit file is at 0.087 against an 8-bit reference. Not taken: +8% is
+not worth a different model. Not tried: Q6_K, or an importance matrix (`llama-imatrix`) for the 5-bit layers.
+
 For WinAIMagic, llamAmpere itself is the thing to try on an RTX 30-series card; its numbers are not measured here.

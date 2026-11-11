@@ -6,14 +6,15 @@ lossless: the text should match the one without drafting, up to a near-tie token
 Usage: tools/spec_bench.py <out.json> [config names...]
 MACAIMAGIC_DFLASH=<draft.gguf> adds the DFlash configurations (e.g. incoai/Qwen3.8-Flash-Next-DFlash2-GGUF Q4_K_M).
 MACAIMAGIC_ENGINE=<llama-server> and MACAIMAGIC_MTP=<mtp.gguf> measure another engine build or MTP drafter;
-MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0.
+MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0; MACAIMAGIC_MODEL=<first shard> measures another
+file of the same model.
 Results on the M3 Max 128 GB: docs/RESEARCH.md, "Guessing ahead"."""
 import json, os, subprocess, sys, time, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE = os.environ.get("MACAIMAGIC_ENGINE", ROOT + "/engine/bin/llama-server")
 M = os.path.expanduser("~/Library/Application Support/MacAIMagic/models")
-MODEL = M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-q4-00001-of-00004.gguf"
+MODEL = os.environ.get("MACAIMAGIC_MODEL", M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-q4-00001-of-00004.gguf")
 MTP = os.environ.get("MACAIMAGIC_MTP", M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-mtp.gguf")
 VISION = M + "/vision/qwen3.8-vision.gguf"
 DFLASH = os.environ.get("MACAIMAGIC_DFLASH")
