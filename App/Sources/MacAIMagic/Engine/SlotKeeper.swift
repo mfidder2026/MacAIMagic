@@ -110,6 +110,10 @@ final class SlotKeeper {
         if await call("save", name, owner) {
             log.append("save " + owner.uuidString)
             prune()
+        } else if current == owner {
+            // not saved: the next chance (another conversation, the engine stopping, quitting) tries again. It stayed
+            // "saved", so after a failed save a quit skipped it too.
+            unsaved = true
         }
     }
 
@@ -132,7 +136,9 @@ final class SlotKeeper {
         let start = Date()
         guard let req = request(action, name) else { return false }
         do {
-            let (data, resp) = try await URLSession.shared.data(for: req)
+            // in a task of its own: a stop cancels the run that saves at its end, and URLSession then cancelled the save
+            // too ("save mislukt: cancelled"); a 164K-token conversation had to be read again, about 12 minutes
+            let (data, resp) = try await Task { try await URLSession.shared.data(for: req) }.value
             let ok = (resp as? HTTPURLResponse)?.statusCode == 200
             note?(Self.describe(action, owner, ok: ok, data: data, seconds: Date().timeIntervalSince(start)))
             return ok

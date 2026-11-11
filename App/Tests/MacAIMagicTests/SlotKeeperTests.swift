@@ -185,6 +185,36 @@ final class SlotKeeperTests: XCTestCase {
         do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.uuidString], "idle again: saved") }
     }
 
+    /// A stop cancelled the run, and with it the save at its end ("save mislukt: cancelled"). The keeper still counted it
+    /// as saved, so quitting skipped it too: the 164K-token Terminator conversation would have been read again (~12 min).
+    func testAStoppedAnswerIsSavedAndAFailedSaveIsTriedAgain() async throws {
+        let store = ConversationStore(file: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".json"))
+        let a = Conversation()
+        store.conversations = [a]
+        let keeper = SlotKeeper(folder: dir)
+        keeper.started(baseURL: url, key: "k")
+        var lines: [String] = []
+        keeper.note = { lines.append($0) }
+        let chat = ChatClient()
+        chat.slots = keeper
+        chat.send(text: "hallo", attachments: [], in: a.id, store: store, baseURL: url)
+        try await waitUntil { keeper.current == a.id }
+        try await Task.sleep(for: .milliseconds(150))   // the stand-in writes its answer for 0.4 s
+        chat.stop(a.id)
+        try await waitUntil { !chat.isBusy(a.id) }
+        do { let calls = try await slotCalls(); XCTAssertEqual(calls, ["save " + a.id.uuidString], "saved after the stop: \(lines)") }
+        XCTAssertFalse(keeper.hasUnsaved)
+
+        // a save that fails stays to do, so the next chance (a quit) tries again
+        let b = UUID()
+        await keeper.enter(b)
+        server?.terminate()
+        server?.waitUntilExit()
+        await keeper.saveCurrent()
+        XCTAssertTrue(lines.last?.contains("save mislukt") == true, "\(lines)")
+        XCTAssertTrue(keeper.hasUnsaved, "the failed save is still to do")
+    }
+
     func testDocumentsSaveTheChatsConversationFirst() async throws {
         let keeper = SlotKeeper(folder: dir)
         let a = UUID()
