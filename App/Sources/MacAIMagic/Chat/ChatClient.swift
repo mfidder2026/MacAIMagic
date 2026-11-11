@@ -40,8 +40,6 @@ final class ChatClient: ObservableObject {
     var maxAnswerTokens: Int { max(4096, Int(Double(contextLimit) * Self.answerShare)) }
     /// The engine runs with vision: the model can look at an image file (view_image).
     var seesImages = false
-    /// Pictures the model looked at stay in its requests, the last few of them: each costs hundreds of tokens.
-    static let imagesKept = 3
     /// Gets a token count per streamed delta, for the live speed chart.
     weak var metrics: LiveMetrics?
     /// The engine's keeper of conversation states: whoever gets the model, gets its own place back.
@@ -888,8 +886,12 @@ final class ChatClient: ObservableObject {
         }
 
         var out: [[String: Any]] = [["role": "system", "content": system]]
-        // older pictures the model looked at itself go as a line of text; the user's own pictures always go
-        let keptLooks = Set(history.filter { $0.automatic == true && !$0.attachments.isEmpty }.suffix(Self.imagesKept).map(\.id))
+        // Every picture stays a picture, also the ones the model looked at itself long ago: what was sent once is never
+        // changed. Only the last 3 looks used to go as pictures; each new look turned an old one into a line of text far
+        // back in the conversation, and a hybrid model (Qwen3.6, Qwen3.8-Flash-Next) then read the whole conversation
+        // again: 82K, 110K and 144K tokens, 3, 5 and 11 minutes, in one C64 run on the M3 Max. A full context is
+        // summarized (compactAt), and the summary leaves the old pictures out. A conversation of that older version keeps
+        // its old looks as text (ChatMessage.lookAsText), as the engine read them.
         for m in history {
             switch m.role {
             case .system: continue
@@ -900,7 +902,7 @@ final class ChatClient: ObservableObject {
                     let names = m.attachments.map(\.filename).joined(separator: ", ")
                     let note = L("(Hier stond een afbeelding: \(names). Het model draait nu zonder afbeeldingen (vision); zeg dat als het ertoe doet.)")
                     out.append(["role": "user", "content": m.text.isEmpty ? note : note + "\n\n" + m.text])
-                } else if m.automatic == true && !m.attachments.isEmpty && !keptLooks.contains(m.id) {
+                } else if m.lookAsText == true && m.automatic == true && !m.attachments.isEmpty {
                     out.append(["role": "user", "content": L("(Hier stond een afbeelding die je eerder bekeek: \(m.attachments.map(\.filename).joined(separator: ", ")).)")])
                 } else if m.attachments.isEmpty {
                     out.append(["role": "user", "content": m.text])

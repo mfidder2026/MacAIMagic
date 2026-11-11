@@ -53,6 +53,9 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     var preparing: String? = nil
     /// The answer stopped at its token limit: the model gets only its start and end back, not the whole monologue.
     var cutOff: Bool? = nil
+    /// A picture the model looked at that an older version (up to 1.14.12) sent as a line of text: it stays text, so
+    /// what the engine already read of the conversation does not change (`Conversation.keepLooksAsSent`).
+    var lookAsText: Bool? = nil
 
     /// Assistant turns that only carry tool calls, and the tool results, are kept for the model but folded in the UI.
     var isHidden: Bool { role == .tool || role == .system || (role == .assistant && text.isEmpty && !toolCalls.isEmpty && activities.isEmpty) }
@@ -84,6 +87,19 @@ struct Conversation: Codable, Identifiable, Hashable {
     /// stays the same, so the engine reuses what it read (and a saved state still fits). "" is no file. A change counts for
     /// new conversations, and for this one after its summary.
     var notes: [String: String]? = nil
+    /// Every picture the model looks at stays a picture. nil: a conversation of a version up to 1.14.12, which sent only
+    /// the last 3 as pictures and the older ones as text.
+    var looksKept: Bool? = true
+
+    /// A conversation of an older version keeps sending its older looks as text, as that version last did: otherwise
+    /// the first question after the update would read the whole conversation again (Qwen3.6, 149K tokens: 11 minutes).
+    /// New looks stay pictures.
+    mutating func keepLooksAsSent() {
+        guard looksKept == nil else { return }
+        let looks = messages.indices.filter { messages[$0].automatic == true && !messages[$0].attachments.isEmpty }
+        for i in looks.dropLast(3) { messages[i].lookAsText = true }
+        looksKept = true
+    }
 
     /// The title in the chosen language while it is still the default.
     var displayTitle: String { title == "Nieuw gesprek" ? L("Nieuw gesprek") : title }
@@ -119,6 +135,7 @@ final class ConversationStore: ObservableObject {
         if let data = try? Data(contentsOf: file) {
             if let list = try? JSONDecoder().decode([Conversation].self, from: data) {
                 conversations = list.sorted { $0.updated > $1.updated }
+                for i in conversations.indices { conversations[i].keepLooksAsSent() }
             } else {
                 // the next save would overwrite it: what can still be rescued stays
                 let bad = file.appendingPathExtension("bad")

@@ -429,4 +429,33 @@ Each turn added 3 checkpoints of ~112 MB. On this SSD the save stays short eithe
 limit up to 32 checkpoints (~3.6 GB a conversation) and fills the 40 GB for kept conversations fast. With 4 the
 follow-ups read the same 22-26 tokens, also after a restore. So the app keeps 4 while conversations are kept
 (`EngineController.keptCheckpoints`); with the setting off the engine's default stays. Not measured: Qwen3.6 on
-the Mac, and a conversation that goes back further than the last checkpoints (an edited earlier message).
+the Mac, and a conversation that goes back further than the last checkpoints (an edited earlier message). The app
+itself did that with old pictures until 1.14.12: section 13.
+
+## 13. Pictures the model looked at, and a conversation read again from the start (2026-11-11)
+
+Up to 1.14.12 only the last 3 pictures the model looked at (`view_image`) went to the engine as pictures; an older one
+became a line of text. So each new look changed the conversation far back, where the oldest of the three stood. A hybrid
+model cannot go back there without a context checkpoint before that place, and with `--ctx-checkpoints 4` (section 12)
+all checkpoints were near the end: the engine read the whole conversation again.
+
+Seen in `engine.log` of one C64 run with Qwen3.6-35B-A3B heretic Q4 (vision, 262K context) on the M3 Max. The places
+where the conversation changed (`f_keep` x the cached tokens) are where an old screenshot stood (the image chunks of the
+log, at 58.9K, 59.6K, 80.4K):
+
+| When (engine time) | Changed at | Read again | Time |
+|---|---|---|---|
+| 7:32 | ~58.7K | 24,709 tokens (from a checkpoint) | 87 s |
+| 10:41 | ~58.8K | 82,169 tokens (all) | 195 s |
+| 30:39 | ~59.6K | 109,644 tokens (all) | 326 s |
+| 59:20 | ~80.3K | 143,729 tokens (all) | 673 s |
+| 74:14 | ~81.4K | 148,690 tokens (all) | 676 s |
+
+Reading slows down as the conversation grows: 1,500 tokens/s at the start, 213 tokens/s on average over 144K. A step
+that only adds to the conversation read 455-580 new tokens in 2.8-3.7 s at 142K in the same run; a look at a C64
+screen (384 x 272, sent at 768 x 544) is about 400 image tokens.
+
+Since then every picture stays a picture for the rest of the conversation; a full context is summarized (`compactAt`),
+which leaves the old pictures out. A conversation saved by an older version keeps its older looks as text
+(`Conversation.keepLooksAsSent`), so its saved engine state still fits. Not measured yet: a new look with the new
+version in a real run.
