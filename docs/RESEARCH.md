@@ -490,10 +490,9 @@ Qwen3.8-Flash-Next Q4, the Swift sources as context, then a request for a new po
   2 KV heads of 256), which is 3.2 GB at 128K.
 - **Changing code is already at their level.** Section 11 measured 115-122 tok/s, because ngram-mod copies what the
   conversation already holds.
-- **New text is where the gap is.** A token reads ~3.4 GB of weights (6B active, ~4.5 bits), and 31-33 tok/s without
-  guessing is ~110 GB/s, a quarter of the bandwidth. A dense Ministral-8B reaches ~250 GB/s (section 9). For this
-  model the time goes to the many small GPU steps per token (48 layers of MoE routing and recurrent GDN state), not
-  to reading memory.
+- **New text is where the gap is.** A token reads 6.33 GB (see "Where the time goes" below), and 32.8 tok/s without
+  guessing is 208 GB/s, about half the bandwidth. (An earlier version of this section said ~3.4 GB and a quarter;
+  that left out that this file keeps every non-expert layer in 8 bits.)
 - **The MTP drafter's output layer** is 2560 × 248,320 in Q8_0 (0.68 GB), read in full for every guessed token: about
   1.4 GB per step at 2 ahead. llamAmpere's shortlist gave +1.8% on Flash-Next on their card (45.80 to 46.61 tok/s);
   on this Mac the share of that layer is larger. Not measured.
@@ -527,9 +526,38 @@ alternating):
   mb-MTP accepts every guess that is the model's top pick, so at temperature 1 it gets at least the acceptance of
   temperature 0 back: 4-10% here, at the cost of text that leans toward the most likely words.
 
-What is left is the efficiency of this model's GPU work on Metal: 31.5 tok/s without guessing is a quarter of the
-bandwidth. Faster would take Metal work for qwen4exp (fusing the MoE routing and the GDN step, as upstream did for
-DeepSeek-V4 and GLM in `ea40a3a`) or another engine; MTPLX (MLX) reports 41 tok/s on this model (section 1), not
-measured on the same texts.
+**Where the time goes** (2026-11-11). `tools/metal_profile.patch` adds `GGML_METAL_PROFILE=1` to the Metal backend:
+every op group goes to the GPU in a command buffer of its own, and the GPU time is added up per kind of op and per part
+of a layer (printed at exit). `llama-bench -p 0 -n 16`, Qwen3.8-Flash-Next Q4 (unsloth UD-Q4_K_XL, 111 GB):
+
+- **Normal speed:** 32.8 tok/s without guessing (tg64, three runs), or 30.5 ms per token.
+- **Per token:** 3,100 op groups; 44.5 ms when each runs alone. In the normal run they overlap.
+- **Bytes per token,** from the tensor sizes in the four files:
+
+  | Part | Size | Read per token |
+  |---|---|---|
+  | Lookup tables (token and per-layer embeddings) | 29.5 GB | one row each |
+  | Non-expert layers | 4.83 GB | all, of which 4.48 GB is Q8_0 and 0.31 GB f32 (router, norms) |
+  | 10 of the 512 experts | 1.50 GB | q4_K gate/up, q5_1 down |
+  | **Total** | | **6.33 GB** |
+
+  30.5 ms is 208 GB/s, 52% of 400 GB/s. At 300-350 GB/s, which is what the large multiplications reach, the ceiling of
+  this file is 47-55 tok/s.
+- **Large multiplications are efficient:**
+  - the output layer (0.68 GB, Q8_0): 1.77 ms, ~380 GB/s;
+  - `z`, `linear_attn_out`, `Qcur_full`: 300-360 GB/s;
+  - the experts: 225-245 GB/s.
+
+  Small ones are not: the shared expert (1.7 MB) takes 12 µs, ~145 GB/s.
+- **The ~2,500 small ops** (norms, scales, adds, sigmoids, the GDN step and conv, routing, softmax, the hyper-connection
+  mixing) take about a third of the time.
+
+**What follows from this:**
+- **Fewer bytes is the biggest lever.** With the non-expert Q8_0 layers as Q6_K, Q5_K or Q4_K a token reads 16%, 25%
+  or 33% less (5.31 / 4.75 / 4.23 GB). llamAmpere's 3-bit file is 80 GB against this one's 111 GB. A router in 16
+  bits saves another 0.13 GB. Quality would have to be measured (KL divergence against this file).
+- **Fusing the small ops** is the second lever, for at most the remaining third of the time. That means Metal work
+  for qwen4exp, as upstream did for DeepSeek-V4 and GLM in `ea40a3a`.
+- **mb-MTP** gives 4-10% (above).
 
 For WinAIMagic, llamAmpere itself is the thing to try on an RTX 30-series card; its numbers are not measured here.

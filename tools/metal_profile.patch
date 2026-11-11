@@ -1,0 +1,214 @@
+diff --git a/ggml/src/ggml-metal/ggml-metal-context.m b/ggml/src/ggml-metal/ggml-metal-context.m
+index 597c126..53816ad 100644
+--- a/ggml/src/ggml-metal/ggml-metal-context.m
++++ b/ggml/src/ggml-metal/ggml-metal-context.m
+@@ -35,6 +35,9 @@
+ 
+     dispatch_queue_t d_queue;
+ 
++    // GGML_METAL_PROFILE: every op group in its own command buffer, GPU time per kind of op
++    bool profile;
++
+     // additional, inference-time compiled pipelines
+     ggml_metal_pipelines_t pipelines_ext;
+ 
+@@ -140,6 +143,7 @@ ggml_metal_t ggml_metal_init(ggml_metal_device_t dev) {
+         res->d_queue = dispatch_queue_create("ggml-metal", DISPATCH_QUEUE_CONCURRENT);
+ 
+         res->use_concurrency = getenv("GGML_METAL_CONCURRENCY_DISABLE") == nil;
++        res->profile = getenv("GGML_METAL_PROFILE") != nil;
+ 
+         {
+             const char * val = getenv("GGML_METAL_GRAPH_DEBUG");
+@@ -568,7 +572,10 @@ enum ggml_status ggml_metal_graph_compute(ggml_metal_t ctx, struct ggml_cgraph *
+             }
+             ctx->cmd_bufs[n_cb].obj = cmd_buf;
+ 
+-            [cmd_buf enqueue];
++            // profiling commits a command buffer per op and waits for it: a reserved place ahead of them would block them
++            if (!ctx->profile) {
++                [cmd_buf enqueue];
++            }
+ 
+             ctx->encode_async(n_cb);
+         }
+@@ -721,12 +728,77 @@ ggml_metal_event_t ggml_metal_get_ev_cpy(ggml_metal_t ctx) {
+     return ctx->ev_cpy;
+ }
+ 
++// GGML_METAL_PROFILE: GPU time per kind of op (op type, weight type, fused) and per part of a layer (tensor name
++// without its layer number); the table is printed when the program ends
++#define GGML_METAL_PROFILE_MAX 512
++static struct { char key[96]; double t; long n; } g_prof[GGML_METAL_PROFILE_MAX];
++static int    g_prof_n = 0;
++static double g_prof_total = 0.0;
++static long   g_prof_groups = 0;
++static long   g_prof_graphs = 0;
++
++static void ggml_metal_profile_put(const char * key, double t) {
++    for (int i = 0; i < g_prof_n; ++i) {
++        if (strcmp(g_prof[i].key, key) == 0) { g_prof[i].t += t; g_prof[i].n += 1; return; }
++    }
++    if (g_prof_n < GGML_METAL_PROFILE_MAX) {
++        snprintf(g_prof[g_prof_n].key, sizeof(g_prof[0].key), "%s", key);
++        g_prof[g_prof_n].t = t; g_prof[g_prof_n].n = 1; g_prof_n += 1;
++    }
++}
++
++static int ggml_metal_profile_cmp(const void * a, const void * b) {
++    const double ta = ((const typeof(g_prof[0]) *) a)->t, tb = ((const typeof(g_prof[0]) *) b)->t;
++    return ta < tb ? 1 : ta > tb ? -1 : 0;
++}
++
++static void ggml_metal_profile_print(void) {
++    if (g_prof_graphs == 0) return;
++    qsort(g_prof, g_prof_n, sizeof(g_prof[0]), ggml_metal_profile_cmp);
++    fprintf(stderr, "\nGGML_METAL_PROFILE: %ld graphs, %.3f ms GPU per graph, %.1f op groups per graph\n",
++            g_prof_graphs, 1e3 * g_prof_total / g_prof_graphs, (double) g_prof_groups / g_prof_graphs);
++    for (int i = 0; i < g_prof_n; ++i) {
++        fprintf(stderr, "PROF %-60s %9.3f ms/graph %6.1f%% %7.1f x/graph %8.1f us/x\n", g_prof[i].key,
++                1e3 * g_prof[i].t / g_prof_graphs, 100.0 * g_prof[i].t / (g_prof_total > 0 ? g_prof_total : 1),
++                (double) g_prof[i].n / g_prof_graphs, 1e6 * g_prof[i].t / g_prof[i].n);
++    }
++}
++
++static void ggml_metal_profile_add(const struct ggml_tensor * node, int n_fused, double t) {
++    static bool registered = false;
++    if (!registered) { atexit(ggml_metal_profile_print); registered = true; }
++    char key[96];
++    const char * w = "";
++    if ((node->op == GGML_OP_MUL_MAT || node->op == GGML_OP_MUL_MAT_ID) && node->src[0]) {
++        w = ggml_type_name(node->src[0]->type);
++    }
++    snprintf(key, sizeof(key), "op   %s %s%s", ggml_op_desc(node), w, n_fused > 1 ? " (fused)" : "");
++    ggml_metal_profile_put(key, t);
++    // the tensor name without its layer number: ffn_moe_down-12 -> ffn_moe_down
++    char name[64];
++    snprintf(name, sizeof(name), "%s", ggml_get_name(node));
++    char * dash = strrchr(name, '-');
++    if (dash && dash[1] >= '0' && dash[1] <= '9') { *dash = 0; }
++    if (strncmp(name, "node_", 5) == 0) { snprintf(name, sizeof(name), "node_*"); }
++    snprintf(key, sizeof(key), "name %s [%s %s]", name[0] ? name : "(no name)", ggml_op_desc(node), w);
++    ggml_metal_profile_put(key, t);
++}
++
++static void ggml_metal_profile_graph(double total, int groups) {
++    g_prof_total += total;
++    g_prof_groups += groups;
++    g_prof_graphs += 1;
++}
++
+ void ggml_metal_set_n_cb(ggml_metal_t ctx, int n_cb) {
+     // when fusion stats are collected the graph must be encoded by a single thread so the
+     // counters are race-free; override whatever the caller requested
+     if (ggml_metal_fusion_info_stats(ctx->finfo)) {
+         n_cb = 0;
+     }
++    if (ctx->profile) {
++        n_cb = 0;
++    }
+ 
+     if (ctx->n_cb != n_cb) {
+         ctx->n_cb = MIN(n_cb, GGML_METAL_MAX_COMMAND_BUFFERS);
+@@ -770,13 +842,41 @@ void ggml_metal_set_n_cb(ggml_metal_t ctx, int n_cb) {
+             ctx->capture_compute == 0,
+             ctx->debug_graph);
+ 
+-        for (int idx = 0; idx < ggml_metal_op_n_nodes(ctx_op); ++idx) {
+-            const int res = ggml_metal_op_encode(ctx_op, idx);
+-            if (res == 0) {
+-                break;
++        if (ctx->profile) {
++            id<MTLCommandQueue> q = (id<MTLCommandQueue>) ggml_metal_device_get_queue(ctx->dev);
++            double total = 0.0;
++            int groups = 0;
++            for (int idx = 0; idx < ggml_metal_op_n_nodes(ctx_op); ++idx) {
++                @autoreleasepool {
++                    id<MTLCommandBuffer> cb = [q commandBuffer];
++                    ggml_metal_op_begin_encoding(ctx_op, (void *) cb);
++                    const int res = ggml_metal_op_encode(ctx_op, idx);
++                    ggml_metal_op_end_encoding(ctx_op);
++                    [cb commit];
++                    [cb waitUntilCompleted];
++                    const double t = cb.GPUEndTime - cb.GPUStartTime;
++                    if (res > 0) {
++                        ggml_metal_profile_add(ggml_metal_op_node(ctx_op, idx), res, t);
++                        total += t;
++                        groups += 1;
++                    }
++                    if (res == 0) {
++                        break;
++                    }
++                    idx += res - 1;
++                }
+             }
++            ggml_metal_profile_graph(total, groups);
++            ggml_metal_op_begin_encoding(ctx_op, cmd_buf);
++        } else {
++            for (int idx = 0; idx < ggml_metal_op_n_nodes(ctx_op); ++idx) {
++                const int res = ggml_metal_op_encode(ctx_op, idx);
++                if (res == 0) {
++                    break;
++                }
+ 
+-            idx += res - 1;
++                idx += res - 1;
++            }
+         }
+ 
+         ggml_metal_op_free(ctx_op);
+diff --git a/ggml/src/ggml-metal/ggml-metal-ops.cpp b/ggml/src/ggml-metal/ggml-metal-ops.cpp
+index 35e3dad..92e8bd5 100644
+--- a/ggml/src/ggml-metal/ggml-metal-ops.cpp
++++ b/ggml/src/ggml-metal/ggml-metal-ops.cpp
+@@ -67,8 +67,10 @@ struct ggml_metal_op {
+     }
+ 
+     ~ggml_metal_op() {
+-        ggml_metal_encoder_end_encoding(this->enc);
+-        ggml_metal_encoder_free(this->enc);
++        if (this->enc) {
++            ggml_metal_encoder_end_encoding(this->enc);
++            ggml_metal_encoder_free(this->enc);
++        }
+         ggml_mem_ranges_free(this->mem_ranges);
+     }
+ 
+@@ -6190,3 +6192,21 @@ int ggml_metal_op_count_equal(ggml_metal_op_t ctx, int idx) {
+ 
+     return 1;
+ }
++
++void ggml_metal_op_end_encoding(ggml_metal_op_t ctx) {
++    if (ctx->enc) {
++        ggml_metal_encoder_end_encoding(ctx->enc);
++        ggml_metal_encoder_free(ctx->enc);
++        ctx->enc = nullptr;
++    }
++}
++
++void ggml_metal_op_begin_encoding(ggml_metal_op_t ctx, ggml_metal_cmd_buf_t cmd_buf) {
++    ggml_metal_op_end_encoding(ctx);
++    ctx->enc = ggml_metal_encoder_init(cmd_buf, ctx->use_concurrency);
++    ggml_metal_op_concurrency_reset(ctx);
++}
++
++struct ggml_tensor * ggml_metal_op_node(ggml_metal_op_t ctx, int idx) {
++    return ctx->node(idx);
++}
+diff --git a/ggml/src/ggml-metal/ggml-metal-ops.h b/ggml/src/ggml-metal/ggml-metal-ops.h
+index 0a77d8d..cc30e7b 100644
+--- a/ggml/src/ggml-metal/ggml-metal-ops.h
++++ b/ggml/src/ggml-metal/ggml-metal-ops.h
+@@ -27,6 +27,11 @@ int ggml_metal_op_n_nodes(ggml_metal_op_t ctx);
+ 
+ int ggml_metal_op_encode(ggml_metal_op_t ctx, int idx);
+ 
++// profiling (GGML_METAL_PROFILE): end the current encoder, start one on another command buffer, look at a node
++void ggml_metal_op_end_encoding(ggml_metal_op_t ctx);
++void ggml_metal_op_begin_encoding(ggml_metal_op_t ctx, ggml_metal_cmd_buf_t cmd_buf);
++struct ggml_tensor * ggml_metal_op_node(ggml_metal_op_t ctx, int idx);
++
+ //
+ // available ops:
+ //
