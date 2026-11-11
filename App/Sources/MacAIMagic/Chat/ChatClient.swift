@@ -199,6 +199,8 @@ final class ChatClient: ObservableObject {
         var changedFiles = false
         // rounds of tools since the model last updated its step list: a model forgets to tick steps off
         var roundsSinceSteps = 0
+        // the same error in the results of the folder's tools, again and again: the model hears it the third time
+        var repeated = RepeatedErrors()
         // a step was taken in an earlier round of this answer
         var tookSteps = false
         // "ga door" on work that is under way: the plan was made, so even the first round only takes the next step
@@ -419,14 +421,21 @@ final class ChatClient: ObservableObject {
                 if text.count > room {
                     text = String(text.prefix(room * 3 / 4)) + "\n… (shortened, the output was \(text.count) characters) …\n" + String(text.suffix(room / 4))
                 }
+                // on this result itself, so the model reads it with the error; the user sees it in the step's output
+                let warning = isWorkspace ? repeated.note(text).map { "\n\n" + $0 } ?? "" : ""
                 activities[activities.count - 1].done = true
-                activities[activities.count - 1].output = String(text.prefix(4000))
+                activities[activities.count - 1].output = String(text.prefix(4000)) + warning
                 if !shots.isEmpty { activities[activities.count - 1].images = shots }
                 store.update(id) { c in
-                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].sources = [] }
+                    if let i = c.messages.lastIndex(where: { $0.id == reply.id }) {
+                        c.messages[i].sources = []
+                        // the step is done, with its output and pictures: these were written only when the round's next
+                        // step began, so the last step of every round stayed "busy" without them (33 of 37 in one run)
+                        c.messages[i].activities = activities
+                    }
                     // the reminder rides on the round's last result: a message of its own would break the tool turn
                     let nudge = place == result.toolCalls.count - 1 ? stepsNudge.map { "\n\n" + $0 } ?? "" : ""
-                    c.messages.append(ChatMessage(role: .tool, text: text + nudge, toolCallId: call.id))
+                    c.messages.append(ChatMessage(role: .tool, text: text + warning + nudge, toolCallId: call.id))
                 }
             }
         }

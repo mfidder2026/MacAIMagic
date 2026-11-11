@@ -1,7 +1,7 @@
 ---
 title: Chatting
 icon: bubble.left.and.bubble.right
-keywords: conversation question think thinking temperature system prompt context summary go on image paste copy stop screenshot watch along
+keywords: conversation question think thinking temperature system prompt context summary go on image paste copy stop screenshot watch along error repeated stuck
 ---
 ## Asking a question
 Type your question at the bottom and press **↩** or **⌘↩**. **⌥↩** starts a new line. The answer appears while the model writes; **Stop** ends it.
@@ -27,6 +27,9 @@ When the model takes a screenshot on the way (of a program or the C64 emulator),
 
 ## When the model stops before it is done
 Local models sometimes stop halfway. The app notices this, tells the model to go on, and shows that in the conversation. If it stops three times in a row, the app asks you to say "go on" or to give a hint.
+
+## When the same error keeps coming back
+When the model gets the same error three times in one answer (from a build or a script, for example), the app tells it: what it changed did not fix the error, so it should read the line the error names, word for word, and change only that line, instead of rewriting the whole file again. This happens again after every next three times. You see the note when you open that step. Line numbers do not count: an error that moved a few lines counts as the same one.
 
 ## Answer settings
 Under **Settings → Chat**: reasoning effort, how long the model may think (16,000 tokens by default), temperature (higher is more creative) and your own system prompt.

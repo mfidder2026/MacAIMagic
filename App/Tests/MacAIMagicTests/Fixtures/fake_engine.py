@@ -93,7 +93,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
         out = []
-        if "DRIE" in text and not after_tool:
+        builds = sum(1 for m in msgs if m["role"] == "tool")
+        if "BOUWFOUT" in text and builds < 4:
+            # a model that keeps building the same mistake, the error each time on another line (RepeatedErrors)
+            cmd = ("printf 'Error: Syntax error\\nat line %d, column 17 in t.asm\\n        beq !t1-done\\n"
+                   "                ^\\n'; exit 1" % (50 + builds * 7))
+            out.append(chunk({"tool_calls": [{"index": 0, "id": f"call_b{builds}", "type": "function",
+                                              "function": {"name": "run_command", "arguments": json.dumps({"command": cmd})}}]}))
+            out.append(chunk({}, "tool_calls"))
+        elif "DRIE" in text and not after_tool:
             calls = [{"index": i, "id": f"call_d{i}", "type": "function",
                       "function": {"name": "write_file", "arguments": json.dumps({"path": f"d{i}.txt", "content": "x"})}} for i in range(3)]
             out.append(chunk({"tool_calls": calls}))

@@ -1,7 +1,7 @@
 ---
 title: Chatten
 icon: bubble.left.and.bubble.right
-keywords: gesprek vraag denken nadenken temperatuur systeemprompt context samenvatting ga door afbeelding plakken kopiëren stop schermafdruk screenshot meekijken
+keywords: gesprek vraag denken nadenken temperatuur systeemprompt context samenvatting ga door afbeelding plakken kopiëren stop schermafdruk screenshot meekijken fout foutmelding herhaald vastlopen
 ---
 ## Een vraag stellen
 Typ je vraag onderin en druk op **↩** of **⌘↩**. Met **⌥↩** begin je een nieuwe regel. Het antwoord verschijnt terwijl het model schrijft; **Stop** breekt het af.
@@ -27,6 +27,9 @@ Maakt het model onderweg een schermafdruk (van een programma of de C64-emulator)
 
 ## Als het model stopt voordat het klaar is
 Lokale modellen stoppen soms halverwege. De app merkt dat en zegt het model door te gaan; je ziet dat in het gesprek. Stopt het drie keer achter elkaar, dan vraagt de app jou om "ga door" te zeggen of een aanwijzing te geven.
+
+## Als dezelfde fout steeds terugkomt
+Krijgt het model in één antwoord drie keer dezelfde foutmelding (bijvoorbeeld van een build of een script), dan zegt de app het: wat het veranderde, loste de fout niet op, dus het moet de regel uit de foutmelding letterlijk lezen en alleen die aanpassen, in plaats van steeds het hele bestand te herschrijven. Dat gebeurt opnieuw na elke volgende drie keer. Je ziet de melding als je die stap openklikt. Regelnummers tellen niet mee: een fout die een paar regels opschuift, telt als dezelfde.
 
 ## Instellingen voor antwoorden
 Onder **Instellingen → Chat**: denkniveau, hoe lang het model maximaal nadenkt (standaard 16.000 tokens), temperatuur (hoger is creatiever) en een eigen systeemprompt.
