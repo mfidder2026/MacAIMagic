@@ -970,6 +970,8 @@ final class ChatClient: ObservableObject {
     }
 
     struct Delta { var content = ""; var reasoning = ""; var preparing: String? = nil }
+    /// How often the text of an answer goes into the conversation while it is written (seconds).
+    nonisolated static let showEvery: TimeInterval = 0.1
 
     /// What a tool call that is still being written will do, from its name and the arguments so far (which are not
     /// whole JSON yet): "Schrijft bestand demo.bas · 1.240 tekens".
@@ -1084,6 +1086,17 @@ final class ChatClient: ObservableObject {
         var result = StreamResult()
         var calls: [Int: ToolCall] = [:]
         var chunks = 0
+        // the text goes into the conversation at most 10 times a second: every change of the conversations makes SwiftUI
+        // work out the chat and the sidebar again, and at 33 tokens a second that was a third of the main thread
+        var pending = Delta()
+        var shown = Date.distantPast
+        func flush() {
+            guard !pending.content.isEmpty || !pending.reasoning.isEmpty else { return }
+            onDelta(pending)
+            pending = Delta()
+            shown = Date()
+        }
+        defer { flush() }
         for try await line in bytes.lines {
             try Task.checkCancellation()
             guard line.hasPrefix("data: ") else { continue }
@@ -1104,7 +1117,9 @@ final class ChatClient: ObservableObject {
             d.content = delta["content"] as? String ?? ""
             d.reasoning = delta["reasoning_content"] as? String ?? ""
             if !d.content.isEmpty || !d.reasoning.isEmpty {
-                onDelta(d)
+                pending.content += d.content
+                pending.reasoning += d.reasoning
+                if Date().timeIntervalSince(shown) >= Self.showEvery { flush() }
                 metrics?.addTokens(1)   // the server streams one token per chunk
             }
             for tc in delta["tool_calls"] as? [[String: Any]] ?? [] {
@@ -1120,6 +1135,7 @@ final class ChatClient: ObservableObject {
                 // now and then, so the chat does not look idle while tokens come in
                 chunks += 1
                 if chunks == 1 || chunks % 25 == 0 {
+                    flush()
                     onDelta(Delta(preparing: Self.preparing(name: call.name, arguments: call.arguments)))
                 }
                 metrics?.addTokens(1)

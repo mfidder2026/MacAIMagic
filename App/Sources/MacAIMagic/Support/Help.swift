@@ -34,6 +34,16 @@ final class HelpCenter: ObservableObject {
         return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
+    /// The topics of one language, read from disk once: the help files come with the app and do not change while it
+    /// runs, and the panel asked for them every time SwiftUI built it again.
+    @MainActor static func cachedTopics(_ language: String = language) -> [HelpTopic] {
+        if let t = cache[language] { return t }
+        let t = topics(language)
+        cache[language] = t
+        return t
+    }
+    @MainActor private static var cache: [String: [HelpTopic]] = [:]
+
     nonisolated static func topics(_ language: String = language) -> [HelpTopic] {
         guard let folder = folder(language),
               let files = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) else { return [] }
@@ -108,7 +118,7 @@ struct HelpButton: View {
 struct HelpView: View {
     @ObservedObject var center = HelpCenter.shared
     @State private var query = ""
-    @State private var topics: [HelpTopic] = HelpCenter.topics()
+    @State private var topics: [HelpTopic] = HelpCenter.cachedTopics()
 
     private var shown: [HelpTopic] { HelpCenter.search(query, in: topics) }
     private var current: HelpTopic? { topics.first { $0.id == center.selected } ?? topics.first }
@@ -155,7 +165,7 @@ struct HelpView: View {
                 center.selected = first.id
             }
         }
-        .onAppear { topics = HelpCenter.topics() }
+        .onAppear { topics = HelpCenter.cachedTopics() }
     }
 }
 

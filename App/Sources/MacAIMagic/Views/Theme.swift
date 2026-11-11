@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum Theme {
@@ -189,18 +190,153 @@ extension View {
     func shimmer(_ active: Bool) -> some View { modifier(Shimmer(active: active)) }
 }
 
-/// A pulsing glow ring around the assistant avatar while it writes (nothing at all otherwise).
+/// A pulsing glow ring around the assistant avatar while it writes (nothing at all otherwise). Core Animation runs it
+/// (see TurningGradient).
 struct PulseRing: View {
     var active: Bool
 
     var body: some View {
-        if active {
-            TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
-                let phase = tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2) / 1.2
-                Circle().stroke(Theme.brand, lineWidth: 2)
-                    .scaleEffect(1 + 0.45 * phase)
-                    .opacity(0.9 * (1 - phase))
+        if active { PulseLayer() }
+    }
+}
+
+private struct PulseLayer: NSViewRepresentable {
+    func makeNSView(context: Context) -> PulseView { PulseView() }
+    func updateNSView(_ view: PulseView, context: Context) {}
+
+    final class PulseView: NSView {
+        private let gradient = CAGradientLayer(), ring = CAShapeLayer()
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            wantsLayer = true
+            gradient.colors = [Theme.accent, Theme.violet, Theme.pink].map { NSColor($0).cgColor }
+            gradient.startPoint = CGPoint(x: 0, y: 1)
+            gradient.endPoint = CGPoint(x: 1, y: 0)
+            ring.fillColor = nil
+            ring.strokeColor = NSColor.black.cgColor
+            ring.lineWidth = 2
+            gradient.mask = ring
+            layer?.addSublayer(gradient)
+        }
+        required init?(coder: NSCoder) { fatalError() }
+        // only to look at: clicks go to what is underneath
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func layout() {
+            super.layout()
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            gradient.frame = bounds
+            ring.frame = bounds
+            ring.path = CGPath(ellipseIn: bounds.insetBy(dx: 1, dy: 1), transform: nil)
+            CATransaction.commit()
+            start()
+        }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); start() }
+
+        private func start() {
+            guard window != nil, gradient.animation(forKey: "pulse") == nil else { return }
+            if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { gradient.opacity = 0.6; return }
+            let scale = CABasicAnimation(keyPath: "transform.scale")
+            scale.fromValue = 1; scale.toValue = 1.45
+            let fade = CABasicAnimation(keyPath: "opacity")
+            fade.fromValue = 0.9; fade.toValue = 0
+            let group = CAAnimationGroup()
+            group.animations = [scale, fade]
+            group.duration = 1.2
+            group.repeatCount = .infinity
+            group.isRemovedOnCompletion = false
+            gradient.opacity = 0
+            gradient.add(group, forKey: "pulse")
+        }
+    }
+}
+
+/// An angular gradient that turns: in a circle (`edge` nil) or as the edge of a rounded rectangle. The gradient is
+/// drawn once into an image, and Core Animation turns it in the window server. Drawn by SwiftUI 30 times a second, the
+/// gradients took a quarter to half of the app's main thread while a model wrote (measured on the M3 Max with a test
+/// window: the old edge, two marks and two rings ±25% of a core, this way ±0%).
+/// With "Reduce motion" on in macOS it stands still.
+struct TurningGradient: NSViewRepresentable {
+    var colors: [Color]
+    var period: Double
+    var edge: CGFloat? = nil
+    var lineWidth: CGFloat = 2
+
+    func makeNSView(context: Context) -> TurnView {
+        let v = TurnView()
+        v.colors = colors
+        v.period = period
+        v.edge = edge
+        v.lineWidth = lineWidth
+        return v
+    }
+    func updateNSView(_ view: TurnView, context: Context) {}
+
+    final class TurnView: NSView {
+        var colors: [Color] = []
+        var period = 4.0
+        var edge: CGFloat?
+        var lineWidth: CGFloat = 2
+        private let spin = CALayer(), shape = CAShapeLayer()
+
+        override init(frame: NSRect) {
+            super.init(frame: frame)
+            wantsLayer = true
+            layer?.addSublayer(spin)
+        }
+        required init?(coder: NSCoder) { fatalError() }
+        // only to look at: clicks go to the text field underneath
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func layout() {
+            super.layout()
+            let b = bounds
+            guard b.width > 0, b.height > 0 else { return }
+            let d = ceil(hypot(b.width, b.height))
+            CATransaction.begin(); CATransaction.setDisableActions(true)
+            if spin.bounds.width != d || spin.contents == nil {
+                spin.bounds = CGRect(x: 0, y: 0, width: d, height: d)
+                let scale = window?.backingScaleFactor ?? 2
+                spin.contentsScale = scale
+                spin.contents = Self.conic(colors, size: d, scale: scale)
             }
+            spin.position = CGPoint(x: b.midX, y: b.midY)
+            if let r = edge {
+                shape.fillColor = nil
+                shape.strokeColor = NSColor.black.cgColor
+                shape.lineWidth = lineWidth
+                let inset = lineWidth / 2
+                shape.path = CGPath(roundedRect: b.insetBy(dx: inset, dy: inset), cornerWidth: max(r - inset, 0),
+                                    cornerHeight: max(r - inset, 0), transform: nil)
+            } else {
+                shape.fillColor = NSColor.black.cgColor
+                shape.path = CGPath(ellipseIn: b, transform: nil)
+            }
+            shape.frame = b
+            layer?.mask = shape
+            CATransaction.commit()
+            start()
+        }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); start() }
+
+        private func start() {
+            guard window != nil, spin.contents != nil, spin.animation(forKey: "turn") == nil,
+                  !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+            let turn = CABasicAnimation(keyPath: "transform.rotation.z")
+            turn.fromValue = 0
+            turn.toValue = -2 * Double.pi       // clockwise, as before
+            turn.duration = period
+            turn.repeatCount = .infinity
+            turn.isRemovedOnCompletion = false
+            spin.add(turn, forKey: "turn")
+        }
+
+        /// The gradient once, as an image: the same AngularGradient SwiftUI drew before.
+        @MainActor static func conic(_ colors: [Color], size: CGFloat, scale: CGFloat) -> CGImage? {
+            let r = ImageRenderer(content: Circle().fill(AngularGradient(colors: colors, center: .center)).frame(width: size, height: size))
+            r.scale = scale
+            return r.cgImage
         }
     }
 }
@@ -214,22 +350,19 @@ struct BrandMark: View {
     var body: some View {
         ZStack {
             if active {
-                TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
-                    orb.rotationEffect(.degrees(tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) * 120))
-                }
+                TurningGradient(colors: Self.colors, period: 3)
             } else {
-                orb
+                Circle().fill(AngularGradient(colors: Self.colors, center: .center))
             }
             Circle().fill(Theme.night.opacity(0.35)).padding(size * 0.08)
             Image(systemName: "sparkles").font(.system(size: size * 0.45, weight: .bold)).foregroundStyle(.white)
         }
         .frame(width: size, height: size)
-        .shadow(color: Theme.violet.opacity(active ? 0.9 : 0.4), radius: active ? 12 : 6)
+        // the shadow on a still circle under the mark: on the turning one it was worked out again every frame
+        .background(Circle().fill(Theme.violet).shadow(color: Theme.violet.opacity(active ? 0.9 : 0.4), radius: active ? 12 : 6))
     }
 
-    private var orb: some View {
-        Circle().fill(AngularGradient(colors: [Theme.accent, Theme.violet, Theme.pink, Theme.cyan, Theme.accent], center: .center))
-    }
+    static let colors = [Theme.accent, Theme.violet, Theme.pink, Theme.cyan, Theme.accent]
 }
 
 extension UInt64 {

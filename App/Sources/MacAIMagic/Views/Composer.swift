@@ -128,13 +128,13 @@ struct Composer: View {
         .overlay {
             // a turning gradient edge while the model writes; a calm one otherwise (no endless animation when idle)
             if chat.isBusy(conversationID) {
-                TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(AngularGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan], center: .center,
-                                                angle: .degrees(tl.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 4) * 90)),
-                                lineWidth: 2)
+                // the glow on a still edge underneath, the turning colours on top (Core Animation turns them)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18).stroke(Theme.violet, lineWidth: 2)
                         .shadow(color: Theme.violet.opacity(0.7), radius: 10)
+                    TurningGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan], period: 4, edge: 18)
                 }
+                .allowsHitTesting(false)
             } else {
                 RoundedRectangle(cornerRadius: 18)
                     .stroke(dropTarget ? AnyShapeStyle(Theme.accent) : AnyShapeStyle(Color.white.opacity(0.12)), lineWidth: dropTarget ? 2 : 1)

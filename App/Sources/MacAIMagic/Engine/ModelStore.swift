@@ -3,7 +3,7 @@ import Foundation
 /// The model files on disk for every model in the catalog: what is there, what is verified, and the downloads.
 @MainActor
 final class ModelStore: ObservableObject {
-    struct FileStatus: Identifiable {
+    struct FileStatus: Identifiable, Equatable {
         let name: String
         let expected: UInt64
         var have: UInt64
@@ -21,7 +21,7 @@ final class ModelStore: ObservableObject {
         var stale: Bool { guard let ok = okHash else { return false }; return (!ok.isEmpty && ok != sha) || have != expected }
     }
 
-    struct ModelStatus {
+    struct ModelStatus: Equatable {
         var files: [FileStatus] = []
         var vision: FileStatus?
         var draft: FileStatus?
@@ -78,7 +78,8 @@ final class ModelStore: ObservableObject {
             if let d = m.draft { s.draft = Self.fileStatus(Paths.modelDir(m.id), d.local, d.size, sha: d.sha256) }
             next[m.id] = s
         }
-        status = next
+        // only a real difference is news: every assignment made the views that look at the models work again
+        if next != status { status = next }
 
         let now = Date(), total = next.values.reduce(0) { $0 + $1.have + ($1.vision?.have ?? 0) }
         if lastTotal == 0 {
@@ -86,7 +87,9 @@ final class ModelStore: ObservableObject {
             lastTick = now
         } else if now.timeIntervalSince(lastTick) > 0.5 {
             let inst = total > lastTotal ? Double(total - lastTotal) / now.timeIntervalSince(lastTick) : 0
-            speed = speed == 0 ? inst : 0.8 * speed + 0.2 * inst
+            var next = speed == 0 ? inst : 0.8 * speed + 0.2 * inst
+            if next < 1 { next = 0 }   // no download: 0, and no news every 2 s
+            if next != speed { speed = next }
             lastTotal = total
             lastTick = now
         }
@@ -94,9 +97,22 @@ final class ModelStore: ObservableObject {
         // Looking for them starts a process, so only every 15 s (every 2 s it kept launchd busy)
         if now.timeIntervalSince(lastExternalCheck) > 15 {
             lastExternalCheck = now
-            external = Self.externalDownloads()
+            // ps on another thread: the main thread waited for it every 15 s
+            Task.detached(priority: .utility) {
+                let found = Self.externalDownloads()
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.external = found
+                    self.updateDownloading()
+                }
+            }
         }
-        downloading = Set(processes.keys).union(catalog.all.map(\.id).filter { external.contains($0) })
+        updateDownloading()
+    }
+
+    private func updateDownloading() {
+        let now = Set(processes.keys).union(catalog.all.map(\.id).filter { external.contains($0) })
+        if now != downloading { downloading = now }
     }
 
     /// One file as it is on disk, and what its .ok says.
@@ -265,7 +281,7 @@ final class ModelStore: ObservableObject {
     }
 
     /// Model ids with a running download_model.sh or curl writing into their folder.
-    private static func externalDownloads() -> Set<String> {
+    nonisolated private static func externalDownloads() -> Set<String> {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/ps")
         p.arguments = ["-axo", "command="]
