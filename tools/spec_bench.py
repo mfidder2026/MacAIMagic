@@ -7,7 +7,8 @@ Usage: tools/spec_bench.py <out.json> [config names...]
 MACAIMAGIC_DFLASH=<draft.gguf> adds the DFlash configurations (e.g. incoai/Qwen3.8-Flash-Next-DFlash2-GGUF Q4_K_M).
 MACAIMAGIC_ENGINE=<llama-server> and MACAIMAGIC_MTP=<mtp.gguf> measure another engine build or MTP drafter;
 MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0; MACAIMAGIC_MODEL=<first shard> measures another
-file of the same model.
+file of the same model, or another model
+(with MACAIMAGIC_VISION=<mmproj.gguf>, empty for none, and the configurations none and ngram).
 Results on the M3 Max 128 GB: docs/RESEARCH.md, "Guessing ahead"."""
 import json, os, subprocess, sys, time, urllib.request
 
@@ -16,7 +17,7 @@ ENGINE = os.environ.get("MACAIMAGIC_ENGINE", ROOT + "/engine/bin/llama-server")
 M = os.path.expanduser("~/Library/Application Support/MacAIMagic/models")
 MODEL = os.environ.get("MACAIMAGIC_MODEL", M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-q4-00001-of-00004.gguf")
 MTP = os.environ.get("MACAIMAGIC_MTP", M + "/qwen3.8-flash-next-q4/qwen3.8-flash-next-mtp.gguf")
-VISION = M + "/vision/qwen3.8-vision.gguf"
+VISION = os.environ.get("MACAIMAGIC_VISION", M + "/vision/qwen3.8-vision.gguf")
 DFLASH = os.environ.get("MACAIMAGIC_DFLASH")
 PORT = 8093
 # MACAIMAGIC_TEMP=1.0 writes as the app does (its default temperature), with a fixed seed
@@ -27,10 +28,11 @@ URL = f"http://127.0.0.1:{PORT}"
 BASE = ["--model", MODEL, "--host", "127.0.0.1", "--port", str(PORT), "--ctx-size", "65536", "--n-gpu-layers", "999",
         "--flash-attn", "on", "--ubatch-size", "1024", "--batch-size", "2048", "--fit", "off", "--threads", "12",
         "--parallel", "1", "--jinja", "--reasoning-format", "deepseek", "--metrics", "--alias", "q", "--n-cpu-moe", "0",
-        "--mmproj", VISION]
+        ] + (["--mmproj", VISION] if VISION else [])
 
 CONFIGS = {
     "none": [],
+    "ngram": ["--spec-type", "ngram-mod"],
     "mtp2": ["--spec-type", "draft-mtp", "--model-draft", MTP, "--spec-draft-n-max", "2"],
     "mtp3": ["--spec-type", "draft-mtp", "--model-draft", MTP, "--spec-draft-n-max", "3"],
     "mtp2+ngram": ["--spec-type", "draft-mtp,ngram-mod", "--model-draft", MTP, "--spec-draft-n-max", "2"],

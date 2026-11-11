@@ -582,3 +582,39 @@ seven gets another top choice. llamAmpere's own 3-bit file is at 0.087 against a
 not worth a different model. Not tried: Q6_K, or an importance matrix (`llama-imatrix`) for the 5-bit layers.
 
 For WinAIMagic, llamAmpere itself is the thing to try on an RTX 30-series card; its numbers are not measured here.
+
+## 15. A faster model instead (2026-11-11)
+
+The same five texts (`tools/spec_bench.py`, now also for other models via `MACAIMAGIC_MODEL` / `MACAIMAGIC_VISION`),
+the app's engine, tokens per second (two rounds where two numbers were averaged):
+
+| | Story | Writing code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| Qwen3.8-Flash-Next, MTP + ngram-mod, temperature 1 | 33.0 | 45.0 | 118.5 | 33.9 | 44.6 |
+| Qwen3.6-35B-A3B Q4 (3B active, no MTP head), no guessing, temperature 0 | 70.8 | 70.0 | 67.6 | 68.3 | 67.2 |
+| Qwen3.6-35B-A3B, ngram-mod, temperature 1 | 72.3 | 72.1 | 282.3 | 67.3 | 67.4 |
+| Ling-3.0-tiny Q4 (1B active), ngram-mod, temperature 0 | 139.3 | 133.5 | 804.4 | 129.8 | 133.9 |
+
+**The answers:**
+- **Changing code (give back 40 lines with one change):**
+  - Flash-Next and Qwen3.6 both changed exactly one line (`.sorted()`).
+  - Ling-3.0-tiny returned the code unchanged.
+- **Swift: group dates by week, Monday first:**
+  - Flash-Next is right in 340 tokens (`Calendar(identifier: .iso8601)`, `firstWeekday = 2`).
+  - Qwen3.6 takes 1,000 tokens and uses `Calendar.current`, so the first day depends on the locale. It also turns
+    its sorted groups back into a dictionary.
+- **The train sum (137 km at 88 km/h, 2 stops of 3 minutes, from 9:12):**
+  - Flash-Next reaches 10:51 within ~900 tokens.
+  - Qwen3.6 also reaches 10:51, but after 4,597 tokens (69 s at 67 tok/s).
+- **The story and the explanation in Dutch:**
+  - Flash-Next is good.
+  - Qwen3.6 is good, with small slips ("een constante, monotoon geluid").
+  - Ling-3.0-tiny writes sentences that make no sense and answered the explanation in English with another task.
+
+**What follows:**
+- Twice the tokens per second does not make Qwen3.6 twice as fast to a right answer: here it needed more tokens and
+  made the code mistake Flash-Next did not.
+- Ling-3.0-tiny is fast but not usable for this work.
+- Flash-Next stays the model for code and agent work.
+- Qwen3.6 is the quick choice where its answers are good enough, and for edits that copy text (282 tok/s with
+  ngram-mod).
