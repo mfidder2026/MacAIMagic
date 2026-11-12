@@ -22,18 +22,17 @@ from Claude Code).
 | **DeepSeek-V4.1-Flash Compact**: 748B MoE, experts 1.6 bit, attention 8 bit | 278 GB | fits (115 GB) | **19.6–20.1 tok/s** | ~160–175 tok/s |
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
-| **Qwen3.8-27B Q4**: 27B, all weights active, 4 bit, MTP; a choice for programming | 20 GB | fits (18 GB) | **14–16 tok/s, 17–24 with MTP** (69 changing code) | ~160 tok/s |
-| **Qwen3.8-27B Q8**: the same, 8 bit, close to the original³ | 31 GB | fits (29 GB) | **8–11 tok/s, 16–24 with MTP** (75 changing code) | – |
+| **Qwen3.8-27B Q8**: 27B, all weights active, 8 bit, close to the original, MTP; a choice for programming³ | 31 GB | fits (29 GB) | **8–11 tok/s, 16–24 with MTP** (75 changing code) | – |
 | **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
 | **Qwen3.6-35B-A3B Heretic Q4**: the same model without refusals ([Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF)), 4 bit | 21 GB | fits (21 GB) | **78–80 tok/s**¹ | ~1,180 tok/s¹ |
 | **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 16 GB | 6 GB | fits (5 GB) | **51 tok/s** | ~630 tok/s |
 | **Ling-3.0-tiny Q4**: 8B MoE, 1B active, 4 bit, no images; the model for a Mac with 8 GB | 5 GB | fits (5 GB) | **136 tok/s**² | ~2,960 tok/s² |
 
 ¹ Measured in the app on a chat with tools (a 2,831-token prompt), not yet with the benchmark the other rows come from.
-³ Against the Q8 on the same text (llama.cpp docs, 20 × 512 tokens), the Q4 picks the same next token 96.2% of
-the time, with a mean KL divergence of 0.010: the Q4 loses little.
 ² Measured with `llama-bench` (a 3,100-token prompt, 300 tokens written). With all its experts on the processor, as an
 8 GB Mac runs it, the M3 Max wrote 39.5 tok/s; a real 8 GB Mac has not been measured.
+³ Against the Q8 on the same text (llama.cpp docs, 20 × 512 tokens), a 4-bit version (unsloth
+UD-Q4_K_XL, 18 GB, 14–16 tok/s) picked the same next token 96.2% of the time, mean KL divergence 0.010.
 
 Measured on a MacBook Pro **M3 Max, 128 GB**, macOS 27, with 64K context, vision on, and the default macOS GPU memory
 limit. *Writing* is decode speed. *Prompt reading* is prefill speed on a 2,500-token prompt. The MTP ranges go from

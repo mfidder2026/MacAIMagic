@@ -12,7 +12,7 @@ Elke kaart zegt voor deze Mac of het model **helemaal in het geheugen past**, **
 | **Q4** | Dichter bij de originele gewichten, maar groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD. |
 | **MTP** | GLM en Qwen raden de volgende tokens vooraf; dezelfde antwoorden, tot 65% sneller schrijven. Aan/uit onder Instellingen → Engine. Daaronder **Herhaalde tekst sneller schrijven**: code aanpassen gaat er tot twee keer zo snel mee. |
 
-**Om te programmeren** is er **Qwen3.8-27B**: een dicht model van 27B dat bij elk woord al zijn gewichten gebruikt. Het is sterk in code, past met 18 GB al op een Mac met 32 GB, en leest afbeeldingen. De **Q8** (29 GB) zit vrijwel gelijk aan het origineel; de Q4 kiest in 96% van de gevallen hetzelfde volgende woord. Het schrijft wel langzamer dan Qwen3.6-35B-A3B, dat maar 3B per woord gebruikt; daarom wordt het nooit vanzelf aangeraden.
+**Om te programmeren** is er **Qwen3.8-27B**: een dicht model van 27B dat bij elk woord al zijn gewichten gebruikt. Het is sterk in code en leest afbeeldingen. Het staat erin als **Q8** (29 GB), vrijwel gelijk aan het origineel, en past vanaf een Mac met 48 GB. Het schrijft wel langzamer dan Qwen3.6-35B-A3B, dat maar 3B per woord gebruikt; daarom wordt het nooit vanzelf aangeraden.
 
 **Voor een Mac met 8 of 16 GB** zijn er twee kleine modellen. **Ministral-3-8B** leest ook afbeeldingen en wordt aangeraden op 16 GB. **Ling-3.0-tiny** gebruikt maar 1B van zijn 8B per woord en is daardoor drie keer zo snel, maar leest geen afbeeldingen. Het wordt aangeraden op 8 GB, waar macOS het grootste deel in het geheugen houdt en de rest van de SSD leest.
 
