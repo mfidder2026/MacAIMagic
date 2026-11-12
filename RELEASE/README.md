@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.12 (macOS, Apple Silicon)
+# MacAIMagic 1.14.13 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.12-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.13-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,18 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.12-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.13-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.13:
+- **The app itself uses far less of the processor while a model writes.** The turning edge of the question field, the turning mark and the pulse ring are now turned by macOS (Core Animation) instead of being drawn again 30 times a second, and the answer's text goes into the chat 10 times a second instead of at every token. Measured on the M3 Max with Qwen3.8-Flash-Next writing: the app at 52-56% of one core, against 83-97% with 1.14.12 (that one measured in a long conversation); drawing gradients went from 29-48% of the app's main thread to about 1%. A test window with the old edge, marks and rings used about a quarter of a core, with the new ones nothing measurable. With "Reduce motion" on in macOS they stand still.
+- **A safer read-only check for system management.** `system_read` runs a command without a card only when it only reads. The check now reads a command exactly as the shell does: a backslash, braces, a leading `NAME=value`, control characters and a quote followed by an accent are refused, so a command can no longer look like a read while the shell runs something else.
+- **A new screenshot no longer makes the engine read the whole conversation again.** Every picture the model looked at stays a picture, so the start of the conversation never changes. In a long C64 run with Qwen3.6 this had cost about 33 minutes of reading again.
+- **A stopped answer keeps its place in the engine**, also when you quit right after: going on no longer reads the whole conversation again (12 minutes for a conversation of 164K tokens).
+- **A long answer is saved on the way** (at most every 10 seconds), not only at its end, so a crash or a forced quit loses nothing of a run of hours.
+- **The model is told when it goes in circles**: the same build error for the third time, or the same file written in full for the third time without running it, gets a note in that step's result (read the line the error names, change only that, run it now).
+- The model list no longer reports a change every 2 seconds, and looks for running downloads off the main thread; the Help panel reads its pages once.
 
 New in 1.14.12 (1.14.11 was a WinAIMagic version):
 - **Changing code is written about twice as fast.** Beside MTP the engine now also proposes text that is already in the conversation (ngram-mod): when the model gives back code it changes or rewrites a file, it guesses long stretches at once. Measured with Qwen3.8-Flash-Next Q4 on the M3 Max: changing code 115-122 instead of 52-53 tokens per second; a story, new code, an explanation and thinking stay as fast as with MTP alone. Settings → Engine: "Herhaalde tekst sneller schrijven" (on).
