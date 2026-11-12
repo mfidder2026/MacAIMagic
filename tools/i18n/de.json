@@ -1086,5 +1086,6 @@
  "Het eerste laden van %@ GB duurt enkele minuten.": "Das erste Laden von %@ GB dauert einige Minuten.",
  "Het geheugen komt vrij zodra het model gestopt is.": "Der Speicher wird frei, sobald das Modell gestoppt ist.",
  "(Hier stond een afbeelding: %@. Het model draait nu zonder afbeeldingen (vision); zeg dat als het ertoe doet.)": "(Hier war ein Bild: %@. Das Modell läuft jetzt ohne Bilder (Vision); sag das, wenn es wichtig ist.)",
- "Het model draait nu zonder afbeeldingen (vision), dus de foto kan ik niet bekijken.": "Das Modell läuft jetzt ohne Bilder (Vision), daher kann ich das Foto nicht ansehen."
+ "Het model draait nu zonder afbeeldingen (vision), dus de foto kan ik niet bekijken.": "Das Modell läuft jetzt ohne Bilder (Vision), daher kann ich das Foto nicht ansehen.",
+ "27B · alle gewichten actief · 4 bit · 18 GB in het geheugen · sterk in programmeren · MTP voor sneller schrijven": "27B · alle Gewichte aktiv · 4 Bit · 18 GB im Speicher · stark im Programmieren · MTP für schnelleres Schreiben"
 }

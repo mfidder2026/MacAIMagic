@@ -22,6 +22,7 @@ from Claude Code).
 | **DeepSeek-V4.1-Flash Compact**: 748B MoE, experts 1.6 bit, attention 8 bit | 278 GB | fits (115 GB) | **19.6–20.1 tok/s** | ~160–175 tok/s |
 | **GLM-5.3-Flash Q4**: 4 bit | 201 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **5–6 tok/s** | ~70–100 tok/s |
 | **DeepSeek-V4.1-Flash Q4**: 4 bit, close to the original FP4 experts | 460 GB | ~95 GB of experts cached on the GPU, the rest read from the SSD | **7–8.5 tok/s** | ~65–95 tok/s |
+| **Qwen3.8-27B Q4**: 27B, all weights active, 4 bit, MTP; a choice for programming | 20 GB | fits (18 GB) | **14–16 tok/s, 17–24 with MTP** (69 changing code) | ~160 tok/s |
 | **Qwen3.6-35B-A3B Q4**: 35B MoE, 3B active, 4 bit; the model for a Mac with 32 GB | 23 GB | fits (22 GB) | **60–67 tok/s** | ~180 tok/s (short prompt) |
 | **Qwen3.6-35B-A3B Heretic Q4**: the same model without refusals ([Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF)), 4 bit | 21 GB | fits (21 GB) | **78–80 tok/s**¹ | ~1,180 tok/s¹ |
 | **Ministral-3-8B Q4**: 8B, 4 bit, reads images; the model for a Mac with 16 GB | 6 GB | fits (5 GB) | **51 tok/s** | ~630 tok/s |
@@ -474,6 +475,7 @@ MacAIMagic is MIT-licensed (see [LICENSE](LICENSE)). It builds on:
 - [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) (MIT), by DeepSeek
 - [GLM-5.3-Flash](https://huggingface.co/zai-org/GLM-5.3-Flash) (MIT), by Z.ai
 - [Qwen3.8-Flash-Next](https://huggingface.co/Qwen/Qwen3.8-Flash-Next), by Qwen (its own license, see the model page)
+- [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) (Apache 2.0), by Qwen, quantized by unsloth
 - [Ministral-3-8B](https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF) (Apache 2.0), by Mistral AI
 - [Ling-3.0-tiny](https://huggingface.co/bartowski/Ling-3.0-tiny-GGUF) (MIT), by inclusionAI, quantized by bartowski
 - [Qwen3.6-35B-A3B Heretic](https://huggingface.co/llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-GGUF), Qwen3.6-35B-A3B with its refusals removed by llmfan46 (Apache 2.0)

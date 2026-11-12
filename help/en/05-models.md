@@ -12,6 +12,8 @@ Each card says for this Mac whether the model **fits whole in memory**, **stream
 | **Q4** | Closer to the original weights, but larger than 128 GB: the experts used most stay on the GPU, the rest comes from the SSD. |
 | **MTP** | GLM and Qwen guess the next tokens ahead; the same answers, up to 65% faster writing. On/off under Settings → Engine. Below it, **Write repeated text faster**: changing code goes up to twice as fast with it. |
 
+**For programming** there is **Qwen3.8-27B**: a dense 27B model that uses all its weights for every word. It is strong at code, fits in 18 GB on a Mac with 32 GB, and reads images. It writes more slowly than Qwen3.6-35B-A3B, which uses only 3B per word, so it is never recommended on its own.
+
 **For a Mac with 8 or 16 GB** there are two small models. **Ministral-3-8B** also reads images and is recommended on 16 GB. **Ling-3.0-tiny** uses only 1B of its 8B per word, which makes it three times as fast, but it reads no images. It is recommended on 8 GB, where macOS keeps most of it in memory and reads the rest from the SSD.
 
 ## Buttons on a card

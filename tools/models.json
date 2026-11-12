@@ -244,6 +244,31 @@
       "speedOn32GB": "2–6"
     },
     {
+      "id": "qwen3.8-27b-q4",
+      "name": "Qwen3.8-27B Q4",
+      "family": "qwen",
+      "summary": "27B · alle gewichten actief · 4 bit · 18 GB in het geheugen · sterk in programmeren · MTP voor sneller schrijven",
+      "vision": "qwen3.8-27b",
+      "draft": {
+        "local": "qwen3.8-27b-mtp.gguf",
+        "size": 1369590656,
+        "sha256": "50d9ce5a6da381bbcfb31061cf73df94a90e6faf8efeddee379a9cb8f1501c6e",
+        "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/MTP/mtp-Qwen3.8-27B-Q4_0.gguf"
+      },
+      "files": [
+        {
+          "local": "qwen3.8-27b-q4.gguf",
+          "size": 17659407264,
+          "sha256": "2a5f3565f39cf885103da591182c1266da64745737b42b452fd3e675369f1211",
+          "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/Qwen3.8-27B-UD-Q4_K_XL.gguf"
+        }
+      ],
+      "mtp": "file",
+      "memory": 17648410624,
+      "dense": 17648410624,
+      "recommend": false
+    },
+    {
       "id": "qwen3.6-35b-a3b-q4",
       "name": "Qwen3.6-35B-A3B Q4",
       "family": "qwen",
@@ -347,6 +372,14 @@
       "size": 858283168,
       "sha256": "e799380f596d152ff4026a72d409ecc89c96cd437676804bc3f2ab3bd6b486ec",
       "url": "https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF/resolve/0102285ad796bd99af90f58de616092e5630e970/Ministral-3-8B-Instruct-2512-BF16-mmproj.gguf"
+    },
+    {
+      "id": "qwen3.8-27b",
+      "local": "qwen3.8-27b-vision.gguf",
+      "size": 927607488,
+      "sha256": "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e",
+      "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/mmproj-F16.gguf",
+      "files": []
     }
   ],
   "images": [
