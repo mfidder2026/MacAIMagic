@@ -99,3 +99,17 @@ final class LongMessageViewTests: XCTestCase {
         XCTAssertNil(PartView.preview("Kort."))
     }
 }
+
+/// The chat went blank while the model worked: the visible area had ended below the messages.
+final class PastTheEndTests: XCTestCase {
+    func testABlankViewIsPastTheEnd() {
+        // 800 points of view, 5,000 of messages
+        XCTAssertFalse(ChatView.isPastTheEnd(visibleTop: 4200, visibleHeight: 800, contentHeight: 5000), "at the end")
+        XCTAssertFalse(ChatView.isPastTheEnd(visibleTop: 1000, visibleHeight: 800, contentHeight: 5000), "scrolled up")
+        XCTAssertFalse(ChatView.isPastTheEnd(visibleTop: 4300, visibleHeight: 800, contentHeight: 5000), "a bounce at the end")
+        XCTAssertFalse(ChatView.isPastTheEnd(visibleTop: -60, visibleHeight: 800, contentHeight: 300), "a short chat")
+        XCTAssertTrue(ChatView.isPastTheEnd(visibleTop: 5000, visibleHeight: 800, contentHeight: 5000), "nothing in view")
+        XCTAssertTrue(ChatView.isPastTheEnd(visibleTop: 7200, visibleHeight: 800, contentHeight: 5000), "far below")
+        XCTAssertTrue(ChatView.isPastTheEnd(visibleTop: 4920, visibleHeight: 800, contentHeight: 5000), "one line left")
+    }
+}

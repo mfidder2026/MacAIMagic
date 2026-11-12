@@ -58,12 +58,14 @@ struct ChatView: View {
                     }
                     .scrollContentBackground(.hidden)
                     .modifier(OpenAtEnd(enabled: scrollToEnd))
+                    .modifier(BackFromPastTheEnd(proxy: proxy, enabled: scrollToEnd))
                     .onChange(of: c.messages.last?.text) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     .onChange(of: c.messages.last?.preparing) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     // the step card or an approval card below takes room: keep the last message above it
                     .onChange(of: belowKey) { _, _ in Self.scrollSoon(proxy) }
                     .onChange(of: (c.messages.last?.reasoning.count ?? 0) / 400) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
-                    .onChange(of: c.messages.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+                    // not animated: an animated scroll in the lazy stack aims with estimated heights and can end past the end
+                    .onChange(of: c.messages.count) { _, _ in proxy.scrollTo("bottom", anchor: .bottom) }
                     // back from another page: the anchor alone can land at the top while the lazy stack still guesses
                     // its heights; after the pane transition, go to the end once more, and again when heights are known
                     .task(id: conversationID) {
@@ -104,7 +106,7 @@ struct ChatView: View {
     private static func scrollSoon(_ proxy: ScrollViewProxy) {
         Task {
             try? await Task.sleep(for: .milliseconds(150))
-            withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+            proxy.scrollTo("bottom", anchor: .bottom)
         }
     }
 
@@ -229,6 +231,42 @@ private struct OpenAtEnd: ViewModifier {
         } else {
             content.defaultScrollAnchor(.bottom)
         }
+    }
+}
+
+/// The chat went blank while the model worked, without the user doing anything: the scroll position had ended below the
+/// messages (scrolling up showed them). The lazy stack guesses the heights of messages out of view, and a scroll or a
+/// card that shrinks can leave the visible area past the end. When the view shows (almost) nothing, go to the end.
+private struct BackFromPastTheEnd: ViewModifier {
+    let proxy: ScrollViewProxy
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled, #available(macOS 15.0, *) {
+            content.onScrollGeometryChange(for: Bool.self) { g in
+                ChatView.isPastTheEnd(visibleTop: g.visibleRect.minY, visibleHeight: g.visibleRect.height, contentHeight: g.contentSize.height)
+            } action: { _, past in
+                guard past else { return }
+                proxy.scrollTo("bottom", anchor: .bottom)
+                // the first jump may still aim with guessed heights: once more when they are known
+                Task {
+                    try? await Task.sleep(for: .milliseconds(200))
+                    proxy.scrollTo("bottom", anchor: .bottom)
+                }
+            }
+        } else {
+            content
+        }
+    }
+}
+
+extension ChatView {
+    /// True when the visible area shows less than a fifth of itself of the messages (at most 120 points): it is past the
+    /// end. A bounce at the end of a scroll stays far below that.
+    nonisolated static func isPastTheEnd(visibleTop: CGFloat, visibleHeight: CGFloat, contentHeight: CGFloat) -> Bool {
+        guard visibleHeight > 0, contentHeight > 0 else { return false }
+        let shown = contentHeight - visibleTop
+        return shown < min(120, visibleHeight / 5)
     }
 }
 
