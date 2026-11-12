@@ -1087,5 +1087,6 @@
  "Het geheugen komt vrij zodra het model gestopt is.": "La mémoire est libérée dès que le modèle est arrêté.",
  "(Hier stond een afbeelding: %@. Het model draait nu zonder afbeeldingen (vision); zeg dat als het ertoe doet.)": "(Il y avait une image ici : %@. Le modèle tourne maintenant sans images (vision) ; dis-le si cela compte.)",
  "Het model draait nu zonder afbeeldingen (vision), dus de foto kan ik niet bekijken.": "Le modèle tourne maintenant sans images (vision), je ne peux donc pas regarder la photo.",
- "27B · alle gewichten actief · 4 bit · 18 GB in het geheugen · sterk in programmeren · MTP voor sneller schrijven": "27B · tous les poids actifs · 4 bits · 18 Go en mémoire · fort en programmation · MTP pour écrire plus vite"
+ "27B · alle gewichten actief · 4 bit · 18 GB in het geheugen · sterk in programmeren · MTP voor sneller schrijven": "27B · tous les poids actifs · 4 bits · 18 Go en mémoire · fort en programmation · MTP pour écrire plus vite",
+ "27B · alle gewichten actief · 8 bit, vrijwel gelijk aan het origineel · 29 GB in het geheugen · sterk in programmeren · MTP voor sneller schrijven": "27B · tous les poids actifs · 8 bits, quasi identique à l'original · 29 Go en mémoire · fort en programmation · MTP pour écrire plus vite"
 }

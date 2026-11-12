@@ -86,7 +86,7 @@ final class GGUFIndexTests: XCTestCase {
 final class CatalogTests: XCTestCase {
     func testCatalogLoads() throws {
         let c = ModelCatalog.shared
-        XCTAssertEqual(c.models.count, 10)
+        XCTAssertEqual(c.models.count, 11)
         for m in c.models {
             XCTAssertFalse(m.files.isEmpty)
             // Ling-3.0-tiny reads no pictures: its makers publish no vision files
@@ -389,6 +389,7 @@ final class MachineFitTests: XCTestCase {
         // Heretic is a choice, never the recommendation: also not on a Mac where it fits and the original does not
         // the dense 27B is a choice for programming: on 32 GB the 35B-A3B (3B active) writes several times faster
         XCTAssertEqual(models.first { $0.id == "qwen3.8-27b-q4" }?.recommend, false)
+        XCTAssertEqual(models.first { $0.id == "qwen3.8-27b-q8" }?.recommend, false)
         let heretic = models.first { $0.id == "qwen3.6-35b-a3b-heretic-q4" }
         XCTAssertEqual(heretic?.recommend, false)
         for gb: UInt64 in [8, 16, 24, 32, 48, 64, 96, 128] {

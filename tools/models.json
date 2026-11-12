@@ -269,6 +269,31 @@
       "recommend": false
     },
     {
+      "id": "qwen3.8-27b-q8",
+      "name": "Qwen3.8-27B Q8",
+      "family": "qwen",
+      "summary": "27B · alle gewichten actief · 8 bit, vrijwel gelijk aan het origineel · 29 GB in het geheugen · sterk in programmeren · MTP voor sneller schrijven",
+      "vision": "qwen3.8-27b",
+      "draft": {
+        "local": "qwen3.8-27b-mtp.gguf",
+        "size": 1369590656,
+        "sha256": "50d9ce5a6da381bbcfb31061cf73df94a90e6faf8efeddee379a9cb8f1501c6e",
+        "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/MTP/mtp-Qwen3.8-27B-Q4_0.gguf"
+      },
+      "files": [
+        {
+          "local": "qwen3.8-27b-q8.gguf",
+          "size": 29047086048,
+          "sha256": "a680f44a06920e5d689774823782006aa3acc8db95750323373b24139b67e348",
+          "url": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4af51b3542f775b0a8e4b310bfb3f17e01c306c9/Qwen3.8-27B-Q8_0.gguf"
+        }
+      ],
+      "mtp": "file",
+      "memory": 29036089344,
+      "dense": 29036089344,
+      "recommend": false
+    },
+    {
       "id": "qwen3.6-35b-a3b-q4",
       "name": "Qwen3.6-35B-A3B Q4",
       "family": "qwen",
