@@ -35,20 +35,20 @@ struct ChatView: View {
             if let c = conversation, !c.messages.isEmpty {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 20) {
-                            let items = ChatItem.group(c.messages.filter { !$0.isHidden })
-                            ForEach(items) { item in
-                                Group {
-                                    switch item {
-                                    case .question(let m): MessageRow(message: m, streaming: false)
-                                    case .answer(let rounds):
-                                        AnswerView(rounds: rounds, streaming: chat.isBusy(conversationID) && item.id == items.last?.id)
-                                    }
+                        // The older items in a lazy stack (fast for long conversations), the last ones in a plain stack:
+                        // a lazy stack guesses the heights of rows it has not drawn, and with a long answer growing at
+                        // the end, that guess left the view blank below the messages (the scroll geometry agreed with
+                        // the guess, so a check on it saw nothing wrong). The end now always has its real height.
+                        let items = ChatItem.group(c.messages.filter { !$0.isHidden })
+                        let split = ChatView.liveTail(items.count)
+                        let summarized = lastShownSummarized(c)
+                        VStack(alignment: .leading, spacing: 20) {
+                            if split > 0 {
+                                LazyVStack(alignment: .leading, spacing: 20) {
+                                    ForEach(items[..<split]) { item in row(item, c, isLast: false, summarized: summarized) }
                                 }
-                                .id(item.id)
-                                .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
-                                if let last = lastShownSummarized(c), item.contains(last), let summary = c.summary { SummaryDivider(summary: summary) }
                             }
+                            ForEach(items[split...]) { item in row(item, c, isLast: item.id == items.last?.id, summarized: summarized) }
                             Color.clear.frame(height: 1).id("bottom")
                         }
                         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: c.messages.count)
@@ -102,6 +102,24 @@ struct ChatView: View {
         let steps = conversation?.steps?.map { $0.title + $0.status }.joined() ?? ""
         return steps + (chat.approvals[conversationID]?.id.uuidString ?? "")
     }
+
+    /// One row: a question, or an answer with all its rounds, and the summary divider under it when it is the last
+    /// one the summary replaces.
+    @ViewBuilder
+    private func row(_ item: ChatItem, _ c: Conversation, isLast: Bool, summarized: UUID?) -> some View {
+        Group {
+            switch item {
+            case .question(let m): MessageRow(message: m, streaming: false)
+            case .answer(let rounds): AnswerView(rounds: rounds, streaming: chat.isBusy(conversationID) && isLast)
+            }
+        }
+        .id(item.id)
+        .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity), removal: .opacity))
+        if let last = summarized, item.contains(last), let summary = c.summary { SummaryDivider(summary: summary) }
+    }
+
+    /// Where the plain stack at the end begins: the last 6 items (three questions with their answers) are always drawn.
+    nonisolated static func liveTail(_ count: Int) -> Int { max(0, count - 6) }
 
     private static func scrollSoon(_ proxy: ScrollViewProxy) {
         Task {

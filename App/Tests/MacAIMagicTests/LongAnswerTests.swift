@@ -112,4 +112,11 @@ final class PastTheEndTests: XCTestCase {
         XCTAssertTrue(ChatView.isPastTheEnd(visibleTop: 7200, visibleHeight: 800, contentHeight: 5000), "far below")
         XCTAssertTrue(ChatView.isPastTheEnd(visibleTop: 4920, visibleHeight: 800, contentHeight: 5000), "one line left")
     }
+
+    func testTheLastItemsAreNotLazy() {
+        XCTAssertEqual(ChatView.liveTail(0), 0)
+        XCTAssertEqual(ChatView.liveTail(4), 0, "a short chat: all drawn")
+        XCTAssertEqual(ChatView.liveTail(6), 0)
+        XCTAssertEqual(ChatView.liveTail(40), 34, "a long chat: the last 6 drawn, the rest lazy")
+    }
 }

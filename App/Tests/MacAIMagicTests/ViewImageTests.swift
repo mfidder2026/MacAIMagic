@@ -153,6 +153,13 @@ final class StepReminderTests: XCTestCase {
         XCTAssertTrue(text.contains("[todo] Testen in VICE"))
     }
 
+    func testAFinishedTaskTicksOffEveryStep() {
+        let steps = [WorkStep(title: "a", status: "done"), WorkStep(title: "b", status: "doing"), WorkStep(title: "c", status: "todo")]
+        XCTAssertEqual(WorkSteps.finished(steps)?.allSatisfy(\.isDone), true)
+        XCTAssertEqual(WorkSteps.finished(steps)?.map(\.title), ["a", "b", "c"])
+        XCTAssertNil(WorkSteps.finished(nil))
+    }
+
     func testNoReminderWithoutOpenSteps() {
         XCTAssertNil(WorkSteps.reminder(nil, roundsSince: 20))
         XCTAssertNil(WorkSteps.reminder(open.map { WorkStep(title: $0.title, status: "done") }, roundsSince: 20))

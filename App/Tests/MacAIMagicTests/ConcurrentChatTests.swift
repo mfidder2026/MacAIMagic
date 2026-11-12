@@ -132,7 +132,8 @@ final class ConcurrentChatTests: XCTestCase {
         try await waitUntil { !chat.isBusy(a.id) }
         let steps = try XCTUnwrap(store.conversations[0].steps)
         XCTAssertEqual(steps.map(\.title), ["Eerst kijken", "Dan bouwen", "Testen"])
-        XCTAssertEqual(steps.map(\.status), ["done", "doing", "todo"])
+        // the model set 1 of 3 done (the tool result below); the finished answer ticks off the rest
+        XCTAssertEqual(steps.map(\.status), ["done", "done", "done"])
         let result = store.conversations[0].messages.first { $0.role == .tool }?.text ?? ""
         XCTAssertTrue(result.contains("1 of 3 done"), result)
     }

@@ -263,9 +263,10 @@ final class ChatClient: ObservableObject {
                 let cutOff = result.finishReason == "length"
                 guard Self.looksUnfinished(text: m?.text ?? "", reasoning: m?.reasoning ?? "", cutOff: cutOff,
                                            working: workspaceActive || tookSteps || !activities.isEmpty, tookSteps: changedFiles) else {
-                    // KLAAR is a word for the app, not for the user
+                    // KLAAR is a word for the app, not for the user; the task is done, so are its steps
                     store.update(id) { c in
                         if let i = c.messages.lastIndex(where: { $0.id == reply.id }) { c.messages[i].text = Self.withoutDoneWord(c.messages[i].text) }
+                        c.steps = WorkSteps.finished(c.steps)
                     }
                     return
                 }

@@ -48,6 +48,12 @@ enum WorkSteps {
         return "(Reminder from the app: the user sees your step list, and it has not changed for \(roundsSince) rounds. If a step is done or another one started, call task_list now with the whole list. Your list:\n\(list))"
     }
 
+    /// The answer is finished (the model said KLAAR, or answered without announcing a next step): every step is done.
+    /// Models forget the last task_list call; the user then saw 2 of 5 under a finished task.
+    static func finished(_ steps: [WorkStep]?) -> [WorkStep]? {
+        steps?.map { WorkStep(title: $0.title, status: "done") }
+    }
+
     static func label(_ steps: [WorkStep]?) -> String {
         guard let steps else { return L("Stappenlijst") }
         return L("Stappenlijst: \(steps.filter(\.isDone).count) van \(steps.count) klaar")
