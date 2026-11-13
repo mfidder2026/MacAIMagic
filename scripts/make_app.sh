@@ -88,4 +88,8 @@ elif [ -n "$SIGN_ID" ] && xcrun notarytool history --keychain-profile "$NOTARY_P
 elif [ -n "$SIGN_ID" ]; then
   echo "let op: niet genotariseerd, er zijn geen notarytool-gegevens onder '$NOTARY_PROFILE'"
 fi
+# The app was built in place: a Finder window on dist/ saw the bundle before its icon was in it and keeps showing the
+# blank placeholder. A new date on the bundle and a fresh registration make Finder and the Dock read the icon again.
+touch "$APP"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
 echo "klaar: $APP"
