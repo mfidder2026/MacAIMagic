@@ -654,3 +654,40 @@ GLM Q4 (larger than memory, 20 GB expert cache in the app's plan that night) wit
 
 **What follows:** moving the pin brings no speed on this Mac now, and costs GLM Compact ~5%. The rebased patch is kept
 for when an upstream change does help.
+
+## 17. Reading more guesses ahead, as InferSSD does (2026-11-14)
+
+[InferSSD](https://github.com/wici-ai/inferssd) (#201) reads the guessed experts of the next layer likeliest first,
+each while the read still fits in the gap before that layer's router runs. Its authors report on an M5 Max: a 3.4 ms gap,
+1.6 ms per expert read, and 4.02 instead of 3.66 tok/s with 6 guesses instead of 2. Their engine computes the experts
+of a token on the processor. Our patch 0002 reads the 2 best guesses that are not cached
+(`LLAMA_MOE_CACHE_AHEAD`, default 2), and a read ahead that has not started when the layer's own reads begin is
+dropped, so the gap decides here too.
+
+Measured on the M3 Max with the app's engine and the app's plan for each model (arguments as `EngineController` builds
+them), depths 2, 4, 6, 2, 4, 6. Per run: 3 stories of 200 tokens and a prompt of ~1,950 tokens at temperature 0, every
+run from the same cache state (a fresh copy of the app's saved cache, or an empty cache). "About 32 GB": 93 GiB held
+wired by a small program (just under 100 GB), the plan computed for a Mac with 32 GB.
+
+| Model | Memory | Depth 2 | Depth 4 | Depth 6 | SSD per token (2 / 4 / 6) |
+|---|---|---|---|---|---|
+| GLM-5.3-Flash Q4, 87 GB cache, warm | 128 GB | 5.80 / 5.68 / 4.93; 5.56 / 5.59 / 5.09 | 4.22 / 3.86 / 4.56; 5.67 / 5.35 / 5.04 | 5.74 / 4.83 / 5.09; 5.80 / 4.79 / 4.27 | 0.60-0.72 GB, the same at every depth |
+| Qwen3.8-Flash-Next Q4, 11.1 GB cache, cold | about 32 GB | 5.99 / 5.55 / 5.71 | 5.86 / 5.56 / 5.64 | 5.79 / 5.43 / 5.55; 5.62 / 5.19 / 5.42 | 0.39-0.44 / 0.42-0.47 / 0.43-0.49 GB |
+| DeepSeek-V4.1-Flash Compact, 8.2 GB cache, cold | about 32 GB | 4.85 / 4.98 / 4.84; 5.08 / 5.14 / 4.98 | 5.01 / 4.96 / 4.74; 4.93 / 4.94 / 4.80 | 4.88 / 4.92 / 4.75; 4.92 / 4.95 / 4.85 | 0.59-0.62 / 0.62-0.65 / 0.62-0.65 GB |
+
+Writing in tok/s, story 1 / 2 / 3; two runs per depth separated by a semicolon. The second Flash-Next round at depths 2
+and 4 is left out: macOS swapped ~0.4 GB then, and single stories fell to 0.8-2.5 tok/s at both depths. Every run wrote
+the same text. Prompt reading did not follow the depth (GLM Q4 59-71, Flash-Next 126-131, DeepSeek 64-88 tok/s,
+rising over the runs).
+
+- **With a large cache (128 GB) the depth changes nothing.** 90% of the experts are cached, so of GLM's 8 guesses
+  per layer seldom more than 2 are missing: the SSD read as many bytes per token at depth 6 as at depth 2.
+- **With a small cache it costs a little.** Depths 4 and 6 read 5-15% more from the SSD per token and wrote 1-5%
+  slower (Flash-Next), or 1-2% slower (DeepSeek Compact).
+- A likely reason, not measured on its own: here the GPU computes a layer in about 1 ms (section 2: ~50 ms of GPU work
+  per token of DeepSeek Q4, 40 layers with experts), so the gap is short, and every read ahead that is still running
+  takes SSD time from the next layer's own reads. InferSSD computes the experts on the processor, which takes longer
+  per layer and leaves a 3.4 ms gap. Its authors saw the same as here on an RTX 5090: 0.63 ms gaps, 2.9 ms per read,
+  "a second read mostly runs into the next layer".
+
+**What follows:** the depth stays at 2.
