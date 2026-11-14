@@ -34,6 +34,11 @@ BASE = ["--model", MODEL, "--host", "127.0.0.1", "--port", str(PORT), "--ctx-siz
 CONFIGS = {
     "none": [],
     "ngram": ["--spec-type", "ngram-mod"],
+    # the engine's other copy-from-the-context drafters, and ngram-mod that starts on shorter repeats
+    "ngram-short": ["--spec-type", "ngram-mod", "--spec-ngram-mod-n-match", "12", "--spec-ngram-mod-n-min", "16"],
+    "ngram-map": ["--spec-type", "ngram-map-k"],
+    "ngram-simple": ["--spec-type", "ngram-simple"],
+    "ngram-map+mod": ["--spec-type", "ngram-map-k,ngram-mod"],
     "mtp2": ["--spec-type", "draft-mtp", "--model-draft", MTP, "--spec-draft-n-max", "2"],
     "mtp3": ["--spec-type", "draft-mtp", "--model-draft", MTP, "--spec-draft-n-max", "3"],
     "mtp2+ngram": ["--spec-type", "draft-mtp,ngram-mod", "--model-draft", MTP, "--spec-draft-n-max", "2"],
