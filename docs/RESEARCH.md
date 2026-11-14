@@ -721,8 +721,9 @@ Averages over the stories that did not stall (see below): A 6 stories of Flash-N
   the reads get slower.
 - So the room between B and C, 12-19% on a 32 GB Mac, is what reading straight into the cache could win at most. Not
   certain: the page cache also works as a second cache for experts that just left the GPU cache, and that would go.
-- **Stalls.** With 93 GiB held, a story sometimes fell to 0.8-2.5 tok/s for its whole length: 6 of the ~36 stories
-  in arm A today (Flash-Next), 2 in arm B (DeepSeek; one run stood at ~0.1 tok/s and was stopped), none of 12 in C.
+- **Stalls.** A story sometimes fell to 0.8-2.5 tok/s for its whole length: 6 of the 48 stories with the plan's
+  cache today (sections 17 and 18, all Flash-Next), 2 in arm B (DeepSeek; one run stood at ~0.1 tok/s and was
+  stopped), none of 12 in C.
   During one stall macOS decompressed ~7 GB and paged in ~2.4 GB per 10 s, with ~0.1 GB free and 0.3-0.7 GB of
   swap. Whether a real 32 GB Mac does this as well is not known; the M3 Max ran other apps (the Claude app among them)
   next to the test.
