@@ -4,7 +4,8 @@ Starts the engine with the app's own arguments per configuration (quit the app f
 five kinds of text at temperature 0, and records the writing speed, the draft acceptance and the text (drafting is
 lossless: the text should match the one without drafting, up to a near-tie token).
 Usage: tools/spec_bench.py <out.json> [config names...]
-MACAIMAGIC_DFLASH=<draft.gguf> adds the DFlash configurations (e.g. incoai/Qwen3.8-Flash-Next-DFlash2-GGUF Q4_K_M).
+MACAIMAGIC_DFLASH=<draft.gguf> adds the DFlash configurations (e.g. incoai/Qwen3.8-Flash-Next-DFlash2-GGUF Q4_K_M),
+MACAIMAGIC_DSPARK=<draft.gguf> the DSpark ones (DeepSeek-V4.1).
 MACAIMAGIC_ENGINE=<llama-server> and MACAIMAGIC_MTP=<mtp.gguf> measure another engine build or MTP drafter;
 MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0; MACAIMAGIC_MODEL=<first shard> measures another
 file of the same model, or another model
@@ -41,6 +42,13 @@ CONFIGS = {
 if DFLASH:
     CONFIGS["dflash4"] = ["--spec-type", "draft-dflash", "--model-draft", DFLASH, "--spec-draft-n-max", "4"]
     CONFIGS["dflash8"] = ["--spec-type", "draft-dflash", "--model-draft", DFLASH, "--spec-draft-n-max", "8"]
+# MACAIMAGIC_DSPARK=<draft.gguf>: DeepSeek-V4.1's DSpark drafter (e.g. ggml-org/DeepSeek-V4.1-Flash-1017-GGUF dspark-*.gguf),
+# which has no confidence head, so every step drafts n_max tokens
+DSPARK = os.environ.get("MACAIMAGIC_DSPARK")
+if DSPARK:
+    for n in (2, 3, 4, 5):
+        CONFIGS[f"dspark{n}"] = ["--spec-type", "draft-dspark", "--model-draft", DSPARK, "--spec-draft-n-max", str(n),
+                                 "--spec-draft-p-min", "0"]
 
 # a piece of real code to give back with one change (the lines of 2026-11-10; any 40 lines with domains(in:) will do)
 source = open(ROOT + "/App/Sources/MacAIMagic/Chat/SystemTools.swift").read().split("\n")[289:330]
@@ -99,6 +107,14 @@ def run(name):
         except subprocess.TimeoutExpired:
             p.kill()
             p.wait()
+        # macOS frees a large model's wired GPU memory some seconds after the engine ends; the next engine waits for it,
+        # or both are wired at once (DeepSeek Compact: 132 GB wired, memory pressure critical)
+        for _ in range(120):
+            vm = subprocess.run(["vm_stat"], capture_output=True, text=True).stdout
+            wired = next((int(l.split()[-1].rstrip(".")) for l in vm.splitlines() if l.startswith("Pages wired down")), 0)
+            if wired * 16384 < 20e9:
+                break
+            time.sleep(1)
         time.sleep(3)
 
 

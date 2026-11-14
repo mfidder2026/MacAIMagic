@@ -762,3 +762,40 @@ What could still be fused, per layer (48 layers, 36 of them gated-delta-net and 
 That is about 12-15 ops per layer, ~550-650 per token: **an estimated +6-10%**, with several new Metal kernels and
 fusion patterns. Fused kernels may round slightly differently, so a text can change at a near tie. Nothing of this
 is built.
+
+## 20. A guesser for DeepSeek-V4.1-Flash Compact (2026-11-14)
+
+DeepSeek Compact fits in memory but writes without any guessing in the app: its file has no MTP head, and the app
+adds ngram-mod only next to MTP. DeepSeek ships a separate drafter, DSpark (three stages, 128 experts top-3, blocks
+of five tokens), which ggml-org publishes as GGUF: `dspark-DeepSeek-V4.1-Flash-1017-MXFP4.gguf`, 7.9 GB
+(`ggml-org/DeepSeek-V4.1-Flash-1017-GGUF` at 6bc1f89). Our engine (ddf48f8) loads it with
+`--spec-type draft-dspark --spec-draft-p-min 0` (the file has no confidence head).
+
+Measured with `tools/spec_bench.py` (the app's arguments for a model that fits, temperature 0, now with
+`MACAIMAGIC_DSPARK`), vision off to make room: the app's plan holds 118.6 GB without vision, the drafter adds 7.9 GB.
+Tokens per second:
+
+| | Story | Writing code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| No guessing (two runs) | 19.3 / 20.5 | 19.4 / 20.7 | 20.3 / 19.9 | 20.2 / 19.1 | 20.3 / 19.4 |
+| DSpark, 2 tokens | 13.2 | 17.4 | 27.1 | 16.8 | 18.6 |
+| DSpark, 3 tokens (two runs) | 3.6 / 11.7 | 17.0 / 16.7 | 32.6 / 30.2 | 20.0 / 16.6 | 17.7 / 17.0 |
+| DSpark, 4 tokens | 8.3 | 15.0 | 32.4 | 14.4 | 16.7 |
+| ngram-mod alone (two runs) | 16.7 / 20.9 | 19.3 / 20.9 | **46.5 / 44.9** | 18.8 / 19.4 | 19.3 / 19.7 |
+
+- **DSpark accepts too few guesses outside copied text**: 10-14% in the Dutch story, 30-42% in new code, 34-48% in
+  the thinking task, 92-98% when changing code. Checking 3-5 tokens of a MoE model reads the experts of every one of
+  them, so each step costs much more than one token. It wins only on changing code (+33-60%) and loses 10-40%
+  elsewhere.
+- **It does not fit well:** 118.6 + 7.9 GB is at the GPU limit. When a new engine started before macOS had freed
+  the previous one's memory, 132 GB was wired and memory pressure went critical (the guard stopped the engine;
+  `spec_bench.py` now waits until the memory is free). The first DSpark run's story at 3.6 tok/s was probably the same
+  tightness.
+- DSpark's texts differ from the plain run in the story (from character 1,313) and the thinking task (from 584): the
+  verification batches round slightly differently. The other three are the same.
+- **ngram-mod alone costs nothing and doubles changing code (+125%)**, with every text the same as without guessing.
+  The other tasks are within the spread of the two plain runs.
+
+**What follows:** DSpark is not taken. ngram-mod would help DeepSeek Compact, and likewise the other models that fit and
+have no MTP head (section 15: Qwen3.6-35B-A3B 282 instead of 68 tok/s and Ling-3.0-tiny 804 instead of 134 on
+changing code, the other tasks the same).
