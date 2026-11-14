@@ -691,3 +691,41 @@ rising over the runs).
   "a second read mostly runs into the next layer".
 
 **What follows:** the depth stays at 2.
+
+## 18. A larger expert cache on a Mac with 32 GB (2026-11-14)
+
+Does reading experts straight into the cache (InferSSD reads with `F_NOCACHE` into its own cache) look worth building?
+Today a missing expert goes through the page cache: `madvise(WILLNEED)` on the mapped file, then a copy into the GPU
+cache. The plan keeps a staging reserve for that (`MemoryPlanner.stagingReserve`: 4.5 GB on a 32 GB Mac, 13% of memory
+above that, at most 18 GB). Reading straight into the cache would need less of it, so the cache could grow.
+
+Before building it, three arms on the M3 Max, set up as in section 17 (read-ahead depth 2, plan for a 32 GB Mac, empty
+cache at the start, 3 stories of 200 tokens):
+
+- **A, the app as it is:** 93 GiB held wired, the plan's cache (Flash-Next 11.1 GB, DeepSeek Compact 8.2 GB).
+- **B, upper bound:** 90 GiB held wired and the cache 3 GB larger. The page cache has as much room as in A; the 3 GB
+  for the cache come on top.
+- **C, cache from the reserve:** 93 GiB held wired and the cache 3 GB larger. The 3 GB come out of the page cache's room.
+
+| Model | A: writing, SSD per token | B (+3 GB memory for the cache) | C (+3 GB cache from the reserve) |
+|---|---|---|---|
+| Qwen3.8-Flash-Next Q4 | 5.85 tok/s (5.55-6.39), 0.37-0.44 GB | **7.17 tok/s (6.94-7.41), +23%**, 0.33-0.36 GB | 6.08 tok/s (5.82-6.52), +4%, 0.34-0.38 GB |
+| DeepSeek-V4.1-Flash Compact | 5.03 tok/s (4.84-5.16), 0.56-0.62 GB | **5.80 tok/s (5.61-6.04), +15%**, 0.50-0.52 GB | 5.22 tok/s (4.96-5.38), +4%, 0.52-0.55 GB |
+
+Averages over the stories that did not stall (see below): A 6 stories of Flash-Next and 12 of DeepSeek (from section
+17 and from today's afternoon), B 6 and 5, C 6 and 6. Every run wrote the same text.
+
+- **3 GB more cache is worth 15-23% on a 32 GB Mac when the memory comes on top (B).**
+- **Taking those 3 GB from the page cache gives only 4% (C)**, although the SSD then reads almost as little per token as
+  in B. A likely reason, not measured on its own: with less room, macOS must free page cache pages for every read, and
+  the reads get slower.
+- So the room between B and C, 12-19% on a 32 GB Mac, is what reading straight into the cache could win at most. Not
+  certain: the page cache also works as a second cache for experts that just left the GPU cache, and that would go.
+- **Stalls.** With 93 GiB held, a story sometimes fell to 0.8-2.5 tok/s for its whole length: 6 of the ~36 stories
+  in arm A today (Flash-Next), 2 in arm B (DeepSeek; one run stood at ~0.1 tok/s and was stopped), none of 12 in C.
+  During one stall macOS decompressed ~7 GB and paged in ~2.4 GB per 10 s, with ~0.1 GB free and 0.3-0.7 GB of
+  swap. Whether a real 32 GB Mac does this as well is not known; the M3 Max ran other apps (the Claude app among them)
+  next to the test.
+
+**What follows:** reading straight into the cache looks worth building for Macs with 32-64 GB. To be measured after
+building: arm C's memory with B's speed, and fewer stalls.
