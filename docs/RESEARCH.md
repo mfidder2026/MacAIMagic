@@ -730,3 +730,35 @@ Averages over the stories that did not stall (see below): A 6 stories of Flash-N
 
 **What follows:** reading straight into the cache looks worth building for Macs with 32-64 GB. To be measured after
 building: arm C's memory with B's speed, and fewer stalls.
+
+## 19. Fusing more small ops for Qwen3.8-Flash-Next: what it can give (2026-11-14)
+
+Section 14 left "fusing the small ops" as the second lever for at most a third of the time. Measured on the M3 Max
+with the app's engine (`llama-bench -p 0 -n 64 -r 3`, Flash-Next Q4, all on the GPU):
+
+| | tok/s | ms per token |
+|---|---|---|
+| As the app runs it | 34.42 | 29.05 |
+| `GGML_METAL_FUSION_DISABLE=1` (the engine's own fusions off) | 30.04 | 33.29 |
+| `GGML_METAL_CONCURRENCY_DISABLE=1` (a barrier after every op) | 31.50 | 31.75 |
+
+From the graph of one token (`GGML_METAL_GRAPH_DEBUG=1`, a profiling build outside the app): 2,783 ops are encoded,
+1,551 of them after a barrier; the engine's fusions already take away 849 ops in 441 groups.
+
+- **The existing fusions are worth 15%**: 849 ops fewer save 4.24 ms, about **5 µs per op**.
+- **A barrier between small ops costs about 2.2 µs** (1,232 more barriers: +2.7 ms).
+- So each further op that a fusion removes saves roughly 3-5 µs. **+15% would need ~800-1,000 more ops removed per
+  token** (of the 2,783), **+30% about twice that.**
+
+What could still be fused, per layer (48 layers, 36 of them gated-delta-net and 12 attention):
+
+- the hyper-connections, twice per layer: `SCALE` 1/4 and `SILU` between the two small matmuls, and `SIGMOID` and
+  `SCALE` 2 before `DSV4_HC_POST`. The scaled rows feed two consumers (the low-rank path and the inject weights), so
+  `SCALE` cannot simply be folded into the next op;
+- the shared expert's `SIGMOID` gate and its `MUL`, and the three `ADD` groups that sum the expert outputs;
+- the gated-delta-net prologue (`beta` sigmoid, `softplus`, the gate `MUL`, `CONCAT`, `CONT`) and the gated norm
+  after it (`SILU` of z and `MUL`).
+
+That is about 12-15 ops per layer, ~550-650 per token: **an estimated +6-10%**, with several new Metal kernels and
+fusion patterns. Fused kernels may round slightly differently, so a text can change at a near tie. Nothing of this
+is built.
