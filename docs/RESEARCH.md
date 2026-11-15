@@ -825,3 +825,71 @@ M3 Max 128 GB with `tools/spec_bench.py` (the app's arguments, no vision, temper
   context, vision): the engine got `--spec-type ngram-mod`; through the app's port, temperature 0: story 44.2, writing
   code 44.7, changing code **219.9** (503 of 512 proposed tokens accepted), explanation 45.7, thinking 45.8 tok/s.
   Qwen3.8-Flash-Next still got `draft-mtp,ngram-mod`.
+
+## 22. Making Qwen3.8-Flash-Next faster: what is left (2026-11-15)
+
+The owner asked to make Qwen3.8 as fast as possible. Measured on the M3 Max 128 GB with `tools/spec_bench.py` (the
+app's arguments, temperature 0, tok/s for story / writing code / changing code / explanation / thinking) and
+`llama-bench -p 0 -n 64 -r 3` (new text only, no guessing). The Claude app's own window took 20% of the GPU and up to
+87% of a CPU core during these runs, so differences under ~5% are noise.
+
+**Adaptive MTP depth** (llama.cpp PR #27210 at c1c2b28, `--spec-type draft-mtp-adaptive`, on the pinned engine with
+our patches), two runs each:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| MTP 2 + ngram-mod (the app) | 34.8-35.0 | 48.8-49.0 | 124-126 | 34.3-34.7 | 43.0-43.8 |
+| adaptive 2..6 + ngram-mod | 34.3 | 50.8-51.6 | 124-126 | 32.7-33.2 | 43.2-45.2 |
+| adaptive 2..8 + ngram-mod | 33.5 | 48.7-49.3 | 122.4-122.6 | 33.0-33.2 | 43.7-43.9 |
+| adaptive 3..12 + ngram-mod (the PR's advice) | 29.6-30.0 | 49.0-49.2 | 120-122 | 30.0-31.9 | 40.9-41.3 |
+| adaptive 2..8, no ngram-mod | 33.6-33.7 | 50.3 | 66-67 | 33.6-33.8 | 43.2-43.3 |
+
+No gain: at most +4% on new code and -4% on explanations. The author's +13% (Qwen3.8-27B on two AMD cards) does not
+carry over; another user also saw the gain vanish beside ngram-mod. Not taken.
+
+**More fused Metal kernels.** A new fusion runs SCALE + SILU and SCALE + SIGMOID + SCALE (the hyper-connections, twice per
+layer) as one unary kernel with a scale before and after (the qwen4exp graph puts each scale next to its activation;
+the math is the same, and every text came out identical). It fires (the fusion statistics count 192 ops fewer per
+token), but the speed did not move: 33.3 / 32.8 tok/s before, 33.5 / 32.8 after. These small element-wise ops already
+run beside other work, so removing them saves nothing; section 19's estimate (+6-10% from 550-650 more fused ops) does
+not hold. Not taken, and no further fusion work.
+
+**More encoder threads.** The engine encodes the ~3,100 ops of a token on the main thread and one more thread
+(`n_cb = 1`, fixed). With an override (`GGML_METAL_N_CB`): new text without guessing 32.3-33.0 tok/s at 1, 33.0-33.3 at
+4, 33.4-33.9 at 6-8 (+3%); 0 threads 30.4. With MTP and ngram-mod (the app's setting) five rounds each showed no
+difference (code 45-48 both, changing code 116-125 both). Not taken.
+
+**A smaller vocabulary for the MTP head** (PR #31031) was not built: Flash-Next's MTP head is 675 MB (Q8_0, 248,320 ×
+2,560) per guess, but a Q4 head (half the bytes) measured only +1% earlier (section 14), and the lists in the PR are
+built from English text, which costs 25-35% on other languages.
+
+**Context size, vision and the app's own settings** cost nothing measurable (Qwen3.6-35B, two runs each): 64K or 256K
+context, with or without vision, 62-71 tok/s throughout; slot saves with 4 context checkpoints 59-66 against 58-66
+without. A first in-app measurement of 44 tok/s (section 21) was taken while the computer-use overlay of the session
+kept the GPU at 98-100%; without it, Flash-Next in the app wrote 32.4 / 46.2 / 121.8 / 34.1 / 43.5 tok/s, the same as the
+bench. (A second identical request was faster, up to 121 tok/s on the explanation: ngram-mod's table keeps the tokens of
+earlier answers across requests.)
+
+**ngram-mod on a model that streams from the SSD** (GLM-5.3-Flash Q4, the app's arguments and environment for 128 GB:
+46 expert layers on the CPU, a 91 GB expert cache started from a copy of the app's cache file, no vision, 32K;
+order none, ngram, ngram, none; tok/s and GB read from the SSD per answer):
+
+| | Story (400 tokens) | Changing code | Explanation (300 tokens) |
+|---|---|---|---|
+| none | 5.89 / 5.15 (227 GB) | 3.25 / 3.24 (700 tokens, 876 GB) | 4.22 / 4.24 (326 GB) |
+| ngram-mod | 5.85 / 5.85 (226 GB) | 3.08 / 2.93 (189 tokens, 313-320 GB) | 4.29 / 4.32 (317 GB) |
+
+- On changing code ngram-mod proposed 192 tokens and 160 were accepted, yet it wrote no faster: checking a stretch of
+  up to 64 tokens reads the experts of all of them (prompt reading runs at about 24 tokens per second here), so a
+  checked stretch costs about as much as writing it token by token.
+- Both ngram-mod runs also stopped after 189 tokens, in the middle of the code, where the plain runs went on to the
+  700-token limit; the first 189 tokens are the same. The checked batches take another path through the expert cache
+  (more than 8 tokens), which rounds differently, and the model ended its answer there.
+- So the app keeps ngram-mod off for a model that streams from the SSD (`MemoryPlan.fitsInMemory`), as section 21 chose.
+
+**Not done: direct reads into the expert cache** (section 18): it only helps a Mac with about 32 GB (at most 12-19% there
+by section 18's measurement), it is a large change to patch 0002, and this Mac cannot show its effect.
+
+**What follows:** on this Mac, Qwen3.8-Flash-Next Q4 writes new text at about 33-35 tok/s, code at about 49 and changes
+to code at about 125; none of the engine tweaks tried here changes that. What remains is section 14's list: fewer bytes
+per token (5-bit non-expert layers gave +8% with a measurable quality loss), or a smaller model.
