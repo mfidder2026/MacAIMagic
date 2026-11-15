@@ -21,7 +21,9 @@ Commit on `main` and push: the other machine only sees `main`.
 
 ### Taking over from Windows
 
-**Last WinAIMagic commit taken over: `4fdbd4f`** (2026-11-12: WinAIMagic 1.14.12, which takes over the Mac's 4443d5b, 98c1fb4, d38ac5f and 089c43c; nothing to take back; the Mac then took 1.14.13). Everything after it has not been considered for the Mac yet.
+**Last WinAIMagic commit taken over: `89f9784`** (2026-11-12: WinAIMagic 1.14.13, which takes over the Mac's 889e9b5 … eb08a1f; considered 2026-11-15, nothing to take back). Everything after it has not been considered for the Mac yet.
+
+**Considered `89f9784` (2026-11-15), nothing taken:** its two suggestions for the Mac do not apply. Typographic quotes and Unicode spaces are ordinary characters to zsh (only PowerShell closes a ' on a ’), so `SystemTools.words` already reads them as zsh does, and it refuses control characters. A command's start time from the file clock is not needed: APFS stamps in nanoseconds, unlike NTFS's ~15 ms steps.
 
 1. List what is new. Replace `<commit>` with the marker above:
 
