@@ -49,24 +49,39 @@ enum Theme {
 
 /// Soft colour blobs behind everything. Still by default (a moving, brightening background is busy);
 /// "Bewegende achtergrond" in the settings lets them drift and light up while the model writes.
+///
+/// The still background takes nothing that changes, so SwiftUI draws it once. It used to take the writing speed (only
+/// used when animated): that changed twice a second while a model wrote, and every change drew the blurred canvas of the
+/// whole window again. One such drawing keeps the M3 Max's GPU at ~80% for over a second, and the model shares that GPU:
+/// in Vergelijken GLM-5.3-Flash Compact wrote 4.2 tokens/s instead of 22.
 struct AuroraBackground: View {
-    var energy: Double = 0      // 0…1, from the live token rate (only used when animated)
     @AppStorage("animatedBackground") private var animated = false
 
     var body: some View {
         Group {
-            if animated {
-                TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
-                    canvas(t: tl.date.timeIntervalSinceReferenceDate * (0.05 + 0.10 * energy), energy: energy)
-                }
-            } else {
-                canvas(t: 0, energy: 0)
-            }
+            if animated { MovingAurora() } else { AuroraCanvas(t: 0, energy: 0) }
         }
         .ignoresSafeArea()
     }
+}
 
-    private func canvas(t: Double, energy: Double) -> some View {
+/// The moving background, with the live writing speed as its energy (0…1).
+private struct MovingAurora: View {
+    @EnvironmentObject var metrics: LiveMetrics
+
+    var body: some View {
+        let energy = min((metrics.current?.tokensPerSec ?? 0) / 20, 1)
+        TimelineView(.animation(minimumInterval: 1 / 30)) { tl in
+            AuroraCanvas(t: tl.date.timeIntervalSinceReferenceDate * (0.05 + 0.10 * energy), energy: energy)
+        }
+    }
+}
+
+private struct AuroraCanvas: View, Equatable {
+    var t: Double
+    var energy: Double
+
+    var body: some View {
         Canvas { ctx, size in
             ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Theme.night))
             let blobs: [(Color, Double, Double, Double)] = [

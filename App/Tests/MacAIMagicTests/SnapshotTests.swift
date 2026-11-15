@@ -133,7 +133,7 @@ final class SnapshotTests: XCTestCase {
     }
 
     private func withBackground(_ v: some View, app: AppState) -> some View {
-        ZStack { AuroraBackground(energy: 0.4); v }
+        ZStack { AuroraBackground(); v }
     }
 
     /// One real exchange through the app's own ChatClient, or sample data without an engine.

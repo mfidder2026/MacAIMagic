@@ -6,7 +6,7 @@ struct RootView: View {
     @EnvironmentObject var app: AppState
     @EnvironmentObject var store: ConversationStore
     @EnvironmentObject var models: ModelStore
-    @EnvironmentObject var metrics: LiveMetrics
+    // no LiveMetrics here: its samples (twice a second while a model runs) would rebuild the whole window each time
     @State private var pane: Pane?
 
     var body: some View {
@@ -15,7 +15,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 230, ideal: 260)
         } detail: {
             ZStack {
-                AuroraBackground(energy: min((metrics.current?.tokensPerSec ?? 0) / 20, 1))
+                AuroraBackground()
                 Group {
                     switch pane {
                     case .live?: LiveView()

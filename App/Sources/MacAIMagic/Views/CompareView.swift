@@ -86,7 +86,7 @@ struct CompareView: View {
                     }
                     ResultsTable(results: bench.latest)
                     ForEach(bench.latest.filter(\.sharedGPU)) { r in
-                        Label(L("\(r.modelName): een ander programma hield de GPU al voor \(Int((r.otherGPU ?? 0).rounded())) procent bezig. Deze snelheden zijn te laag; meet opnieuw als dat programma klaar is."),
+                        Label(L("\(r.modelName): een ander programma hield de GPU ook na 20 seconden wachten nog voor \(Int((r.otherGPU ?? 0).rounded())) procent bezig, bijvoorbeeld een video of een venster dat steeds beweegt. Deze snelheden zijn te laag; sluit dat programma en meet opnieuw."),
                               systemImage: "exclamationmark.triangle.fill")
                             .font(.callout).foregroundStyle(Theme.amber)
                     }

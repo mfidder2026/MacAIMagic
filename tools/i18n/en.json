@@ -1,5 +1,5 @@
 {
- "%@: een ander programma hield de GPU al voor %@ procent bezig. Deze snelheden zijn te laag; meet opnieuw als dat programma klaar is.": "%@: another program already kept the GPU %@ percent busy. These speeds are too low; measure again once that program is done.",
+ "%@: een ander programma hield de GPU ook na 20 seconden wachten nog voor %@ procent bezig, bijvoorbeeld een video of een venster dat steeds beweegt. Deze snelheden zijn te laag; sluit dat programma en meet opnieuw.": "%@: another program still kept the GPU %@ percent busy after waiting 20 seconds, for example a video or a window that keeps moving. These speeds are too low; close that program and measure again.",
  " (macOS-standaard)": " (macOS default)",
  " (verhoogd)": " (raised)",
  " · %@K context": " · %@K context",

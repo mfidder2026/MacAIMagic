@@ -64,8 +64,14 @@ final class BenchmarkRunner: ObservableObject {
             var otherGPU: Double?
             if app.engine.model?.id != id || !app.engine.state.isRunning {
                 await app.engine.stopAndWait()
-                // no engine runs now: what keeps the GPU busy is another program, and it makes this measurement too slow
+                // no engine runs now: what keeps the GPU busy is another program, and it makes this measurement too slow.
+                // Wait until it is quiet (the previous model's unloading, a window settling), at most 20 s
+                step = "Wachten tot de GPU vrij is…"
                 otherGPU = await Self.gpuLoadNow()
+                for _ in 0..<9 where (otherGPU ?? 0) >= Self.otherGPUBusy {
+                    otherGPU = await Self.gpuLoadNow()
+                }
+                step = "Engine starten…"
                 app.selectedModelID = id
                 app.startEngine()
             }
@@ -108,10 +114,10 @@ final class BenchmarkRunner: ObservableObject {
         step = ""
     }
 
-    /// From this GPU load (percent) with no engine running, the comparison says the GPU was shared. Measured on the M3 Max
-    /// (2026-11-15): idle 0-13%; Claude's screen control holding the app window 65-97%, and GLM-5.3-Flash Compact then wrote
-    /// 2.5 tokens/s instead of 22.5.
-    nonisolated static let otherGPUBusy = 25.0
+    /// From this GPU load (percent) with no engine running, the comparison waits, and then says the GPU was shared.
+    /// Measured on the M3 Max (2026-11-15): idle 0-13%; the Claude app drawing a conversation 21-25%, and GLM-5.3-Flash
+    /// Compact still wrote 23.9 tokens/s; Claude's screen control holding the app window 65-97%, and it wrote 2.5.
+    nonisolated static let otherGPUBusy = 50.0
 
     /// The GPU's load over two seconds (six samples).
     static func gpuLoadNow() async -> Double {

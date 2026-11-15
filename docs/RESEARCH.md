@@ -965,3 +965,17 @@ cache), the app's own window (minimized: still slow while the frame was held), t
 
 Vergelijken now measures the GPU load for two seconds before each model starts, with no engine running, and keeps it
 with the result; from 25% it says under the table that another program shared the GPU and the speeds are too low.
+
+**Later the same evening (24b).** A Compare run with no screen control held still gave GLM-5.3-Flash Compact 4.2
+tokens/s. Outside the app it gave 21-24 under the same conditions:
+- right after DeepSeek Compact;
+- with the app's signed engine;
+- with the app's sampler reading the GPU and SSD statistics twice a second (20.1).
+
+The app itself was the other program. `RootView` passed the live writing speed to the still background, which did not
+use it. While a model wrote, that value changed twice a second, and every change drew the blurred canvas of the whole
+window again. One full drawing of the window keeps the GPU at ~80% for over a second (seen when the window comes to the
+front). The still background now takes no changing input, and `RootView` no longer observes the metrics.
+
+Vergelijken waits up to 20 s before each model for the GPU load to fall under 50%, and only then warns. The Claude app
+drawing a conversation took 21-25% and did not slow GLM Compact (23.9); the screen-control frame took 65-97%.
