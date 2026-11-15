@@ -821,3 +821,7 @@ M3 Max 128 GB with `tools/spec_bench.py` (the app's arguments, no vision, temper
   verification batch, as in section 20).
 - Not measured: a Mac with 8 or 16 GB, where these models are the ones recommended. There `fitsInMemory` decides; on
   8 GB Ling streams from the SSD (the app's plan) and gets no ngram-mod.
+- **In the built app** (2026-11-15, Qwen3.6-35B-A3B Q4 started from the Models page, the app's own plan: 256K
+  context, vision): the engine got `--spec-type ngram-mod`; through the app's port, temperature 0: story 44.2, writing
+  code 44.7, changing code **219.9** (503 of 512 proposed tokens accepted), explanation 45.7, thinking 45.8 tok/s.
+  Qwen3.8-Flash-Next still got `draft-mtp,ngram-mod`.
