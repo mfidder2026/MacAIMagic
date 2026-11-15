@@ -7,7 +7,7 @@ Usage: tools/spec_bench.py <out.json> [config names...]
 MACAIMAGIC_DFLASH=<draft.gguf> adds the DFlash configurations (e.g. incoai/Qwen3.8-Flash-Next-DFlash2-GGUF Q4_K_M),
 MACAIMAGIC_DSPARK=<draft.gguf> the DSpark ones (DeepSeek-V4.1).
 MACAIMAGIC_ENGINE=<llama-server> and MACAIMAGIC_MTP=<mtp.gguf> measure another engine build or MTP drafter;
-MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0; MACAIMAGIC_MODEL=<first shard> measures another
+MACAIMAGIC_TEMP=1.0 writes at the app's temperature instead of 0; MACAIMAGIC_CTX=<tokens> another context size; MACAIMAGIC_MODEL=<first shard> measures another
 file of the same model, or another model
 (with MACAIMAGIC_VISION=<mmproj.gguf>, empty for none, and the configurations none and ngram).
 Results on the M3 Max 128 GB: docs/RESEARCH.md, "Guessing ahead"."""
@@ -26,7 +26,7 @@ TEMP = float(os.environ.get("MACAIMAGIC_TEMP", "0"))
 URL = f"http://127.0.0.1:{PORT}"
 
 # the app's arguments for this model (EngineController, MemoryPlan for a model that fits), without the slot saves
-BASE = ["--model", MODEL, "--host", "127.0.0.1", "--port", str(PORT), "--ctx-size", "65536", "--n-gpu-layers", "999",
+BASE = ["--model", MODEL, "--host", "127.0.0.1", "--port", str(PORT), "--ctx-size", os.environ.get("MACAIMAGIC_CTX", "65536"), "--n-gpu-layers", "999",
         "--flash-attn", "on", "--ubatch-size", "1024", "--batch-size", "2048", "--fit", "off", "--threads", "12",
         "--parallel", "1", "--jinja", "--reasoning-format", "deepseek", "--metrics", "--alias", "q", "--n-cpu-moe", "0",
         ] + (["--mmproj", VISION] if VISION else [])
@@ -39,11 +39,20 @@ CONFIGS = {
     "ngram-map": ["--spec-type", "ngram-map-k"],
     "ngram-simple": ["--spec-type", "ngram-simple"],
     "ngram-map+mod": ["--spec-type", "ngram-map-k,ngram-mod"],
+    # what else the app passes: conversations kept in the engine (slot saves and 4 context checkpoints)
+    "keep": ["--slot-save-path", os.path.dirname(os.path.abspath(sys.argv[1])), "--ctx-checkpoints", "4"],
+    "ngram+keep": ["--spec-type", "ngram-mod", "--slot-save-path", os.path.dirname(os.path.abspath(sys.argv[1])), "--ctx-checkpoints", "4"],
     "mtp2": ["--spec-type", "draft-mtp", "--model-draft", MTP, "--spec-draft-n-max", "2"],
     "mtp3": ["--spec-type", "draft-mtp", "--model-draft", MTP, "--spec-draft-n-max", "3"],
     "mtp2+ngram": ["--spec-type", "draft-mtp,ngram-mod", "--model-draft", MTP, "--spec-draft-n-max", "2"],
     "mtp3+ngram": ["--spec-type", "draft-mtp,ngram-mod", "--model-draft", MTP, "--spec-draft-n-max", "3"],
 }
+# adaptive MTP depth (llama.cpp PR #27210, not in the pinned engine: MACAIMAGIC_ENGINE=<a build with it>)
+for lo, hi in ((2, 6), (2, 8), (3, 12)):
+    CONFIGS[f"adapt{lo}-{hi}"] = ["--spec-type", "draft-mtp-adaptive", "--model-draft", MTP, "--spec-draft-n-max", str(hi),
+                                  "--spec-draft-n-min-adaptive", str(lo)]
+    CONFIGS[f"adapt{lo}-{hi}+ngram"] = ["--spec-type", "draft-mtp-adaptive,ngram-mod", "--model-draft", MTP,
+                                        "--spec-draft-n-max", str(hi), "--spec-draft-n-min-adaptive", str(lo)]
 if DFLASH:
     CONFIGS["dflash4"] = ["--spec-type", "draft-dflash", "--model-draft", DFLASH, "--spec-draft-n-max", "4"]
     CONFIGS["dflash8"] = ["--spec-type", "draft-dflash", "--model-draft", DFLASH, "--spec-draft-n-max", "8"]

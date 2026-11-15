@@ -211,7 +211,8 @@ final class ChatClient: ObservableObject {
             // the last round is complete here (its results, a picture it looked at): on disk before the next one starts
             store.saveOnTheWay()
             if let used = store.conversations.first(where: { $0.id == id })?.contextTokens,
-               Double(used) > Double(contextLimit) * Self.compactAt {
+               Double(used) > Double(contextLimit) * Self.compactAt,
+               !trimOldResults(id, store: store, used: used) {
                 await compact(id, store: store, baseURL: baseURL)
             }
             // each round keeps its own steps, so the chat shows thinking, text and steps in the order they came
@@ -748,6 +749,41 @@ final class ChatClient: ObservableObject {
 
     // MARK: - compacting
 
+    /// Long tool results longer ago than this many messages may be trimmed when the context is full.
+    static let keepRecentResults = 8
+    /// A trimmed result keeps this many characters of its start and its end.
+    static let trimKeep = (start: 600, end: 200)
+
+    /// A full conversation in which old tool results (files read, command output) take most of the room: those results
+    /// go to the model with only their start and end (`trimmedResult`), and the rest of the conversation stays word for
+    /// word, without a summary the model has to write first. Only when that brings the conversation to half of the
+    /// context; otherwise `compact` summarizes, as before. The engine reads the conversation again either way, once.
+    /// Returns whether it trimmed.
+    func trimOldResults(_ id: Conversation.ID, store: ConversationStore, used: Int) -> Bool {
+        guard let c = store.conversations.first(where: { $0.id == id }) else { return false }
+        let open = Array(c.unsummarized)
+        guard open.count > Self.keepRecentResults else { return false }
+        let old = open.dropLast(Self.keepRecentResults)
+        let candidates = old.filter { $0.role == .tool && $0.trimmed != true && $0.text.count > Self.trimKeep.start + Self.trimKeep.end + 400 }
+        // about 3 characters per token for code and command output
+        let saved = candidates.reduce(0) { $0 + ($1.text.count - Self.trimmedResult($1.text).count) } / 3
+        guard !candidates.isEmpty, Double(used - saved) <= Double(contextLimit) * 0.5 else { return false }
+        let ids = Set(candidates.map(\.id))
+        store.update(id) { c in
+            for i in c.messages.indices where ids.contains(c.messages[i].id) { c.messages[i].trimmed = true }
+            c.contextTokens = nil
+        }
+        store.save()
+        return true
+    }
+
+    /// A trimmed tool result as the model gets it: its start and end, and how to get the rest back.
+    nonisolated static func trimmedResult(_ text: String) -> String {
+        guard text.count > trimKeep.start + trimKeep.end + 400 else { return text }
+        let left = (text.count - trimKeep.start - trimKeep.end).formatted()
+        return String(text.prefix(trimKeep.start)) + "\n\n[" + L("… \(left) tekens van deze uitvoer weggelaten om ruimte te maken; vraag het opnieuw op als je het nodig hebt …") + "]\n\n" + String(text.suffix(trimKeep.end))
+    }
+
     /// Summarize the start of a conversation, so it fits in the context again: everything before the last two questions
     /// becomes a summary that goes with the system prompt; the messages stay visible in the chat.
     func compact(_ id: Conversation.ID, store: ConversationStore, baseURL: URL, excluding skip: UUID? = nil) async {
@@ -945,7 +981,7 @@ final class ChatClient: ObservableObject {
                 }
                 out.append(msg)
             case .tool:
-                out.append(["role": "tool", "tool_call_id": m.toolCallId ?? "", "content": m.text])
+                out.append(["role": "tool", "tool_call_id": m.toolCallId ?? "", "content": m.trimmed == true ? Self.trimmedResult(m.text) : m.text])
             }
         }
         // after summarizing one long task the rest starts with a step of the model; every template wants a question first

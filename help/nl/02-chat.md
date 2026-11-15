@@ -20,7 +20,7 @@ Typ je vraag onderin en druk op **↩** of **⌘↩**. Met **⌥↩** begin je e
 | L S U | De rechten in die map: lezen, schrijven, uitvoeren. |
 
 ## Context en samenvatten
-Bovenin het gesprek laat een meter zien hoeveel van de context het gesprek gebruikt. Bij 80% vat het model het begin samen; de berichten blijven zichtbaar, met een streep waar de samenvatting begint. Je kunt dat ook zelf meteen laten doen.
+Bovenin het gesprek laat een meter zien hoeveel van de context het gesprek gebruikt. Bij 80% kort de app eerst lange oude uitvoer van gereedschap in (gelezen bestanden, uitvoer van commando's): het model krijgt daarvan het begin en het eind, de rest van het gesprek blijft woord voor woord. Is dat niet genoeg, dan vat het model het begin samen; de berichten blijven zichtbaar, met een streep waar de samenvatting begint. Je kunt dat ook zelf meteen laten doen.
 
 ## Meekijken
 Maakt het model onderweg een schermafdruk (van een programma of de C64-emulator), dan staat er een kleine versie bij die stap. Na het antwoord blijven ze in een rijtje onder **Gedachtegang** staan; klik erop voor een grotere versie.

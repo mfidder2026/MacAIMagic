@@ -53,6 +53,9 @@ struct ChatMessage: Codable, Identifiable, Hashable {
     var preparing: String? = nil
     /// The answer stopped at its token limit: the model gets only its start and end back, not the whole monologue.
     var cutOff: Bool? = nil
+    /// A long tool result far back in a full conversation: the model gets only its start and end back
+    /// (`ChatClient.trimOldResults`), so the conversation fits again without a summary.
+    var trimmed: Bool? = nil
     /// A picture the model looked at that an older version (up to 1.14.12) sent as a line of text: it stays text, so
     /// what the engine already read of the conversation does not change (`Conversation.keepLooksAsSent`).
     var lookAsText: Bool? = nil

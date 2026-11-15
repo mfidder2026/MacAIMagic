@@ -20,7 +20,7 @@ Type your question at the bottom and press **↩** or **⌘↩**. **⌥↩** sta
 | R W X | The rights in that folder: read, write, execute. |
 
 ## Context and summaries
-A meter at the top of the conversation shows how much of the context it uses. At 80% the model summarizes the start; the messages stay visible, with a line where the summary begins. You can also have it done right away.
+A meter at the top of the conversation shows how much of the context it uses. At 80% the app first shortens long old tool output (files read, command output): the model gets its start and end, and the rest of the conversation stays word for word. If that is not enough, the model summarizes the start; the messages stay visible, with a line where the summary begins. You can also have it done right away.
 
 ## Watching along
 When the model takes a screenshot on the way (of a program or the C64 emulator), a small copy shows with that step. After the answer they stay in a row under **Reasoning**; click one for a larger copy.
