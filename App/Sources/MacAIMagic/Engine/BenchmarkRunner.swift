@@ -19,7 +19,13 @@ struct BenchResult: Codable, Identifiable, Hashable {
     /// decodeTPS. Nil for a model that chats.
     var imageSeconds: Double?
     var imageSize: String?
+    /// How busy the GPU was just before this model started, with no engine running: another program (or a window it
+    /// draws without end) shares the GPU then, and the speeds come out too low. Nil: not measured (older results,
+    /// or the model was already running).
+    var otherGPU: Double?
     var makesImage: Bool { imageSeconds != nil }
+    /// Another program kept the GPU busy before the measurement (`otherGPUBusy` percent or more).
+    var sharedGPU: Bool { (otherGPU ?? 0) >= BenchmarkRunner.otherGPUBusy }
     var imageSecondsOrZero: Double { imageSeconds ?? 0 }
 }
 
@@ -55,8 +61,11 @@ final class BenchmarkRunner: ObservableObject {
                 continue
             }
             step = "Engine starten…"
+            var otherGPU: Double?
             if app.engine.model?.id != id || !app.engine.state.isRunning {
                 await app.engine.stopAndWait()
+                // no engine runs now: what keeps the GPU busy is another program, and it makes this measurement too slow
+                otherGPU = await Self.gpuLoadNow()
                 app.selectedModelID = id
                 app.startEngine()
             }
@@ -80,7 +89,7 @@ final class BenchmarkRunner: ObservableObject {
                                     promptTPS: p.promptTPS, promptTokens: p.promptTokens,
                                     decodeTPS: d.decodeTPS, decodeTokens: d.decodeTokens,
                                     ssdMBs: ssd, wiredGB: during.map(\.wiredGB).max() ?? 0, cpuMoELayers: plan.cpuMoELayers,
-                                    expertCacheGB: Double(plan.expertCache) / 1e9)
+                                    expertCacheGB: Double(plan.expertCache) / 1e9, otherGPU: otherGPU)
                 results.append(r)
                 save()
             } catch {
@@ -97,6 +106,21 @@ final class BenchmarkRunner: ObservableObject {
         if back.start { app.startEngine() }
         running = nil
         step = ""
+    }
+
+    /// From this GPU load (percent) with no engine running, the comparison says the GPU was shared. Measured on the M3 Max
+    /// (2026-11-15): idle 0-13%; Claude's screen control holding the app window 65-97%, and GLM-5.3-Flash Compact then wrote
+    /// 2.5 tokens/s instead of 22.5.
+    nonisolated static let otherGPUBusy = 25.0
+
+    /// The GPU's load over two seconds (six samples).
+    static func gpuLoadNow() async -> Double {
+        var sum = 0.0
+        for _ in 0..<6 {
+            sum += LiveMetrics.gpuUtilization()
+            try? await Task.sleep(for: .milliseconds(333))
+        }
+        return sum / 6
     }
 
     /// What follows a comparison: a model the comparison left running stops, unless it is the user's own; the user's own

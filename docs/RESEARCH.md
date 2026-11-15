@@ -945,3 +945,23 @@ Without drafting Strata is slower here than llama.cpp without drafting (31-33). 
 (0.34 GB, with a 106,299-token draft head): +10% on the story and thinking, +40% on the explanation, but -12% on new code
 and half on changing code, where ngram-mod wins. The author's +23% (M5 Max) does not hold on this M3 Max. Not taken;
 the tuned drafter is in Strata's own format, not GGUF.
+
+## 24. Why Vergelijken measured GLM-5.3-Flash Compact at 2.5 tokens/s (2026-11-15)
+
+The Compare page of 15 November measured GLM-5.3-Flash Compact at 2.5 tokens/s and DeepSeek Compact at 17, while the
+same measurement outside the app (same engine, arguments and prompts, `cmpbench.py`) gave 20-24. Reproduced in the app
+the same evening: 2.5 again, and 2.1-3.3 outside the app as well. The app was not the cause.
+
+The cause was another program on the GPU. Claude's screen control still held the MacAIMagic window (from a test that
+morning, not released until 22:14). While the screen is on, the frame it draws around that window kept the GPU 65-97%
+busy with no model loaded. The engine then shares the GPU: Metal makes its buffers non-resident and resident again
+(the GPU memory in use jumped between 45 and 121 GB while the allocation stayed 123.7 GB), and the larger the model's
+share of the GPU limit, the worse (64K context 17.6, 128K 5.9, 256K 2.5). After the release: GPU 0%, and GLM Compact at
+256K 22.5 and 20.1 tokens/s. With the screen locked the frame is not drawn, which is why the earlier replays were fast.
+
+Not the cause, checked: the app's engine binary (the signed copy of `engine/bin`), App Nap or background priority
+(`taskpolicy -b`: 14 tokens/s, not 2.5), memory (other apps held about 9 GB that cannot be reclaimed; the rest was file
+cache), the app's own window (minimized: still slow while the frame was held), thermal state or power mode.
+
+Vergelijken now measures the GPU load for two seconds before each model starts, with no engine running, and keeps it
+with the result; from 25% it says under the table that another program shared the GPU and the speeds are too low.

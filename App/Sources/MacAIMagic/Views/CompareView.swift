@@ -85,6 +85,11 @@ struct CompareView: View {
                         }
                     }
                     ResultsTable(results: bench.latest)
+                    ForEach(bench.latest.filter(\.sharedGPU)) { r in
+                        Label(L("\(r.modelName): een ander programma hield de GPU al voor \(Int((r.otherGPU ?? 0).rounded())) procent bezig. Deze snelheden zijn te laag; meet opnieuw als dat programma klaar is."),
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.callout).foregroundStyle(Theme.amber)
+                    }
                 }
             }
             .padding(28)

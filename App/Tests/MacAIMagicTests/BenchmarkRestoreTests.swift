@@ -17,4 +17,20 @@ final class BenchmarkRestoreTests: XCTestCase {
         let d = BenchmarkRunner.afterRun(chosen: "qwen3.8-flash-next-q4", wasRunning: "qwen3.8-flash-next-q4", nowRunning: nil)
         XCTAssertFalse(d.stop); XCTAssertTrue(d.start)
     }
+
+    /// A result names a GPU that another program kept busy; older results (no field) do not.
+    func testASharedGPUIsNamedAndOldResultsStillLoad() throws {
+        var r = BenchResult(modelID: "glm", modelName: "GLM", loadSeconds: 1, promptTPS: 1, promptTokens: 1, decodeTPS: 2.5,
+                            decodeTokens: 300, ssdMBs: 0, wiredGB: 123, cpuMoELayers: 0, otherGPU: 80)
+        XCTAssertTrue(r.sharedGPU)
+        r.otherGPU = 5
+        XCTAssertFalse(r.sharedGPU)
+        r.otherGPU = nil
+        XCTAssertFalse(r.sharedGPU)
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(r)) as! [String: Any]
+        json.removeValue(forKey: "otherGPU")
+        let old = try JSONDecoder().decode(BenchResult.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNil(old.otherGPU)
+        XCTAssertFalse(old.sharedGPU)
+    }
 }
