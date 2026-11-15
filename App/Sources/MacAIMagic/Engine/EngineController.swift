@@ -136,11 +136,19 @@ final class EngineController: ObservableObject {
         // Qwen3.8-Flash-Next Q4 (tools/spec_bench.py): changing code 52-53 -> 115-122 tok/s; a story, code, an
         // explanation and thinking at the same speed as MTP alone (it proposed nothing there).
         // ("Herhaalde tekst sneller schrijven" in the settings)
-        if s.mtp && model.hasMTP && plan.expertCache == 0 {
+        // Without MTP (DeepSeek, Qwen3.6, Ministral, Ling, or MTP switched off) ngram-mod runs alone, only for a model
+        // that fits whole in memory: checking a long proposal needs many experts at once, which from the SSD costs more
+        // than it saves. Measured on the M3 Max (docs/RESEARCH.md section 20): changing code with Qwen3.6-35B 52-62 ->
+        // 218-245 tok/s, with DeepSeek Compact about 20 -> 45 tok/s; the other tasks at the same speed, the texts the same.
+        let mtpArgs: [String]? = {
+            guard s.mtp && model.hasMTP && plan.expertCache == 0 else { return nil }
             let types = s.ngramMod ? "draft-mtp,ngram-mod" : "draft-mtp"
-            if model.mtp == "file", let draft { args += ["--spec-type", types, "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
-            else if model.mtp == "builtin" { args += ["--spec-type", types, "--spec-draft-n-max", "2"] }
-        }
+            if model.mtp == "file", let draft { return ["--spec-type", types, "--model-draft", draft.path, "--spec-draft-n-max", "2"] }
+            if model.mtp == "builtin" { return ["--spec-type", types, "--spec-draft-n-max", "2"] }
+            return nil
+        }()
+        if let mtpArgs { args += mtpArgs }
+        else if s.ngramMod && plan.fitsInMemory { args += ["--spec-type", "ngram-mod"] }
         return args
     }
 

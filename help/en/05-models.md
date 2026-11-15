@@ -10,7 +10,7 @@ Each card says for this Mac whether the model **fits whole in memory**, **stream
 |---|---|
 | **Compact** | Everything a token needs stays in memory. The fast choice. |
 | **Q4** | Closer to the original weights, but larger than 128 GB: the experts used most stay on the GPU, the rest comes from the SSD. |
-| **MTP** | GLM and Qwen guess the next tokens ahead; the same answers, up to 65% faster writing. On/off under Settings → Engine. Below it, **Write repeated text faster**: changing code goes up to twice as fast with it. |
+| **MTP** | GLM and Qwen guess the next tokens ahead; the same answers, up to 65% faster writing. On/off under Settings → Engine. Below it, **Write repeated text faster**: changing code goes two to four times as fast with it, also with the models without MTP (DeepSeek, Qwen3.6, Ministral, Ling), as long as the model fits whole in memory. |
 
 **For programming** there is **Qwen3.8-27B**: a dense 27B model that uses all its weights for every word. It is strong at code and reads images. It comes as **Q8** (29 GB), close to the original, and fits from a Mac with 48 GB. It writes more slowly than Qwen3.6-35B-A3B, which uses only 3B per word, so it is never recommended on its own.
 

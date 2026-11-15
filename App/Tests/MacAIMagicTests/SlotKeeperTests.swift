@@ -268,9 +268,41 @@ final class SlotKeeperTests: XCTestCase {
         Settings.shared.ngramMod = true
         let streamed = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(cache: 90 << 30), vision: nil, draft: draft)
         XCTAssertFalse(streamed.contains("--spec-type"))
-        // without MTP, no ngram-mod either: it was measured only beside MTP
+        // MTP switched off: ngram-mod alone, for a model that fits
         Settings.shared.mtp = false
+        let noMTP = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(cache: 0), vision: nil, draft: draft)
+        XCTAssertEqual(noMTP.firstIndex(of: "--spec-type").map { noMTP[$0 + 1] }, "ngram-mod")
+        XCTAssertFalse(noMTP.contains("--model-draft"))
+        // and nothing at all with the setting off too
+        Settings.shared.ngramMod = false
         XCTAssertFalse(engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(cache: 0), vision: nil, draft: draft).contains("--spec-type"))
+    }
+
+    /// A model without MTP (Qwen3.6, DeepSeek, Ministral, Ling) gets ngram-mod alone, measured on the M3 Max: changing code
+    /// with Qwen3.6-35B 52-62 -> 218-245 tok/s, the rest the same. Not when it does not fit whole in memory.
+    func testAModelWithoutMTPGetsNgramModWhenItFits() throws {
+        let saved = (Settings.shared.mtp, Settings.shared.ngramMod)
+        defer { (Settings.shared.mtp, Settings.shared.ngramMod) = saved }
+        (Settings.shared.mtp, Settings.shared.ngramMod) = (true, true)
+        let engine = EngineController(port: 1, slots: SlotKeeper(folder: dir))
+        let model = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-q4"))
+        XCTAssertFalse(model.hasMTP)
+        func plan(physical: UInt64, cache: UInt64) -> MemoryPlan {
+            MemoryPlan(physical: physical, gpuLimit: physical * 3 / 4, suggestedWiredLimitMB: 0, dense: 2 << 30, experts: 18 << 30,
+                       engram: 0, overhead: 2 << 30, layers: 40, hostExpertLayers: [], gpuExperts: 0, cpuExperts: 0,
+                       expertCache: cache, tensorSplit: [], threads: 12, contextSize: 65536, warnings: [])
+        }
+        let fits = plan(physical: 128 << 30, cache: 0)
+        XCTAssertTrue(fits.fitsInMemory)
+        let args = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: fits, vision: nil)
+        XCTAssertEqual(args.firstIndex(of: "--spec-type").map { args[$0 + 1] }, "ngram-mod")
+        XCTAssertFalse(args.contains("--model-draft"))
+        // streaming from the SSD: no guessing
+        let streamed = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(physical: 16 << 30, cache: 4 << 30), vision: nil)
+        XCTAssertFalse(streamed.contains("--spec-type"))
+        // the setting off: nothing
+        Settings.shared.ngramMod = false
+        XCTAssertFalse(engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: fits, vision: nil).contains("--spec-type"))
     }
 
     func testTheEngineGetsTheFolderUnlessItIsACluster() throws {

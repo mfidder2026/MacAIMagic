@@ -799,3 +799,25 @@ Tokens per second:
 **What follows:** DSpark is not taken. ngram-mod would help DeepSeek Compact, and likewise the other models that fit and
 have no MTP head (section 15: Qwen3.6-35B-A3B 282 instead of 68 tok/s and Ling-3.0-tiny 804 instead of 134 on
 changing code, the other tasks the same).
+
+## 21. ngram-mod for the models without MTP, in the app (2026-11-15)
+
+The app now gives `--spec-type ngram-mod` to a model without an MTP head (DeepSeek, Qwen3.6-35B-A3B, Ministral, Ling),
+and to a model with one when MTP is switched off, under the same setting ("Herhaalde tekst sneller schrijven"), only
+when the model fits whole in memory (`MemoryPlan.fitsInMemory`). Measured once more for the two small models on the
+M3 Max 128 GB with `tools/spec_bench.py` (the app's arguments, no vision, temperature 0), two runs each, tok/s:
+
+| | Story | Writing code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| Ling-3.0-tiny, none | 136.6 / 120.9 | 135.8 / 123.9 | 132.1 / 122.8 | 128.3 / 120.7 | 127.3 / 122.3 |
+| Ling-3.0-tiny, ngram-mod | 131.1 / 124.0 | 122.5 / 123.4 | **581 / 591** | **185.7 / 185.2** | 124.7 / 125.6 |
+| Ministral-3-8B, none | 53.7 / 55.1 | 53.6 / 54.7 | 48.4 / 54.0 | 48.0 / 52.4 | 52.9 / 52.5 |
+| Ministral-3-8B, ngram-mod | 59.4 / 55.1 | 54.4 / 51.0 | **94.5 / 88.8** | 51.1 / 48.6 | 49.3 / 48.8 |
+
+- Changing code: Ling 4.5 times as fast, Ministral 1.7 times (it gave back only 211 tokens, a part of the code). Ling
+  also explains a text 45% faster, because it quotes it. The rest is within the spread of the plain runs (Ministral's
+  explanation and thinking 3-7% lower, about as large as the spread).
+- The texts are the same, except Ling's thinking task, which goes another way at character 726 (a near tie in a
+  verification batch, as in section 20).
+- Not measured: a Mac with 8 or 16 GB, where these models are the ones recommended. There `fitsInMemory` decides; on
+  8 GB Ling streams from the SSD (the app's plan) and gets no ngram-mod.

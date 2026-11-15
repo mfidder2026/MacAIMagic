@@ -10,7 +10,7 @@ Elke kaart zegt voor deze Mac of het model **helemaal in het geheugen past**, **
 |---|---|
 | **Compact** | Alles wat een token nodig heeft staat in het geheugen. De snelle keuze. |
 | **Q4** | Dichter bij de originele gewichten, maar groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD. |
-| **MTP** | GLM en Qwen raden de volgende tokens vooraf; dezelfde antwoorden, tot 65% sneller schrijven. Aan/uit onder Instellingen → Engine. Daaronder **Herhaalde tekst sneller schrijven**: code aanpassen gaat er tot twee keer zo snel mee. |
+| **MTP** | GLM en Qwen raden de volgende tokens vooraf; dezelfde antwoorden, tot 65% sneller schrijven. Aan/uit onder Instellingen → Engine. Daaronder **Herhaalde tekst sneller schrijven**: code aanpassen gaat er twee tot vier keer zo snel mee, ook bij de modellen zonder MTP (DeepSeek, Qwen3.6, Ministral, Ling), zolang het model helemaal in het geheugen past. |
 
 **Om te programmeren** is er **Qwen3.8-27B**: een dicht model van 27B dat bij elk woord al zijn gewichten gebruikt. Het is sterk in code en leest afbeeldingen. Het staat erin als **Q8** (29 GB), vrijwel gelijk aan het origineel, en past vanaf een Mac met 48 GB. Het schrijft wel langzamer dan Qwen3.6-35B-A3B, dat maar 3B per woord gebruikt; daarom wordt het nooit vanzelf aangeraden.
 
