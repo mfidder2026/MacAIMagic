@@ -43,6 +43,10 @@ final class BenchmarkRunner: ObservableObject {
     }
 
     func run(_ ids: [String], app: AppState) async {
+        // the comparison starts each model by choosing it; afterwards the user's own choice comes back (it stayed on the
+        // last model measured: after a full run Ling-3.0-tiny was the chosen model and ran instead of Qwen3.8-Flash-Next)
+        let chosen = app.selectedModelID
+        let wasRunning = app.engine.state.isRunning ? app.engine.model?.id : nil
         for id in ids {
             guard let model = ModelCatalog.shared.model(id), app.models.status(id).isComplete else { continue }
             running = model.name
@@ -83,8 +87,24 @@ final class BenchmarkRunner: ObservableObject {
                 step = "Fout: \(error.localizedDescription)"
             }
         }
+        let back = Self.afterRun(chosen: chosen, wasRunning: wasRunning,
+                                 nowRunning: app.engine.state.isRunning ? app.engine.model?.id : nil)
+        if back.stop {
+            step = "Engine stoppen…"
+            await app.engine.stopAndWait()
+        }
+        if app.selectedModelID != chosen { app.selectedModelID = chosen }
+        if back.start { app.startEngine() }
         running = nil
         step = ""
+    }
+
+    /// What follows a comparison: a model the comparison left running stops, unless it is the user's own; the user's own
+    /// model starts again when it ran before the comparison.
+    nonisolated static func afterRun(chosen: String, wasRunning: String?, nowRunning: String?) -> (stop: Bool, start: Bool) {
+        let stop = nowRunning != nil && nowRunning != chosen
+        let start = wasRunning == chosen && (nowRunning != chosen)
+        return (stop, start)
     }
 
     /// The same image every time: a fixed description and seed, at the size measured on every Mac. The chat engine stops first.
