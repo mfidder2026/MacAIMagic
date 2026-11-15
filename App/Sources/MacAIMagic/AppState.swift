@@ -86,6 +86,7 @@ final class AppState: ObservableObject {
         chat.slots = engine.slots
         chat.taskStore = tasks
         chat.appControl = appControl
+        chat.currentModel = { [weak self] in self?.engine.model ?? self?.selectedModel }
         // the menu bar item depends on the tasks
         tasksChanged = tasks.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         LocalModel.metrics = metrics

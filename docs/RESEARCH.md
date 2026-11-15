@@ -893,3 +893,55 @@ by section 18's measurement), it is a large change to patch 0002, and this Mac c
 **What follows:** on this Mac, Qwen3.8-Flash-Next Q4 writes new text at about 33-35 tok/s, code at about 49 and changes
 to code at about 125; none of the engine tweaks tried here changes that. What remains is section 14's list: fewer bytes
 per token (5-bit non-expert layers gave +8% with a measurable quality loss), or a smaller model.
+
+## 23. Qwen3.8-Flash-Next: better answers, and Strata's Mac engine (2026-11-15)
+
+From a survey of the model card, unsloth's guide, llama.cpp and the Mac engines (two research passes), checked here
+against the model files and measured on the M3 Max 128 GB.
+
+**Three things the app did not do as Qwen intends** (fixed, for the Qwen family: Qwen3.6, Qwen3.8-27B, Flash-Next):
+
+- **Sampling.** Qwen's card gives, with thinking, top_p 0.95, top_k 20, min_p 0 (temperature 1.0), and without thinking
+  top_p 0.8, top_k 20, min_p 0 (temperature 0.7, presence penalty 1.5). The app sent top_p 1.0 and left the engine's
+  defaults (top_k 40, min_p 0.05). It now sends Qwen's values; the temperature stays the user's setting, and the presence
+  penalty is left out (the card warns it can mix languages, and the owner writes Dutch).
+- **Earlier thinking.** The template in the model file (Qwen3.8: `preserve_thinking` on by default) puts each earlier
+  answer's `reasoning_content` back between `<think>` tags; the app never sent it, so every earlier step went in with
+  empty thinking, unlike training and the card's benchmarks. Measured with Flash-Next (the app's engine arguments, three
+  questions, thinking budget 800, two rounds each):
+  - without thinking sent back the engine read the previous answer again at every step (252-390 tokens);
+  - with all thinking sent back it read nothing again (29 of 470 tokens) when the thinking had ended by itself, but more
+    (1,037-1,155 tokens) when the budget had cut it off, and the conversation grew three times as fast (2,217 against
+    729 tokens after three questions).
+  The app now sends the thinking back with `preserve_thinking: false`: the template keeps it for the steps since the
+  last question (one task's tool steps, as the card advises for agents) and drops it for earlier questions, so a
+  conversation does not grow faster. A conversation saved by an older version keeps sending empty thinking.
+- **"Maximaal" thinking** (`reasoning_effort` "max") stopped every request with a template error: Qwen's template knows
+  low, medium and high/xhigh only. "max" is now sent as "high" (= xhigh) for Qwen.
+
+Not changed: the thinking budget (16,000 tokens at "hoog"; the card allows far more, quality not measured here). Two
+tool-call fixes upstream (`372dc5c` invalid UTF-8 in tool arguments, `c90aa99` control characters) are for the next pin.
+The quant stays: unsloth's own table puts UD-Q4_K_XL at mean KLD 0.047 (top-1 92.3%), the best that fits 128 GB; UD-Q5_K_XL
+is 158 GB.
+
+**Ruled out by measurement here:**
+- the power mode: the owner's MacBook already runs High Power on AC (`pmset`: powermode 2); another M3 Max went from 24
+  to 58 tok/s by switching;
+- the per-layer n-gram table on the SSD: new Dutch or French text reads about 15 rows per token from the SSD, 32.4-32.5
+  tok/s against 32.9 when they are cached (about 1%).
+
+**Strata's Metal engine** (github.com/Niko1221/Strata at 13eedf5, the successor of the project this app grew from; its
+Mac engine is new). Built from source; it repacked the same UD-Q4_K_XL files into its own 82 GB file. The spec_bench
+tasks through its OpenAI API at temperature 0, tok/s from the first to the last streamed token:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| llama.cpp, the app (MTP 2 + ngram-mod) | 34.8-35.0 | 48.8-49.0 | 124-126 | 34.3-34.7 | 43.0-43.8 |
+| Strata, no drafting | 23.0 | 24.2 | 38.7 | 26.5 | 30.0 |
+| Strata, its MTP (`--spec 2`) | 29.8 | 38.3 | 50.8 | 40.4 | 43.5 |
+| Strata, its default (tuned DFlash2 drafter + suffix drafts), three runs | 38.3-39.2 | 42.8-44.0 | 62.5-64.4 | 47.6-50.0 | 46.9-49.6 |
+
+Without drafting Strata is slower here than llama.cpp without drafting (31-33). Its gain is its own tuned DFlash2 drafter
+(0.34 GB, with a 106,299-token draft head): +10% on the story and thinking, +40% on the explanation, but -12% on new code
+and half on changing code, where ngram-mod wins. The author's +23% (M5 Max) does not hold on this M3 Max. Not taken;
+the tuned drafter is in Strata's own format, not GGUF.

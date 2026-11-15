@@ -93,6 +93,10 @@ struct Conversation: Codable, Identifiable, Hashable {
     /// Every picture the model looks at stays a picture. nil: a conversation of a version up to 1.14.12, which sent only
     /// the last 3 as pictures and the older ones as text.
     var looksKept: Bool? = true
+    /// The model's earlier thinking goes back with each earlier answer (Qwen: its template keeps it, as the model was
+    /// trained). nil: a conversation of a version up to 1.14.13, which sent empty thinking; it stays so, or the first
+    /// question after the update would make the engine read the whole conversation again.
+    var thinkingKept: Bool? = true
 
     /// A conversation of an older version keeps sending its older looks as text, as that version last did: otherwise
     /// the first question after the update would read the whole conversation again (Qwen3.6, 149K tokens: 11 minutes).
