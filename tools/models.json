@@ -272,18 +272,19 @@
       "id": "qwen3.6-35b-a3b-q4",
       "name": "Qwen3.6-35B-A3B Q4",
       "family": "qwen",
-      "summary": "35B MoE · 3B actief · 4 bit · 22 GB in het geheugen · snel, ook op een Mac met 32 GB",
+      "summary": "35B MoE · 3B actief · 4 bit · 23 GB in het geheugen · snel, ook op een Mac met 32 GB · MTP voor sneller schrijven",
       "vision": "qwen3.6",
       "files": [
         {
           "local": "qwen3.6-35b-a3b-q4.gguf",
-          "size": 22360456160,
-          "sha256": "707a55a8a4397ecde44de0c499d3e68c1ad1d240d1da65826b4949d1043f4450",
-          "url": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF/resolve/a483e9e6cbd595906af30beda3187c2663a1118c/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf"
+          "size": 22663387424,
+          "sha256": "0b21525e972670ed59e1812e170b27c26355381f0656ecc4e25617ece7dac58b",
+          "url": "https://huggingface.co/unsloth/Qwen3.6-35B-A3B-MTP-GGUF/resolve/5bc3e238d916f48a861bac2f8a1990a0e9b7e98d/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"
         }
       ],
-      "memory": 22349466112,
-      "dense": 2678180352
+      "mtp": "builtin",
+      "memory": 22652396032,
+      "dense": 2597331456
     },
     {
       "id": "qwen3.6-35b-a3b-heretic-q4",

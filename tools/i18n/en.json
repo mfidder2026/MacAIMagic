@@ -36,7 +36,7 @@
  "3. Installeer MacAIMagic op de helpers, kies daar 'Helper' en druk op Start helper.": "3. Install MacAIMagic on the helpers, choose 'Helper' there and press Start helper.",
  "321B MoE · 4 bit · groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD (~5–6 tok/s)": "321B MoE · 4 bit · larger than 128 GB: the most used experts stay on the GPU, the rest comes from the SSD (~5–6 tok/s)",
  "321B MoE · experts 2–3 bit · 109 GB in het geheugen": "321B MoE · experts 2–3 bit · 109 GB in memory",
- "35B MoE · 3B actief · 4 bit · 22 GB in het geheugen · snel, ook op een Mac met 32 GB": "35B MoE · 3B active · 4 bit · 22 GB in memory · fast, also on a Mac with 32 GB",
+ "35B MoE · 3B actief · 4 bit · 23 GB in het geheugen · snel, ook op een Mac met 32 GB · MTP voor sneller schrijven": "35B MoE · 3B active · 4 bit · 23 GB in memory · fast, also on a Mac with 32 GB · MTP for faster writing",
  "4. Op de hoofd-Mac verschijnen de helpers hier vanzelf. Vink ze aan en start het model onder Modellen.": "4. On the main Mac the helpers appear here by themselves. Tick them and start the model under Models.",
  "748B MoE · 4 bit, vrijwel gelijk aan het origineel · groter dan 128 GB: de meest gebruikte experts staan op de GPU, de rest komt van de SSD (~6–8 tok/s)": "748B MoE · 4 bit, close to the original · larger than 128 GB: the most used experts stay on the GPU, the rest comes from the SSD (~6–8 tok/s)",
  "748B MoE · experts 1,6 bit, attention 8 bit · 115 GB in het geheugen": "748B MoE · experts 1.6 bit, attention 8 bit · 115 GB in memory",
