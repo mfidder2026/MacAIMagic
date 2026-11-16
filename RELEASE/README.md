@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.13 (macOS, Apple Silicon)
+# MacAIMagic 1.14.14 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.13-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.14-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,22 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.13-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.14-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.14:
+- **Qwen3.6-35B writes up to 45% faster.** It now downloads Unsloth's file with Qwen's own MTP layer (22.7 GB), and the engine guesses two tokens ahead with it, beside the repeated-text guesses. Measured on the M3 Max, tokens per second: story 64.6 → 73.0, code 64.7 → 96.7, thinking 64.1 → 95.8, changing code 263 → 307. Quality the same: perplexity 7.500 against 7.489 on the app's own texts (±0.12). In the built app 88.8 tok/s on a coding question.
+- **The Heretic (Qwen3.6 without refusals) gets the same**: the author's file with the MTP layer kept (21.8 GB). Code 83.9 → 106.0, thinking 71.8 → 108.0, changing code 269 → 299 tok/s; stories 84.0 → 78.9. Perplexity 7.657 against 7.655.
+  If you already have one of these two models, **Controleer op update** on its card downloads the new file.
+- **The engine no longer keeps the processor busy for nothing** while the GPU writes (llama.cpp issue #29858): Qwen3.6 now writes with 12-19% CPU instead of 220-320%, at the same speed. Less heat, longer on battery.
+- **The window no longer slows the model.** The small live dashboard at the bottom of the sidebar started springs and glows twice a second, and each frame made macOS redraw the glass sidebar on the GPU the model needs. GLM-5.3-Flash Compact wrote 4-8 tok/s in Vergelijken with the window visible; now 22.4, as with the window hidden. That dashboard is now still and renewed every 2 seconds (the Live page keeps every animation); the still background is a picture blurred once; the cards have a fixed tint.
+- **Vergelijken measures fairly**: it waits up to 20 s for a quiet GPU before each model, says under the table when another program still shared the GPU, shows an hourglass instead of a spinner, and puts your own model back afterwards.
+- **Repeated text faster also without MTP**: DeepSeek Compact, Ministral and Ling now also propose text that is already in the conversation, when the model fits in memory. Changing code: DeepSeek Compact about 20 → 45, Ministral 48-54 → 89-95, Ling 122-132 → 581-591 tok/s.
+- **New model: Qwen3.8-27B Q8** (29 GB, MTP, reads images), a choice for programming from 48 GB. 16-24 tok/s with MTP, 75 when changing code.
+- **Qwen models use Qwen's own sampling settings**, get their thinking of earlier steps back within a task, and "Maximaal" thinking no longer gives an error.
+- **A full conversation first shortens old tool output** (files read, command output) instead of having the model summarize: the conversation itself stays word for word.
+- **The chat no longer goes blank** during a long task, and a finished task ticks off all its steps.
 
 New in 1.14.13:
 - **The app itself uses far less of the processor while a model writes.** The turning edge of the question field, the turning mark and the pulse ring are now turned by macOS (Core Animation) instead of being drawn again 30 times a second, and the answer's text goes into the chat 10 times a second instead of at every token. Measured on the M3 Max with Qwen3.8-Flash-Next writing: the app at 52-56% of one core, against 83-97% with 1.14.12 (that one measured in a long conversation); drawing gradients went from 29-48% of the app's main thread to about 1%. A test window with the old edge, marks and rings used about a quarter of a core, with the new ones nothing measurable. With "Reduce motion" on in macOS they stand still.

@@ -139,7 +139,7 @@ final class EngineController: ObservableObject {
         // Qwen3.8-Flash-Next Q4 (tools/spec_bench.py): changing code 52-53 -> 115-122 tok/s; a story, code, an
         // explanation and thinking at the same speed as MTP alone (it proposed nothing there).
         // ("Herhaalde tekst sneller schrijven" in the settings)
-        // Without MTP (DeepSeek, Qwen3.6, Ministral, Ling, or MTP switched off) ngram-mod runs alone, only for a model
+        // Without MTP (DeepSeek, Ministral, Ling, or MTP switched off) ngram-mod runs alone, only for a model
         // that fits whole in memory: checking a long proposal needs many experts at once, which from the SSD costs more
         // than it saves. Measured on the M3 Max (docs/RESEARCH.md section 20): changing code with Qwen3.6-35B 52-62 ->
         // 218-245 tok/s, with DeepSeek Compact about 20 -> 45 tok/s; the other tasks at the same speed, the texts the same.
