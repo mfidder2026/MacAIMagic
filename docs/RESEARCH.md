@@ -1094,3 +1094,20 @@ already thinks briefly on these tasks. Both got all tasks right; the tasks may b
 adds is that it does not refuse (Heretic).
 
 Not measured: harder tasks, tool use in the app, refusals, pictures.
+
+## 27. The engine's CPU threads polled for nothing (2026-11-16)
+
+From a survey of llama.cpp: since b10423 (#27026, inside our pin ddf48f8), llama-server's CPU threads keep polling even
+when the model runs on the GPU (issue #29858; draft fix #32378). `--poll 0` makes them wait instead. Measured on the
+M3 Max with scratchpad pollbench.py: a 800-token story at temperature 0, ABAB. The CPU % is the engine's CPU time
+divided by the wall time of the answer.
+
+| Model | default | `--poll 0` |
+|---|---|---|
+| Qwen3.6-35B (fits, MTP + ngram-mod) | 220-322% CPU, 75.6-75.8 tok/s | 12% CPU, 75.4-75.5 tok/s |
+| GLM-5.3-Flash Q4 (streamed; the app's plan, 46 layers of experts on the CPU side, 85 GB cache) | 302-307% CPU, 4.9-5.2 tok/s | 275-287% CPU, 5.2-5.3 tok/s |
+
+The same speed, far less CPU on a model that fits (less heat and battery). The app now passes `--poll 0` for every model.
+
+The other findings of the survey (newer llama.cpp, models, other engines) are only listed, not measured; see the
+commit message of this change.

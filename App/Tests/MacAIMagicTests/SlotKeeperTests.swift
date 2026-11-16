@@ -285,7 +285,7 @@ final class SlotKeeperTests: XCTestCase {
         defer { (Settings.shared.mtp, Settings.shared.ngramMod) = saved }
         (Settings.shared.mtp, Settings.shared.ngramMod) = (true, true)
         let engine = EngineController(port: 1, slots: SlotKeeper(folder: dir))
-        let model = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-q4"))
+        let model = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-heretic-q4"))
         XCTAssertFalse(model.hasMTP)
         func plan(physical: UInt64, cache: UInt64) -> MemoryPlan {
             MemoryPlan(physical: physical, gpuLimit: physical * 3 / 4, suggestedWiredLimitMB: 0, dense: 2 << 30, experts: 18 << 30,
@@ -300,6 +300,11 @@ final class SlotKeeperTests: XCTestCase {
         // streaming from the SSD: no guessing
         let streamed = engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: plan(physical: 16 << 30, cache: 4 << 30), vision: nil)
         XCTAssertFalse(streamed.contains("--spec-type"))
+        // Qwen3.6 itself has its MTP layer in the file: MTP beside ngram-mod, with no separate draft file
+        let qwen36 = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-q4"))
+        let withMTP = engine.arguments(model: qwen36, shards: [URL(fileURLWithPath: "/x.gguf")], plan: fits, vision: nil)
+        XCTAssertEqual(withMTP.firstIndex(of: "--spec-type").map { withMTP[$0 + 1] }, "draft-mtp,ngram-mod")
+        XCTAssertFalse(withMTP.contains("--model-draft"))
         // the setting off: nothing
         Settings.shared.ngramMod = false
         XCTAssertFalse(engine.arguments(model: model, shards: [URL(fileURLWithPath: "/x.gguf")], plan: fits, vision: nil).contains("--spec-type"))

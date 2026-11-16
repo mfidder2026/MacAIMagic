@@ -97,6 +97,9 @@ final class EngineController: ObservableObject {
             "--ubatch-size", plan.expertCache > 0 ? "4096" : "1024", "--batch-size", plan.expertCache > 0 ? "4096" : "2048",
             "--fit", "off",               // the plan above already decided where every tensor goes
             "--threads", String(plan.threads),
+            // the CPU threads wait without spinning (llama.cpp issue #29858): Qwen3.6-35B wrote at the same 75 tok/s
+            // with 12% CPU instead of 220-320%; GLM-5.3-Flash Q4 from the SSD at the same 5 tok/s (M3 Max)
+            "--poll", "0",
             "--parallel", "1",            // one conversation at a time keeps the whole KV and compute budget for it
             "--jinja",
             "--reasoning-format", "deepseek",   // thinking goes to reasoning_content, for both DeepSeek and GLM

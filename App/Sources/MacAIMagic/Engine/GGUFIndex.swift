@@ -75,7 +75,10 @@ struct GGUFIndex {
         return index
     }
 
-    private static func readShard(_ url: URL, fileSize declared: UInt64) throws -> GGUFIndex {
+    private static func readShard(_ url: URL, fileSize given: UInt64) throws -> GGUFIndex {
+        // a size from an older catalog can be smaller than the file on disk: the last tensor's size would then wrap
+        let onDisk = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? UInt64) ?? 0
+        let declared = max(given, onDisk)
         let fh = try FileHandle(forReadingFrom: url)
         defer { try? fh.close() }
         var r = Reader(fh: fh)
@@ -103,7 +106,7 @@ struct GGUFIndex {
         var out = GGUFIndex(tensors: [], metadata: meta)
         for (i, info) in sorted.enumerated() {
             let end = i + 1 < sorted.count ? sorted[i + 1].1 : (declared > dataStart ? declared - dataStart : info.1)
-            out.tensors.append(Tensor(name: info.0, bytes: end - info.1))
+            out.tensors.append(Tensor(name: info.0, bytes: end > info.1 ? end - info.1 : 0))
         }
         return out
     }

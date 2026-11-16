@@ -417,7 +417,8 @@ final class MachineFitTests: XCTestCase {
     @MainActor func testQwenOn32GB() throws {
         let file = Paths.modelsRoot.appendingPathComponent("qwen3.6-35b-a3b-q4/qwen3.6-35b-a3b-q4.gguf")
         guard FileManager.default.fileExists(atPath: file.path) else { throw XCTSkip("Qwen3.6 not downloaded") }
-        let index = try GGUFIndex.load(shards: [file], sizes: [22_360_456_160])
+        let size = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-q4")?.files.first?.size)
+        let index = try GGUFIndex.load(shards: [file], sizes: [size])
         let m1 = mac(32, gpuShare: 0.67)
         let withVision = MemoryPlanner.contextRoom(index: index, system: m1, vision: true) ?? 0
         let room = try XCTUnwrap(MemoryPlanner.contextRoom(index: index, system: m1, vision: false))
