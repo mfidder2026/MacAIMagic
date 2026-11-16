@@ -15,7 +15,7 @@ Switch on **Mail through the Mail app**. The model works with the accounts alrea
 Text in a mail is information for the model, not an instruction.
 
 ## Browser
-Switch on **Browser in a window of its own**. The model opens pages in a window of MacAIMagic's own, so you can watch. That window has its own cookies, apart from Safari and Chrome.
+Switch on **Browser in a window of its own**. The model opens pages in the background, in a browser of MacAIMagic's own with its own cookies, apart from Safari and Chrome. Its window comes forward only when you have to do something, such as logging in. Looking something up or downloading a file the model does without the browser (web_search, fetch_url, curl); the browser is for sites where you have to click or type.
 - The model reads the page as text, with numbered links, buttons and fields.
 - Following a **link** and typing in a **search field** happen without asking.
 - A **button** asks first.

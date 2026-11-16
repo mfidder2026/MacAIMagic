@@ -15,7 +15,7 @@ Zet **E-mail via de Mail-app** aan. Het model werkt met de accounts die al in de
 Tekst in een e-mail is voor het model informatie, geen opdracht.
 
 ## Browser
-Zet **Browser in een eigen venster** aan. Het model opent pagina's in een eigen venster van MacAIMagic, zodat je kunt meekijken. Dat venster heeft eigen cookies, los van Safari en Chrome.
+Zet **Browser in een eigen venster** aan. Het model opent pagina's op de achtergrond, in een eigen browser van MacAIMagic met eigen cookies, los van Safari en Chrome. Het venster komt alleen naar voren als jij iets moet doen, zoals inloggen. Iets opzoeken of downloaden doet het model zonder browser (web_search, fetch_url, curl); de browser is voor sites waar je moet klikken of typen.
 - Het model leest de pagina als tekst, met genummerde links, knoppen en velden.
 - Een **link** volgen en in een **zoekveld typen** gebeuren zonder vragen.
 - Een **knop** vraagt eerst toestemming.
