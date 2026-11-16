@@ -49,7 +49,7 @@ struct FilesPanel: View {
             }
             .frame(width: width)
         }
-        .background(.ultraThinMaterial)
+        .background(Theme.glass)
         .task(id: folder) { await watch() }
         // closed while the pointer was on the edge: the arrow comes back
         .onDisappear { if cursorPushed { NSCursor.pop(); cursorPushed = false } }

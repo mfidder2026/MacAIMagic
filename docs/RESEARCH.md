@@ -979,3 +979,32 @@ front). The still background now takes no changing input, and `RootView` no long
 
 Vergelijken waits up to 20 s before each model for the GPU load to fall under 50%, and only then warns. The Claude app
 drawing a conversation took 21-25% and did not slow GLM Compact (23.9); the screen-control frame took 65-97%.
+
+**The next morning (24c, 2026-11-16).** The build with 24b's fix still gave 4.3 tokens/s in Vergelijken with the window
+visible. The app started the engine with exactly the arguments of the outside run (21.2 / 20.1 with the app open).
+With the app hidden (cmd-H) the same Compare run gave 22.3. The GPU time per process (`ioreg -c AGXDeviceUserClient`,
+`accumulatedGPUTime`) while the model wrote:
+
+| Situation | WindowServer GPU time | GLM Compact writes |
+|---|---|---|
+| outside the app (cmpbench.py) | 84 ms/s | 23.0 tok/s |
+| in the app, window visible | 403 ms/s | 4.0-8.0 tok/s |
+| in the app, sidebar hidden | 7 ms/s | 20.5 tok/s |
+| sidebar dashboard without springs and glows | 132 ms/s | 16.0 tok/s |
+| ... and renewed every 2 s instead of every 0.5 s | 137 ms/s* | 22.4 tok/s |
+
+\* a 10-second sample; the speed is what counts.
+
+The small dashboard at the bottom of the sidebar was the cause. Each new sample (twice a second while a model runs)
+started a spring on the gauge ring, a number transition and glow shadows. Each frame of those made macOS draw the glass
+sidebar again in WindowServer, on the GPU the model needs. Now:
+- that dashboard has no animations or glows (`GaugeRing.lively`, `MiniSpark.glow`);
+- it is renewed at most every 2 seconds, as when no model runs. The Live page keeps every sample and every animation.
+
+Along the way, measured with a spinner on the Compare page:
+- the still background is now a picture blurred once (4.3 -> 8.3 tokens/s);
+- the Compare page shows an hourglass instead of a spinner;
+- the cards use a fixed tint (`Theme.glass`) instead of `.ultraThinMaterial`. This one was not measured on its own.
+
+Not measured: a chat with GLM Compact. While a model writes in a chat, the text grows, a shimmer and the pulse ring run,
+and a spinner turns in the sidebar.

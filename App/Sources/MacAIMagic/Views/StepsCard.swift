@@ -41,7 +41,7 @@ struct StepsCard: View {
             }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 20).padding(.bottom, 4)
         .frame(maxWidth: 820)
         .accessibilityElement(children: .combine)

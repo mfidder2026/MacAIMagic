@@ -9,6 +9,10 @@ enum Theme {
     static let mint = Color(red: 0.30, green: 0.95, blue: 0.62)
     static let amber = Color(red: 1.0, green: 0.72, blue: 0.25)
     static let night = Color(red: 0.035, green: 0.04, blue: 0.09)
+    /// The cards' frosted look as a fixed colour. A material blurs what lies behind it again whenever anything in the
+    /// window changes, on the GPU the model needs (with a spinner on screen GLM-5.3-Flash Compact wrote 8 instead of
+    /// 22 tokens/s, M3 Max); over the still, already soft background a light tint looks nearly the same.
+    static let glass = Color(red: 0.55, green: 0.58, blue: 0.75).opacity(0.10)
 
     static let brand = LinearGradient(colors: [accent, violet, pink], startPoint: .topLeading, endPoint: .bottomTrailing)
     static let cool = LinearGradient(colors: [cyan, accent], startPoint: .leading, endPoint: .trailing)
@@ -59,10 +63,22 @@ struct AuroraBackground: View {
 
     var body: some View {
         Group {
-            if animated { MovingAurora() } else { AuroraCanvas(t: 0, energy: 0) }
+            if animated { MovingAurora() }
+            else if let still = Self.still { Image(nsImage: still).resizable().interpolation(.medium).accessibilityHidden(true) }
+            else { AuroraCanvas(t: 0, energy: 0) }
         }
         .ignoresSafeArea()
     }
+
+    /// The still background as a picture, blurred once. Drawn as a Canvas, its full-window blur was worked out again
+    /// whenever anything in the window changed (a spinner, the live dashboard twice a second), on the GPU the model
+    /// needs: GLM-5.3-Flash Compact wrote 4-5 tokens/s in Vergelijken with the window visible, 22 with it hidden
+    /// (M3 Max). Stretched to the window it looks the same: it is all soft colour.
+    @MainActor private static let still: NSImage? = {
+        let r = ImageRenderer(content: AuroraCanvas(t: 0, energy: 0).frame(width: 1440, height: 900))
+        r.scale = 1
+        return r.nsImage
+    }()
 }
 
 /// The moving background, with the live writing speed as its energy (0…1).
@@ -123,7 +139,7 @@ struct GlassCard<Content: View>: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 18))
         .overlay(
             RoundedRectangle(cornerRadius: 18)
                 .stroke(LinearGradient(colors: [glow.opacity(0.55), .white.opacity(0.06), glow.opacity(0.15)],
@@ -141,6 +157,10 @@ struct GaugeRing: View {
     var unit: String
     var gradient = AngularGradient(colors: [Theme.cyan, Theme.accent, Theme.violet, Theme.pink, Theme.cyan], center: .center)
     var size: CGFloat = 200
+    /// Springs and glows. Off in the sidebar: there every new sample (twice a second while a model runs) started an
+    /// animation, and each of its frames made macOS redraw the glass sidebar on the GPU the model uses
+    /// (GLM-5.3-Flash Compact in Vergelijken: 4-8 tokens/s, 20.5 with the sidebar hidden, M3 Max).
+    var lively = true
 
     var body: some View {
         let fraction = min(max(value / maximum, 0), 1)
@@ -150,8 +170,8 @@ struct GaugeRing: View {
                 .trim(from: 0, to: fraction * 0.999)
                 .stroke(gradient, style: StrokeStyle(lineWidth: size * 0.075, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .shadow(color: Theme.accent.opacity(0.8), radius: 10)
-                .animation(.spring(response: 0.6, dampingFraction: 0.8), value: fraction)
+                .shadow(color: Theme.accent.opacity(lively ? 0.8 : 0), radius: lively ? 10 : 0)
+                .animation(lively ? .spring(response: 0.6, dampingFraction: 0.8) : nil, value: fraction)
             // the number in the very middle of the ring, what belongs to it below that
             Text(value, format: .number.precision(.fractionLength(1)))
                 .font(.system(size: size * 0.26, weight: .bold, design: .rounded))
@@ -159,8 +179,8 @@ struct GaugeRing: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .frame(maxWidth: size * 0.72)
-                .contentTransition(.numericText(value: value))
-                .animation(.snappy, value: value)
+                .contentTransition(lively ? .numericText(value: value) : .identity)
+                .animation(lively ? .snappy : nil, value: value)
                 .foregroundStyle(Theme.cool)
                 .overlay(alignment: .bottom) {
                     VStack(spacing: 2) {

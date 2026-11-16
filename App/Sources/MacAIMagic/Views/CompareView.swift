@@ -47,7 +47,8 @@ struct CompareView: View {
                     }
                     HStack {
                         if let running = bench.running {
-                            ProgressView().controlSize(.small)
+                            // no spinner: it would keep redrawing the window on the GPU that is being measured
+                            Image(systemName: "hourglass").foregroundStyle(.secondary)
                             Text("\(running): \(bench.step)").foregroundStyle(.secondary)
                         } else {
                             Button {

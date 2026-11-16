@@ -180,7 +180,7 @@ private struct ModelCard: View {
             }
         }
         .padding(18)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(selected ? AnyShapeStyle(Theme.familyGradient(model.family)) : AnyShapeStyle(.white.opacity(0.08)),
                                                            lineWidth: selected ? 2 : 1))
         .shadow(color: Theme.family(model.family).opacity(selected ? 0.35 : (hover ? 0.2 : 0.05)), radius: selected ? 22 : 12)

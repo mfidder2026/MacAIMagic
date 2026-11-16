@@ -183,7 +183,7 @@ private struct SummaryDivider: View {
             }
             if open {
                 MarkdownText(text: summary).font(.callout)
-                    .padding(12).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                    .padding(12).background(Theme.glass, in: RoundedRectangle(cornerRadius: 10))
             }
         }
     }
@@ -213,7 +213,7 @@ private struct ContextMeter: View {
                     .overlay(alignment: .leading) { Capsule().fill(color).frame(width: 46 * share, height: 5) }
             }
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(.ultraThinMaterial, in: Capsule())
+            .background(Theme.glass, in: Capsule())
         }
         .buttonStyle(.plain)
         .popover(isPresented: $open, arrowEdge: .bottom) {
@@ -303,7 +303,7 @@ private struct WorkspaceChip: View {
                 }
                 .font(.callout)
                 .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(.ultraThinMaterial, in: Capsule())
+                .background(Theme.glass, in: Capsule())
             }
             .buttonStyle(.plain)
             .help(L("Werkmap van dit gesprek: klik om hem in de Finder te openen"))
@@ -311,7 +311,7 @@ private struct WorkspaceChip: View {
                 Image(systemName: "chevron.left.forwardslash.chevron.right")
                     .font(.callout.weight(.semibold))
                     .padding(.horizontal, 8).padding(.vertical, 5)
-                    .background(showFiles ? AnyShapeStyle(Theme.accent.opacity(0.35)) : AnyShapeStyle(.ultraThinMaterial), in: Capsule())
+                    .background(showFiles ? AnyShapeStyle(Theme.accent.opacity(0.35)) : AnyShapeStyle(Theme.glass), in: Capsule())
             }
             .buttonStyle(.plain)
             .help(showFiles ? L("Verberg de bestanden van de werkmap") : L("Toon de bestanden van de werkmap naast de chat"))
@@ -336,7 +336,7 @@ private struct LiveStrip: View {
             }
             .help(Theme.statusText(engine.state))
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .background(.ultraThinMaterial, in: Capsule())
+            .background(Theme.glass, in: Capsule())
             WorkspaceChip()
             Spacer()
             ContextMeter()
@@ -410,7 +410,7 @@ private struct EmptyChat: View {
                             Spacer(minLength: 0)
                         }
                         .padding(14)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+                        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 14))
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(.white.opacity(0.08)))
                     }
                     .buttonStyle(.plain)
@@ -470,7 +470,7 @@ private struct EngineBanner: View {
         .font(.callout)
         .padding(.horizontal, 14).padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 12))
         // the input field's width and margins (Composer), so the two line up
         .frame(maxWidth: 860)
         .padding(.horizontal, 24).padding(.top, 4)
@@ -687,7 +687,7 @@ struct AnswerView: View {
                 }
             }
             .padding(16)
-            .background(.ultraThinMaterial.opacity(0.7), in: RoundedRectangle(cornerRadius: 18))
+            .background(Theme.glass.opacity(0.7), in: RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(streaming ? AnyShapeStyle(Theme.brand.opacity(0.6)) : AnyShapeStyle(.white.opacity(0.07))))
             Spacer(minLength: 0)
         }
@@ -1167,7 +1167,7 @@ private struct ApprovalCard: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke((approval.warnings.isEmpty ? Theme.amber : Color.red).opacity(0.6), lineWidth: 1.5))
         .shadow(color: Theme.amber.opacity(0.25), radius: 14)
         .frame(maxWidth: 860)

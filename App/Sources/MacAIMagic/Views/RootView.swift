@@ -193,17 +193,37 @@ struct Sidebar: View {
 struct MiniDashboard: View {
     var open: () -> Void
     @EnvironmentObject var metrics: LiveMetrics
-    @EnvironmentObject var engine: EngineController
+    @State private var shown = Shown()
     @State private var hover = false
 
+    /// What the card shows, renewed at most every 2 seconds. While a model runs the samples come twice a second, and every
+    /// change made macOS redraw the glass sidebar on the GPU the model uses: GLM-5.3-Flash Compact wrote 16 tokens/s in
+    /// Vergelijken this way, 20.5 with the sidebar hidden (M3 Max). The Live page keeps every sample.
+    struct Shown {
+        var now: LiveMetrics.Sample?
+        var recent: [LiveMetrics.Sample] = []
+        var scale = 60.0
+        var totalGB = 0.0
+        var at = Date.distantPast
+    }
+
     var body: some View {
-        let now = metrics.current
-        let recent = Array(metrics.samples.suffix(80))
-        Button(action: open) {
+        card(shown)
+            .onReceive(metrics.$samples) { samples in
+                guard Date().timeIntervalSince(shown.at) >= 1.9 else { return }
+                shown = Shown(now: samples.last, recent: Array(samples.suffix(80)), scale: metrics.scale(base: 60),
+                              totalGB: metrics.totalMemoryGB, at: Date())
+            }
+    }
+
+    private func card(_ s: Shown) -> some View {
+        let now = s.now
+        let recent = s.recent
+        return Button(action: open) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 10) {
-                    GaugeRing(value: now?.tokensPerSec ?? 0, maximum: metrics.scale(base: 60), label: "", unit: "tok/s", size: 50)
-                    MiniSpark(values: recent.map(\.tokensPerSec), color: Theme.violet, maxY: nil)
+                    GaugeRing(value: now?.tokensPerSec ?? 0, maximum: s.scale, label: "", unit: "tok/s", size: 50, lively: false)
+                    MiniSpark(values: recent.map(\.tokensPerSec), color: Theme.violet, maxY: nil, glow: false)
                         .frame(height: 34)
                 }
                 VStack(spacing: 5) {
@@ -212,17 +232,16 @@ struct MiniDashboard: View {
                     MiniRow(label: "CPU", value: String(format: "%.0f%%", now?.cpu ?? 0), color: Theme.cyan,
                             values: recent.map(\.cpu), maxY: 100)
                     MiniRow(label: "RAM", value: String(format: "%.0f GB", now?.usedGB ?? 0), color: Theme.pink,
-                            values: recent.map(\.usedGB), maxY: metrics.totalMemoryGB)
+                            values: recent.map(\.usedGB), maxY: s.totalGB)
                     MiniRow(label: "SSD", value: ssd(now?.ssdMBs ?? 0), color: Theme.amber,
                             values: recent.map(\.ssdMBs), maxY: nil)
                 }
             }
             .padding(10)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .background(Theme.glass, in: RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(
                 LinearGradient(colors: [Theme.violet.opacity(hover ? 0.8 : 0.45), .white.opacity(0.05)],
                                startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1))
-            .shadow(color: Theme.violet.opacity(engine.state.isRunning ? 0.25 : 0), radius: 10)
         }
         .buttonStyle(.plain)
         .onHover { hover = $0 }
@@ -246,7 +265,7 @@ private struct MiniRow: View {
         HStack(spacing: 6) {
             Text(label).font(.system(size: 9, weight: .bold, design: .rounded)).foregroundStyle(color.opacity(0.9))
                 .frame(width: 24, alignment: .leading)
-            MiniSpark(values: values, color: color, maxY: maxY).frame(height: 16)
+            MiniSpark(values: values, color: color, maxY: maxY, glow: false).frame(height: 16)
             Text(value).font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
                 .foregroundStyle(.primary.opacity(0.85)).lineLimit(1).fixedSize()
         }
@@ -258,6 +277,8 @@ struct MiniSpark: View {
     let values: [Double]
     let color: Color
     let maxY: Double?
+    /// The glow under the line; off in the sidebar (see GaugeRing.lively)
+    var glow = true
 
     var body: some View {
         GeometryReader { geo in
@@ -280,7 +301,7 @@ struct MiniSpark: View {
                     pts.dropFirst().forEach { p.addLine(to: $0) }
                 }
                 .stroke(color, style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
-                .shadow(color: color.opacity(0.8), radius: 2)
+                .shadow(color: color.opacity(glow ? 0.8 : 0), radius: glow ? 2 : 0)
             }
         }
     }
@@ -384,7 +405,7 @@ private struct PillBody: View {
             if let moving { LoadGauge(engine: moving, size: 0, showsText: true).font(.callout.weight(.medium)).foregroundStyle(.secondary) }
         }
         .padding(.horizontal, 11).padding(.vertical, 5)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background(Theme.glass, in: Capsule())
         .overlay(Capsule().stroke(color.opacity(0.4), lineWidth: 1))
         .help(L("Welk model er draait. Klik om een model te starten of te stoppen."))
     }

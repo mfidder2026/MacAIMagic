@@ -124,7 +124,7 @@ struct Composer: View {
             .controlSize(.small)
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+        .background(Theme.glass, in: RoundedRectangle(cornerRadius: 18))
         .overlay {
             // a turning gradient edge while the model writes; a calm one otherwise (no endless animation when idle)
             if chat.isBusy(conversationID) {
