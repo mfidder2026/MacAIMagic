@@ -1135,3 +1135,30 @@ Taken: the catalog's Heretic is now this file, with built-in MTP. Memory 21.77 G
 fits on 32 GB.
 
 Not measured: refusals (the author: 10/100, KL 0.0015), pictures, the built app.
+
+## 29. ISTA-DASLab's smaller Flash-Next (GSQ-RCO IQ3_S) against the app's Q4 (2026-11-16)
+
+ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF at ed59f92, IQ3_S: weights 54.8 GB + the n-gram table 28.8 GB (83.6 GB),
+both checked against Hugging Face. The maker gives a task average of 93.26 against 93.12 for BF16 (AIME25, GPQA-D,
+LiveCodeBench v6), and no KLD. Measured on the M3 Max against the app's Unsloth UD-Q4_K_XL (111 GB).
+
+**Quality**, against the app's Q4 as reference (llama-perplexity --kl-divergence, the app's own texts, 8 chunks of
+2,048 tokens):
+- perplexity 5.950 against 5.901 (+0.8% ±0.8%);
+- mean KLD 0.166 (median 0.079);
+- the same top token 82.3% of the time.
+
+That is a clear loss next to Q4. The 5-bit non-expert attempt (section 14) was rejected at KLD 0.119 and 85.4%.
+
+**Speed**, spec_bench at temperature 0 with the app's MTP file + ngram-mod, tok/s:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| app's Q4 | 35.0 | 49.6 | 126.2 | 32.6 | 39.9 |
+| ISTA IQ3_S | 31.6 | 44.8 | 118.7 | 31.4 | 40.0 |
+
+Slower despite 27 GB fewer weights: IQ3_S needs more Metal work per byte than Q4_K. The app's MTP file pairs with it
+(acceptance like Q4's).
+
+Not taken for a Mac where Q4 fits. Still open: a 64-96 GB Mac, where Q4 streams from the SSD and IQ3_S's 54.8 GB of
+weights would fit. That was not measured.
