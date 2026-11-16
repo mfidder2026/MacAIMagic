@@ -1063,3 +1063,34 @@ Not measured:
 - the answers' quality: UD-Q4_K_M against the app's UD-Q4_K_XL, about the same size;
 - the other families;
 - a Mac with less memory.
+
+## 26. DavidAU's Qwen3.8-27B TURBO Heretic against the app's Qwen3.8-27B (2026-11-16)
+
+DavidAU/Qwen3.8-27B-TURBO-Fable-Cold-Fusion-735-882-Heretic-Uncensored-NEO-CODER-MAX-MTP-GGUF at 36116c4, the MTP Q8_0
+file (30.2 GB, SHA-256 54f27515…, checked against Hugging Face). It is Qwen3.8-27B fine-tuned and merged several times,
+made uncensored with Heretic, with the MTP layer in the file. The maker says "TURBO" makes the thinking 2-10 times
+shorter, and gives ARC-C 0.735 against 0.591 for the original (multiple choice, without thinking).
+
+Against the app's Qwen3.8-27B Q8 with its separate MTP file, on the M3 Max, both run with MTP 2 ahead + ngram-mod.
+
+**Thinking and right answers.** Six checkable tasks, each with two seeds, thinking on, temperature 0.6 (the maker's
+setting for precise work), through llama-server (scratchpad thinkbench.py). The tasks: counting, ordering, average
+speed, a clock angle, Roman numerals and merging intervals in Python, checked with asserts.
+
+| | Right | Tokens written | Time |
+|---|---|---|---|
+| the app's Qwen3.8-27B | 12/12 | 4,169 | 196 s |
+| DavidAU | 12/12 | 5,018 (+20%) | 223 s |
+
+**Writing speed**, spec_bench tasks at temperature 0, tok/s:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| the app's Qwen3.8-27B | 17.3 | 22.3 | 72.3 | 17.3 | 24.3 |
+| DavidAU | 18.0 | 22.3 | 69.8 | 16.3 | 23.1 |
+
+No gain here. It writes at the same speed, and it thought 20% longer rather than shorter: the app's Qwen3.8-27B
+already thinks briefly on these tasks. Both got all tasks right; the tasks may be too easy to show a difference. What it
+adds is that it does not refuse (Heretic).
+
+Not measured: harder tasks, tool use in the app, refusals, pictures.
