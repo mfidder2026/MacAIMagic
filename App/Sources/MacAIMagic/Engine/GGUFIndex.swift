@@ -53,6 +53,9 @@ struct GGUFIndex {
         case "mistral3": return 142_000
         // Ling-3.0-tiny: 18 of its 24 layers have linear attention; 9 KB measured on the Windows version's test PC
         case "bailingmoe3": return 9_000
+        // Qwen3.6-35B-A3B: 10 of its 40 layers have attention, 20,480 bytes per token in f16, and its MTP layer 2,048
+        // more (llama-server log, M3 Max). With 32,000 a Mac with 32 GB got 24K of context once the MTP file came.
+        case "qwen35moe": return 22_528
         default: return 32_000
         }
     }

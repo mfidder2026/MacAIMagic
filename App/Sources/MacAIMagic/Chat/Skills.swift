@@ -82,15 +82,18 @@ enum Skills {
             + "\n" + skills.map { "- \($0.name): \($0.description)" }.joined(separator: "\n")
     }
 
-    static func run(_ call: ToolCall, skills: [Skill] = all) -> String {
+    static func run(_ call: ToolCall, skills: [Skill] = all, limit: Int? = nil) -> String {
         let name = (WorkspaceTools.args(call)["name"] as? String ?? "").trimmingCharacters(in: .whitespaces).lowercased()
-        if let s = skills.first(where: { $0.name.lowercased() == name }) { return text(s) }
+        if let s = skills.first(where: { $0.name.lowercased() == name }) { return text(s, limit: limit) }
         return "There is no skill named \"\(name)\". Available: " + skills.map(\.name).joined(separator: ", ")
     }
 
     /// What the model reads of a skill. A user's skill says where its files are, so its scripts can be found; one written
     /// for Windows gets its WinAIMagic folder replaced by the real one here and a note on what differs on a Mac.
-    static func text(_ s: Skill) -> String {
+    /// `limit`: the most characters of the body the conversation can take. A longer skill keeps its start, then gets the
+    /// headings of the rest and where its file is, so the model reads the parts it needs (a 71 KB C64 skill did not fit
+    /// next to a question in the 24-32K context of a Mac with 32 GB: the engine refused the whole request).
+    static func text(_ s: Skill, limit: Int? = nil) -> String {
         var body = s.body
         var head = "# Skill: \(s.name)\n\n"
         if let folder = s.folder {
@@ -106,7 +109,24 @@ enum Skills {
             }
             head += "\n"
         }
+        if let limit, body.count > limit { body = shortened(body, to: limit, file: s.folder?.appendingPathComponent("SKILL.md")) }
         return head + body
+    }
+
+    static func shortened(_ body: String, to limit: Int, file: URL?) -> String {
+        let cut = body.prefix(max(0, limit))
+        let kept = cut.lastIndex(of: "\n").map { String(cut[..<$0]) } ?? String(cut)
+        let rest = body.dropFirst(kept.count)
+        let all = rest.split(separator: "\n").filter { $0.hasPrefix("#") }
+        var headings = all.prefix(80).map { "  " + $0 }
+        if all.count > 80 { headings.append("  … and \(all.count - 80) more headings") }
+        var note = "\n\n[This skill is longer than this conversation can hold: \(kept.count) of its \(body.count) characters are above."
+        if let file {
+            note += " The rest is in \(file.path). Read only the section you need with run_command, for example "
+                + "`grep -n '^#' '\(file.path)'` for the headings and `sed -n 'FROM,TOp' '\(file.path)'` for the lines between them."
+        }
+        if !headings.isEmpty { note += " Headings in the part left out:\n" + headings.joined(separator: "\n") }
+        return kept + note + "]"
     }
 
     /// Words that say nothing about a subject.

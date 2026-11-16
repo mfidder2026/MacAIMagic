@@ -38,6 +38,9 @@ final class ChatClient: ObservableObject {
     /// whole context, gets summarized, and starts the same plan again. A big file still fits (16K tokens at 64K).
     static let answerShare = 0.25
     var maxAnswerTokens: Int { max(4096, Int(Double(contextLimit) * Self.answerShare)) }
+    /// A skill takes at most about a quarter of the context (some 3 characters per token): 26,000 characters at 32K,
+    /// a whole 71 KB skill from about 88K.
+    var skillLimit: Int { Int(Double(contextLimit) * 0.8) }
     /// The engine runs with vision: the model can look at an image file (view_image).
     var seesImages = false
     /// Gets a token count per streamed delta, for the live speed chart.
@@ -183,7 +186,7 @@ final class ChatClient: ObservableObject {
             step.automatic = true
             store.update(id) { c in
                 c.messages.append(step)
-                c.messages.append(ChatMessage(role: .tool, text: Skills.text(skill), toolCallId: call.id))
+                c.messages.append(ChatMessage(role: .tool, text: Skills.text(skill, limit: skillLimit), toolCallId: call.id))
             }
         }
     }
@@ -396,7 +399,7 @@ final class ChatClient: ObservableObject {
                         text = "Error: give steps as a list of {title, status} with status todo, doing or done."
                     }
                 } else if isSkill {
-                    text = Skills.run(call)
+                    text = Skills.run(call, limit: skillLimit)
                 } else if isLoadConnector {
                     let out = await MCPManager.shared.load(call)
                     text = out.text
