@@ -1020,3 +1020,28 @@ WindowServer took 104 ms/s while Qwen wrote.
 
 Note when reading `ioreg -c AGXDeviceUserClient`: the engine's GPU time appears under another process name
 (here `ThemeWidgetContr`, earlier `com.apple.appkit`), not under llama-server.
+
+## 25. PolyStrata's Metal engine with Qwen3.6-35B (2026-11-16)
+
+PolyStrata (github.com/simplexai-labs/PolyStrata at acd4613, MIT) is Strata (section 23) plus a second engine,
+`strata-poly`, for the other models. On a Mac that engine is "beta": its README measured Qwen3.6 only on an M5 Ultra,
+with no llama.cpp beside it. GLM 5.3 Flash and DeepSeek V4 Flash were never run on a Mac with their real weights.
+
+Built from source here (`cmake -S metal -DSTRATA_METAL_POLY=ON`, the same llama.cpp pin as Strata). It ran the app's
+own file directly (Unsloth UD-Q4_K_XL without the MTP block, 22.4 GB), so nothing was downloaded. Its server was given
+a tokenizer written by its `tools/strata_tokenizer.py`, a 64K context, and setup's default `--tail-skip 6`. The
+spec_bench tasks ran at temperature 0 on the M3 Max:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| llama.cpp, no drafting | 70.5 | 70.4 | 66.0 | 64.8 | 62.1 |
+| llama.cpp, ngram-mod (the app's setting) | 64.6 | 64.7 | 262.9 | 62.0 | 64.1 |
+| strata-poly, its defaults (lookup guesses, tail skip 6) | 57.1 | 58.1 | 93.7 | 55.9 | 60.8 |
+
+llama.cpp is faster at every task, and nearly three times as fast at changing code. The two were measured slightly
+differently: strata-poly's speed comes from the streamed tokens, first to last; llama.cpp's from its own timings.
+
+Not taken. Not measured:
+- PolyStrata with its own Qwen3.6 file with the MTP block (a 22.7 GB download);
+- the other families;
+- a Mac with less memory.
