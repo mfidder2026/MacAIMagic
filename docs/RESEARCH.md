@@ -1006,5 +1006,17 @@ Along the way, measured with a spinner on the Compare page:
 - the Compare page shows an hourglass instead of a spinner;
 - the cards use a fixed tint (`Theme.glass`) instead of `.ultraThinMaterial`. This one was not measured on its own.
 
-Not measured: a chat with GLM Compact. While a model writes in a chat, the text grows, a shimmer and the pulse ring run,
-and a spinner turns in the sidebar.
+A chat, measured afterwards with build 55f6a34 (a story of 400 words, thinking on high, M3 Max):
+
+| Model | Window visible | Window hidden |
+|---|---|---|
+| GLM-5.3-Flash Compact | 16.1 tok/s | 16.0 tok/s |
+| Qwen3.6-35B-A3B Q4 | 67.8 tok/s (709 tokens) | 76.9 tok/s (2,228 tokens) |
+
+The visible chat costs GLM Compact nothing. In a chat it writes slower than in Vergelijken because MTP guesses less
+well there: 31-37% of the guesses are accepted, against 62% in Vergelijken. A chat carries a 6.6K-token system prompt
+and the model thinks first. For Qwen3.6 the visible chat may cost up to ~12%, but the two answers differ in length.
+WindowServer took 104 ms/s while Qwen wrote.
+
+Note when reading `ioreg -c AGXDeviceUserClient`: the engine's GPU time appears under another process name
+(here `ThemeWidgetContr`, earlier `com.apple.appkit`), not under llama-server.
