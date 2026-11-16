@@ -1041,7 +1041,25 @@ spec_bench tasks ran at temperature 0 on the M3 Max:
 llama.cpp is faster at every task, and nearly three times as fast at changing code. The two were measured slightly
 differently: strata-poly's speed comes from the streamed tokens, first to last; llama.cpp's from its own timings.
 
-Not taken. Not measured:
-- PolyStrata with its own Qwen3.6 file with the MTP block (a 22.7 GB download);
+Then with PolyStrata's own file, on the owner's request: Unsloth's Qwen3.6-35B-A3B-MTP-GGUF UD-Q4_K_M at 5bc3e23
+(22.7 GB, SHA-256 as PolyStrata pins it). It carries the MTP block. Same tasks, same Mac:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| strata-poly, its defaults (MTP block, lookup, tail skip 6) | 61.2 | 73.5 | 88.0 | 61.9 | 75.1 |
+| llama.cpp, no drafting | 72.3 | 72.2 | 68.8 | 67.0 | 63.7 |
+| llama.cpp, ngram-mod (the app's setting today) | 66.6 | 66.8 | 259.7 | 65.1 | 65.3 |
+| llama.cpp, the MTP block 2 ahead + ngram-mod (the app's GLM setting) | **73.0** | **96.7** | **306.7** | **73.9** | **95.8** |
+
+strata-poly with MTP is still slower than llama.cpp at every task. The file is the find here. With its MTP block,
+llama.cpp writes Qwen3.6 faster than the app does today:
+- the story and the explanation about 10-14% faster;
+- code and thinking about 45% faster;
+- changing code 18% faster.
+
+The MTP guesses were accepted 46-58% of the time on the story and the explanation, 77-86% on code and thinking.
+
+Not measured:
+- the answers' quality: UD-Q4_K_M against the app's UD-Q4_K_XL, about the same size;
 - the other families;
 - a Mac with less memory.
