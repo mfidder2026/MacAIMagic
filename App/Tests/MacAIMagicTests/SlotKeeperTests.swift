@@ -285,7 +285,7 @@ final class SlotKeeperTests: XCTestCase {
         defer { (Settings.shared.mtp, Settings.shared.ngramMod) = saved }
         (Settings.shared.mtp, Settings.shared.ngramMod) = (true, true)
         let engine = EngineController(port: 1, slots: SlotKeeper(folder: dir))
-        let model = try XCTUnwrap(ModelCatalog.shared.model("qwen3.6-35b-a3b-heretic-q4"))
+        let model = try XCTUnwrap(ModelCatalog.shared.model("ministral-3-8b-q4"))
         XCTAssertFalse(model.hasMTP)
         func plan(physical: UInt64, cache: UInt64) -> MemoryPlan {
             MemoryPlan(physical: physical, gpuLimit: physical * 3 / 4, suggestedWiredLimitMB: 0, dense: 2 << 30, experts: 18 << 30,

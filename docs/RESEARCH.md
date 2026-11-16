@@ -1111,3 +1111,27 @@ The same speed, far less CPU on a model that fits (less heat and battery). The a
 
 The other findings of the survey (newer llama.cpp, models, other engines) are only listed, not measured; see the
 commit message of this change.
+
+## 28. Qwen3.6 Heretic with its MTP layer (2026-11-16)
+
+llmfan46 also publishes the Heretic with Qwen3.6's MTP layer kept:
+llmfan46/Qwen3.6-35B-A3B-uncensored-heretic-Native-MTP-Preserved-GGUF at fa96dc9, Q4_K_M, 21.8 GB, SHA-256 fc89d923…,
+checked against Hugging Face. It is the same author as the app's previous Heretic file. Measured on the M3 Max.
+
+**Quality.** Perplexity on the app's own README, RESEARCH.md and Dutch help (23 chunks of 2,048 tokens): 7.655 for the
+old Heretic, 7.657 for the new one (±0.13). The same.
+
+**Speed.** spec_bench tasks at temperature 0, tok/s:
+
+| | Story | Code | Changing code | Explanation | Thinking |
+|---|---|---|---|---|---|
+| old Heretic, ngram-mod (the app's setting until now) | 84.0 | 83.9 | 269.1 | 77.0 | 71.8 |
+| new Heretic, MTP 2 ahead + ngram-mod | 78.9 | 106.0 | 299.0 | 90.6 | 108.0 |
+
+Faster on code (+26%), explanations (+18%), thinking (+50%) and changing code (+11%). The story is 6% slower: only 40%
+of MTP's guesses were accepted there.
+
+Taken: the catalog's Heretic is now this file, with built-in MTP. Memory 21.77 GB, of which 1.74 GB dense; it still
+fits on 32 GB.
+
+Not measured: refusals (the author: 10/100, KL 0.0015), pictures, the built app.
