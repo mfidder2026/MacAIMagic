@@ -339,6 +339,16 @@ Open the app, choose a model under **Modellen** and press **Start**. Close large
 uses about 115–120 of the 128 GB. Optionally, press **Verhoog GPU-limiet** to let the GPU wire more memory. This runs
 `sysctl iogpu.wired_limit_mb`, asks for your password, and lasts until the next restart.
 
+### Portable: from a USB drive
+
+`MacAIMagic-Portable-<version>-macOS-arm64.zip` on the [Releases](https://github.com/mfidder2026/MacAIMagic/releases)
+page is the same app for a computer where nothing may be installed and documents must not leave the machine. Drag its
+folder to a USB drive (APFS or exFAT) and open **MacAIMagic Portable**. Everything (models, conversations, the work
+folder, documents, pictures, settings) goes into `MacAIMagic-data` next to the app. It starts offline: web search, the
+browser, Telegram and mail are off. After quitting it leaves no settings, caches or window state on the Mac, and it runs
+beside an installed MacAIMagic (its own settings, port 8090). The fastest drive is an NVMe SSD in a USB4/Thunderbolt
+enclosure. More in `LEESMIJ.txt` in the zip.
+
 ## Building from source
 
 ```sh

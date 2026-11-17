@@ -3,8 +3,11 @@ import Foundation
 /// Where MacAIMagic keeps its models, its engine and its conversations.
 enum Paths {
     static let appSupport: URL = {
+        // the portable build: everything on the drive, next to the app
+        if let root = Portable.dataRoot { return root }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("MacAIMagic", isDirectory: true)
+        // a portable app whose drive cannot be written keeps to a folder of its own, never an installed MacAIMagic's
+        let dir = base.appendingPathComponent(Portable.isActive ? "MacAIMagic Portable" : "MacAIMagic", isDirectory: true)
         // before 1.6 the app had another name: its folder (models, conversations, measurements) moves along once
         let former = base.appendingPathComponent("Mac" + "DeepSeek", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path), FileManager.default.fileExists(atPath: former.path) {
@@ -17,7 +20,7 @@ enum Paths {
     /// The version of the running app; nil when it runs from source, without a bundle.
     static var appVersion: String? {
         // (under the tests the bundle is the test runner's, with a version of its own)
-        guard Bundle.main.bundleIdentifier == "app.fremen.macaimagic" else { return nil }
+        guard Bundle.main.bundleIdentifier == "app.fremen.macaimagic" || Portable.isActive else { return nil }
         return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
     }
 
@@ -38,7 +41,8 @@ enum Paths {
     static var imageLog: URL { appSupport.appendingPathComponent("image.log") }
     /// ~/Pictures/MacAIMagic, where the images go; made when the first image is.
     static var picturesFolder: URL {
-        FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask)[0].appendingPathComponent("MacAIMagic", isDirectory: true)
+        if let root = Portable.dataRoot { return root.appendingPathComponent("Afbeeldingen", isDirectory: true) }
+        return FileManager.default.urls(for: .picturesDirectory, in: .userDomainMask)[0].appendingPathComponent("MacAIMagic", isDirectory: true)
     }
     /// The user's notes for the model in every conversation (a work folder can add its own MACAIMAGIC.md).
     static var generalNotes: URL {

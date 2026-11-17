@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             app?.documents.save()
             MCPManager.shared.stopAll()
         }
+        Portable.finish()
     }
 
     /// The window closed: the app stops, unless tasks or a heartbeat should go on; then it stays in the menu bar.

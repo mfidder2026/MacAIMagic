@@ -41,3 +41,20 @@ final class SkillSizeTests: XCTestCase {
         XCTAssertEqual(MemoryPlanner.contextRoom(index: idx, system: m, vision: false), 32_768)
     }
 }
+
+/// The portable build's folder and start values (the tests run as a normal app, so portable mode itself is off).
+final class PortableTests: XCTestCase {
+    func testTheDataFolderSitsNextToTheAppAndStartsOffline() {
+        XCTAssertFalse(Portable.isActive)
+        XCTAssertNil(Portable.dataRoot)
+        let app = URL(fileURLWithPath: "/Volumes/KINGSTON/MacAIMagic Portable/MacAIMagic Portable.app")
+        XCTAssertEqual(Portable.folder(nextTo: app).path, "/Volumes/KINGSTON/MacAIMagic Portable/MacAIMagic-data")
+        let d = Portable.startDefaults(root: URL(fileURLWithPath: "/Volumes/KINGSTON/x/MacAIMagic-data"))
+        for key in ["webSearch", "featureBrowser", "featureTelegram", "featureMail", "featureComputerUse", "heartbeat", "clusterAllowLAN"] {
+            XCTAssertEqual(d[key] as? Bool, false, key)
+        }
+        XCTAssertEqual(d["port"] as? Int, 8090, "beside an installed MacAIMagic on 8080")
+        XCTAssertEqual(d["workspace"] as? String, "/Volumes/KINGSTON/x/MacAIMagic-data/Werkmap")
+        XCTAssertEqual(Portable.original(app), app, "a path that is not translocated stays as it is")
+    }
+}

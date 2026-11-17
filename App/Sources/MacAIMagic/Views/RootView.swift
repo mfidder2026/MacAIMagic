@@ -102,6 +102,12 @@ struct Sidebar: View {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(L("MacAIMagic")).font(.system(.headline, design: .rounded).weight(.bold)).lineLimit(1).fixedSize()
                         if let version = Paths.appVersion { Text("v" + version).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                        // the portable build says where its data is: everything stays on that drive
+                        if Portable.isActive {
+                            Text(verbatim: "USB" + (Portable.volumeName.map { " · " + $0 } ?? ""))
+                                .font(.caption2.weight(.semibold)).foregroundStyle(Portable.dataRoot == nil ? Theme.amber : Theme.mint).lineLimit(1)
+                                .help(Portable.dataRoot?.path ?? (Portable.problem ?? ""))
+                        }
                     }
                     Text(app.selectedModel?.name ?? "").font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }

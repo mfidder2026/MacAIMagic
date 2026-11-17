@@ -1,0 +1,51 @@
+MacAIMagic Portable — MacAIMagic vanaf een USB-schijf
+====================================================
+
+Wat het is
+- Dezelfde MacAIMagic, maar hij installeert niets en houdt alles op de USB-schijf: in de map
+  "MacAIMagic-data" naast de app staan je modellen, gesprekken, werkmap, documenten, afbeeldingen
+  en instellingen.
+- Hij begint offline: webzoeken, de browser, Telegram en mail staan uit. Je documenten en vragen gaan
+  niet naar internet. Zet je zelf iets aan, dan geldt dat alleen voor deze USB-schijf.
+- Na afsluiten laat hij op de Mac geen instellingen, caches of vensterstand achter.
+- Hij draait naast een geïnstalleerde MacAIMagic zonder die te storen (eigen instellingen, eigen poort 8090).
+
+De USB-schijf
+- Formaat: APFS (alleen Mac) of exFAT (Mac en Windows). Beide getest.
+- Het snelst: een NVMe-SSD in een USB4/Thunderbolt-behuizing. Een gewone USB-stick werkt ook,
+  maar het laden van een model duurt dan minuten in plaats van seconden.
+
+Zo zet je hem klaar
+1. Pak de zip uit en sleep de map "MacAIMagic Portable" naar de USB-schijf.
+2. Dubbelklik op "MacAIMagic Portable". macOS vraagt één keer of je een app van internet wilt openen:
+   kies Open. De map "MacAIMagic-data" verschijnt naast de app. Linksboven staat "USB · <naam schijf>" in groen.
+   Staat het in oranje, dan kon de app niet op de schijf schrijven (alleen-lezen, of de app draait uit een
+   tijdelijke kopie van macOS): sluit af, sleep de map opnieuw met Finder naar de schijf en open hem daar.
+3. Een model: open Modellen en download het; het komt op de USB-schijf. Of kopieer een modelmap van een
+   Mac waar MacAIMagic al staat: van ~/Library/Application Support/MacAIMagic/models/<model> naar
+   MacAIMagic-data/models/<model>, met de .ok-bestanden erbij (dan hoeft er niets gecontroleerd of
+   gedownload te worden).
+   Welk model: Mac met 16 GB → Ministral-3-8B; 32 GB → Qwen3.6-35B-A3B; meer → wat de app aanraadt.
+
+Werken
+- De werkmap staat in MacAIMagic-data/Werkmap. Je kunt ook een map op de Mac zelf kiezen (de knop met de
+  map boven het gesprek): dan blijven die bestanden op de Mac waar ze staan.
+- Trek de schijf er niet uit terwijl de app draait. Sluit eerst af (Cmd-Q).
+
+Wat wel achterblijft op de Mac
+- Wat macOS zelf bijhoudt: het wisselbestand (versleuteld), de systeemlogboeken en eventuele
+  toestemmingen die je geeft (microfoon, een map). De inhoud van je gesprekken en documenten staat
+  alleen op de USB-schijf, of in de map op de Mac die je zelf kiest.
+
+---
+
+MacAIMagic Portable — MacAIMagic from a USB drive (English)
+- Nothing is installed: models, conversations, the work folder, documents, pictures and settings live in
+  "MacAIMagic-data" next to the app on the drive.
+- It starts offline: web search, the browser, Telegram and mail are off.
+- After quitting it leaves no settings, caches or window state on the Mac. It runs beside an installed
+  MacAIMagic (its own settings, port 8090).
+- Drive: APFS or exFAT; fastest is an NVMe SSD in a USB4/Thunderbolt enclosure.
+- Setup: unzip, drag the "MacAIMagic Portable" folder to the drive, double-click the app (choose Open once),
+  then download a model under Models or copy a model folder (with its .ok files) into MacAIMagic-data/models.
+- Quit (Cmd-Q) before you unplug the drive.

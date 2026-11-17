@@ -4,7 +4,9 @@ import SwiftUI
 /// User settings, kept in UserDefaults.
 final class Settings: ObservableObject {
     static let shared: Settings = {
-        carryOverFormerSettings()
+        Portable.start()   // a portable start reads its settings from the drive first
+        // (not portable: it would take this Mac's settings from before 1.6, such as the rights to write and run)
+        if !Portable.isActive { carryOverFormerSettings() }
         return Settings()
     }()
 

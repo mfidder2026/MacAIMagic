@@ -1,6 +1,6 @@
-# MacAIMagic 1.14.15 (macOS, Apple Silicon)
+# MacAIMagic 1.14.16 (macOS, Apple Silicon)
 
-`MacAIMagic-1.14.15-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
+`MacAIMagic-1.14.16-macOS-arm64.zip` contains the app with the engine built in (llama.cpp with Metal and the
 MacAIMagic patches). The models are **not** included: see [Installation](../README.md#installation) for how to download them.
 
 1. Unzip the download and move `MacAIMagic.app` to `/Applications`. The build is signed with a Developer ID and notarized by Apple, so it opens without a warning. Or install from Terminal:
@@ -9,9 +9,12 @@ MacAIMagic patches). The models are **not** included: see [Installation](../READ
    ```
 2. Open **Modellen**, download a model (or choose the folder that holds your models under Modelmap → **Kies map…**), then press **Start**.
 
-Check the download: `shasum -a 256 -c MacAIMagic-1.14.15-macOS-arm64.zip.sha256`
+Check the download: `shasum -a 256 -c MacAIMagic-1.14.16-macOS-arm64.zip.sha256`
 
 Runs on every Apple Silicon Mac (M1 and later) with macOS 14 or later. Every model runs: what does not fit in memory streams from the SSD, and the app recommends the one that fits (32 GB: Qwen3.6-35B-A3B, 16 GB: Ministral-3-8B, 8 GB: Ling-3.0-tiny). As a cluster helper any amount of memory helps.
+
+New in 1.14.16:
+- **MacAIMagic Portable: from a USB drive.** A second download, `MacAIMagic-Portable-1.14.16-macOS-arm64.zip`, for a computer where nothing may be installed and documents must not leave the machine. Drag its folder to a USB drive (APFS or exFAT, both tested) and open **MacAIMagic Portable**. Everything (models, conversations, the work folder, documents, pictures, settings) goes into `MacAIMagic-data` next to the app; the window says "USB · <drive>". It starts offline: web search, the browser, Telegram and mail are off. After quitting it leaves no settings, caches or window state on the Mac (checked: nothing in ~/Library), and it runs beside an installed MacAIMagic with its own settings and port 8090. Instructions in `LEESMIJ.txt` in the zip.
 
 New in 1.14.15:
 - **Qwen3.6 on a Mac with 32 GB answers again.** Since 1.14.14 (the file with the MTP layer) the app gave such a Mac only 24K of context, because it overestimated Qwen3.6's conversation memory (32,000 bytes per token; the engine uses 20,480 plus 2,048 for MTP). A question with a large skill was then refused ("request exceeds the available context size"). It is 32K again.

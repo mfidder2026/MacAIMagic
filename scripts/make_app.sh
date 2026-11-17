@@ -1,9 +1,16 @@
 #!/bin/bash
 # Build MacAIMagic.app: the SwiftUI app + the engine binaries + the download script, ad-hoc signed.
 # Output: dist/MacAIMagic.app
+# PORTABLE=1: dist/portable/MacAIMagic Portable.app, the same program with its own bundle id; it keeps everything in a
+# folder MacAIMagic-data next to itself on a USB drive and starts offline (App/Sources/MacAIMagic/Support/Portable.swift).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$ROOT/dist/MacAIMagic.app"
+if [ "${PORTABLE:-0}" = "1" ]; then
+  NAME="MacAIMagic Portable"; BUNDLE_ID="app.fremen.macaimagic.portable"; APP="$ROOT/dist/portable/MacAIMagic Portable.app"
+  PORTABLE_KEY="<key>MacAIMagicPortable</key><true/>"
+else
+  NAME="MacAIMagic"; BUNDLE_ID="app.fremen.macaimagic"; APP="$ROOT/dist/MacAIMagic.app"; PORTABLE_KEY=""
+fi
 
 cd "$ROOT/App"
 swift build -c release --arch arm64
@@ -38,14 +45,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>MacAIMagic</string>
-  <key>CFBundleDisplayName</key><string>MacAIMagic</string>
-  <key>CFBundleIdentifier</key><string>app.fremen.macaimagic</string>
+  <key>CFBundleName</key><string>$NAME</string>
+  <key>CFBundleDisplayName</key><string>$NAME</string>
+  <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
+  $PORTABLE_KEY
   <key>CFBundleExecutable</key><string>MacAIMagic</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.14.15</string>
-  <key>CFBundleVersion</key><string>52</string>
+  <key>CFBundleShortVersionString</key><string>1.14.16</string>
+  <key>CFBundleVersion</key><string>53</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
   <key>NSHighResolutionCapable</key><true/>
@@ -91,5 +99,5 @@ fi
 # The app was built in place: a Finder window on dist/ saw the bundle before its icon was in it and keeps showing the
 # blank placeholder. A new date on the bundle and a fresh registration make Finder and the Dock read the icon again.
 touch "$APP"
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
+[ "${PORTABLE:-0}" = "1" ] || /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP" || true
 echo "klaar: $APP"

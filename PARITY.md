@@ -150,6 +150,35 @@ Mac-tests om in Windows-vorm over te nemen · Mac tests to take over in Windows 
 - [ ] **Telegram-spraakberichten**: Ogg/Opus naar tekst (op Windows met Media Foundation of een kleine Opus-decoder), terugmelden als "🎙 …" en dan als vraag.
 - [ ] Tests: `ComputerToolsTests` (toetsen, de nooit-lijst), `VoiceTests`, en de Telegram-test met een spraakbericht.
 
+## 11. Draagbaar vanaf USB · Portable from USB (MacAIMagic 1.14.16)
+
+De eigenaar wil op een werklaptop werken waar niets geïnstalleerd mag worden en geen cloud-AI gebruikt mag worden:
+de app draait van een USB-schijf en de documenten blijven op de laptop zelf. Op de Mac gebouwd in 1.14.16
+(`Support/Portable.swift`, `scripts/make_app.sh PORTABLE=1`, `RELEASE/portable/LEESMIJ.txt`).
+The owner wants to work on a work laptop where nothing may be installed and no cloud AI may be used: the app runs from
+a USB drive and the documents stay on the laptop itself. Built on the Mac in 1.14.16.
+
+- [ ] **Een draagbare build · a portable build**: een zip met een map `WinAIMagic Portable` (de app zonder installatieprogramma,
+  zonder beheerdersrechten) die vanaf de USB-schijf start. Op Windows: een "portable" vlag in de build (bijv. een bestand
+  `portable.flag` naast de exe of een eigen assembly-attribuut), geen registersleutels, geen Startmenu, geen autostart.
+- [ ] **Alles naast de app · everything next to the app**: een map `WinAIMagic-data` naast de exe voor modellen,
+  gesprekken, het gespreksgeheugen van de engine, werkmap (`Werkmap`), documenten (`Documenten`), afbeeldingen
+  (`Afbeeldingen`), skills, logboeken en de instellingen (een bestand op de schijf, niet in `%LOCALAPPDATA%` of het register).
+  Kan de map niet geschreven worden: terugvallen op de normale map en dat in het venster zeggen.
+- [ ] **Offline bij de start · offline at start**: webzoeken, browser, Telegram, mail, apps besturen, heartbeat en het
+  clusternetwerk standaard uit; de gebruiker kan ze zelf aanzetten (dat blijft dan op de USB-schijf).
+- [ ] **Naast een geïnstalleerde versie · beside an installed one**: eigen instellingen en een eigen poort (de Mac: 8090
+  in plaats van 8080; de documentmotor +1). Geen oude instellingen overnemen (de Mac nam per ongeluk die van vóór 1.6 over).
+- [ ] **Geen sporen · no traces**: na afsluiten geen instellingen, caches of vensterstand op de pc. Op de Mac schreef AppKit
+  na afsluiten de instellingen terug; een klein proces wacht tot de app weg is en ruimt dan op. Op Windows: let op
+  WebView2-gegevens, `%TEMP%`, de jump list en recente bestanden.
+- [ ] **In het venster · in the window**: "USB · <naam schijf>" naast de versie; met de muis erop het pad.
+- [ ] **De engine vanaf de schijf · the engine from the drive**: llama.cpp `--no-mmap` overwegen op een trage schijf
+  (laadt één keer helemaal in, daarna is de schijf geen rem en crasht niets als hij eruit gaat). Getest op de Mac met
+  APFS en exFAT; op Windows exFAT en NTFS testen. Let op: veel organisaties blokkeren niet-ondertekende programma's vanaf
+  USB (Defender ASR); de exe en de engines ondertekenen.
+- [ ] Tests: zoals `PortableTests` (de map naast de app, de offline startwaarden, de poort).
+
 ## Later (fase 4–6) · Later (phases 4–6)
 
 Nog niet gebouwd; elke fase krijgt een eigen plan en een eigen stuk in dit bestand.

@@ -92,8 +92,8 @@ final class DocumentStudio: ObservableObject {
     /// `folder`: open this project now. Without it the project opens with the module: macOS asks permission for a
     /// folder such as Documents, and that must not happen at the start of the app.
     init(folder: URL? = nil, root: URL? = nil) {
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        self.root = root ?? documents.appendingPathComponent("MacAIMagic", isDirectory: true)
+        let documents = Portable.dataRoot ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        self.root = root ?? documents.appendingPathComponent(Portable.dataRoot == nil ? "MacAIMagic" : "Documenten", isDirectory: true)
         self.folder = folder ?? Self.lastFolder() ?? self.root.appendingPathComponent(L("Mijn project"), isDirectory: true)
         projects = Settings.shared.documentProjects.split(separator: "\n").map { URL(fileURLWithPath: String($0), isDirectory: true) }
         if folder != nil { load() }
